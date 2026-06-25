@@ -764,7 +764,7 @@ tr:last-child td{border-bottom:none}
   <div class="mt"><i class="ti ti-shield" style="color:var(--acc4)"></i>Editar usuario y permisos</div>
   <input type="hidden" id="edit-user-idx">
   <div class="fr"><div class="fg"><label class="fgrp-label">Nombre</label><input class="finput" id="eu-nm"></div><div class="fg"><label class="fgrp-label">Rol</label><select class="finput" id="eu-rol"><option value="vendedor">Vendedor</option><option value="auxiliar">Auxiliar</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select></div></div>
-  <div class="fr"><div class="fg"><label class="fgrp-label">Nueva contraseña</label><input class="finput" type="password" id="eu-pass" placeholder="Dejar vacío para no cambiar"></div><div class="fg"><label class="fgrp-label">Turno</label><select class="finput" id="eu-turno"><option>Mañana (7am-2pm)</option><option>Tarde (2pm-9pm)</option><option>Completo</option><option>Variable</option></select></div></div>
+  <div class="fr"><div class="fg"><label class="fgrp-label">Usuario (@)</label><input class="finput" id="eu-user" placeholder="nombre.apellido"></div><div class="fg"><label class="fgrp-label">Nueva contraseña</label><input class="finput" type="password" id="eu-pass" placeholder="Dejar vacío para no cambiar"></div></div>
   <div style="background:var(--bg3);border-radius:9px;padding:12px;margin-top:6px">
     <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px;font-family:var(--font-head)">Permisos</div>
     <div id="perms-edit"></div>
@@ -1298,7 +1298,8 @@ function editUser(idx){
   document.getElementById('edit-user-idx').value=idx;
   document.getElementById('eu-nm').value=u.name;
   document.getElementById('eu-rol').value=u.role;
-  document.getElementById('eu-turno').value=u.turno;
+  var turnoEl=document.getElementById('eu-turno');if(turnoEl)turnoEl.value=u.turno;
+  document.getElementById('eu-user').value=u.user||'';
   document.getElementById('eu-pass').value='';
   document.getElementById('eu-toggle-lbl').textContent=u.active?'Desactivar':'Activar';
   renderPermsForm('perms-edit',u.perms);
@@ -1310,11 +1311,14 @@ function guardarEditUser(){
   const u=systemUsers[idx];if(!u)return;
   u.name=document.getElementById('eu-nm').value.trim()||u.name;
   u.role=document.getElementById('eu-rol').value;
-  u.turno=document.getElementById('eu-turno').value;
+  var turnoEl=document.getElementById('eu-turno');if(turnoEl)u.turno=turnoEl.value;
+  var newUser=document.getElementById('eu-user').value.trim().toLowerCase();
+  if(newUser) u.user=newUser;
   const newPass=document.getElementById('eu-pass').value;
   if(newPass)u.pass=newPass;
   u.perms=u.role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-edit');
   u.initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  LS.set('users',systemUsers);
   logAction('admin',`Editó usuario ${u.name}`);
   closeM('edituser');renderUsers();renderUserPills();
   toast('Usuario actualizado ✓');
