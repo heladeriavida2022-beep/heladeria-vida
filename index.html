@@ -385,9 +385,10 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- ══════════════════════════════════
-     APP SHELL
-══════════════════════════════════ -->
+<!-- BOTÓN REINICIO FIJO — solo visible para admin -->
+<div id="btn-reinicio-fijo" style="display:none;position:fixed;bottom:60px;left:14px;z-index:9998">
+  <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:11px;box-shadow:0 2px 10px rgba(233,69,96,.4)">🗑️ Reiniciar registros</button>
+</div>
 <div id="appShell">
 
   <!-- TOP NAV -->
@@ -1080,7 +1081,11 @@ function showApp(){
   if(_av2&&currentUser){_av2.textContent=currentUser.initials||'?';_av2.style.background=currentUser.color||'linear-gradient(135deg,#f4845f,#9b72cf)';}
   if(_nm2&&currentUser)_nm2.textContent=currentUser.name;
   if(_rl2&&currentUser)_rl2.textContent=currentUser.role==='admin'?'Administrador':'Vendedor';
-  if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);}
+  if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);
+    // Mostrar botón reinicio solo para admin
+    var btnR=document.getElementById('btn-reinicio-fijo');
+    if(btnR&&currentUser.role==='admin') btnR.style.display='block';
+  }
   else{topNav('pos',document.getElementById('tnav-pos'));renderPOS();}
 }
 
