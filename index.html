@@ -515,7 +515,7 @@ tr:last-child td{border-bottom:none}
         <div class="page-bar" style="padding:8px 14px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
             <div style="position:relative"><i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:26px;width:160px;font-size:12px;padding-top:6px;padding-bottom:6px"></div>
-            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
+            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="PARA LLEVAR">🥡 Para Llevar</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-acc btn-sm" id="mode-mostrador" onclick="setPOSMode('mostrador')"><i class="ti ti-building-store"></i> Mostrador</button>
@@ -650,6 +650,7 @@ tr:last-child td{border-bottom:none}
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="inv-pills">
               <button class="inv-cat-btn active" data-cat="ALL" onclick="setInvCat('ALL',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--acc);background:var(--acc);color:#fff;font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">🛒 Todos</button>
               <button class="inv-cat-btn" data-cat="PREPARADOS" onclick="setInvCat('PREPARADOS',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">🍧 Preparados</button>
+              <button class="inv-cat-btn" data-cat="PARA LLEVAR" onclick="setInvCat('PARA LLEVAR',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">🥡 Para Llevar</button>
               <button class="inv-cat-btn" data-cat="EMPAQUETADOS" onclick="setInvCat('EMPAQUETADOS',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">📦 Empaquetados</button>
               <button class="inv-cat-btn" data-cat="DULCERIA" onclick="setInvCat('DULCERIA',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">🍬 Dulcería</button>
               <button class="inv-cat-btn" data-cat="NEVERA" onclick="setInvCat('NEVERA',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--border);background:var(--bg3);color:var(--text2);font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">❄️ Nevera</button>
@@ -931,8 +932,8 @@ var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
 let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];
 
-const CC={PREPARADOS:'var(--cp)',EMPAQUETADOS:'var(--ce)',DULCERIA:'var(--cd)',NEVERA:'var(--cn)',ADICIONAL:'var(--ca)',DESECHABLES:'var(--cdes)'};
-const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',ADICIONAL:'✨',DESECHABLES:'🧴'};
+const CC={PREPARADOS:'var(--cp)',EMPAQUETADOS:'var(--ce)',DULCERIA:'var(--cd)',NEVERA:'var(--cn)',ADICIONAL:'var(--ca)',DESECHABLES:'var(--cdes)','PARA LLEVAR':'#e67e22'};
+const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',ADICIONAL:'✨',DESECHABLES:'🧴','PARA LLEVAR':'🥡'};
 
 let prods=[
   ...[
@@ -959,6 +960,31 @@ let prods=[
     {n:"CREMA DE LECHE",p:0,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"FRUTAS SIN HELADO",p:0,ins:'CONTENEDOR 16 OZ'},
     {n:"BANANA PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'}
   ].map((x,i)=>({id:i+1,name:x.n,cat:'PREPARADOS',emoji:'🍧',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
+
+  // ── PARA LLEVAR: mismos preparados, cada uno descuenta su desechable ──
+  ...[
+    {n:"SALPICON PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"CONO EN VASO PARA LLEVAR",p:4500,ins:'VASO 14 OZ'},
+    {n:"FRESAS CON CREMA PARA LLEVAR",p:14000,ins:'SOBRE COPA DOMO'},{n:"TAMARINDO MICHELADO PARA LLEVAR",p:5000,ins:'VASO 14 OZ'},
+    {n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:'CONTENEDOR 16 OZ'},
+    {n:"BANANA SPLIT PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'},{n:"SUNDAE PARA LLEVAR",p:12000,ins:'SOBRE COPA DOMO'},
+    {n:"COPA FANTASY PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"MALTEADA PARA LLEVAR",p:14000,ins:'VASO 14 OZ'},
+    {n:"FUSION DE OREO PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"MALTEADA DE CERVEZA PARA LLEVAR",p:16000,ins:'VASO 14 OZ'},
+    {n:"EXPLOSION DE CHOCOLATE PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"BREVAS CON CREMA PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},
+    {n:"COPA VESUBIO PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},{n:"GOLOSA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},
+    {n:"LLUVIA DE OREO PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"COPA ENCANTO PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},
+    {n:"COPA DELIZZIA PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},{n:"MALTEADA ESPECIAL PARA LLEVAR",p:20000,ins:'VASO 14 OZ'},
+    {n:"COPA DESEO PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},{n:"BROWNIE CALIENTE PARA LLEVAR",p:14000,ins:'CONTENEDOR 16 OZ'},
+    {n:"COPA MELODY PARA LLEVAR",p:14000,ins:'CONTENEDOR 16 OZ'},{n:"CAFE OPERA PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},
+    {n:"COPA CHOCOLATIN PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"COPA PLACER PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},
+    {n:"COPA TENTACION PARA LLEVAR",p:18000,ins:'CONTENEDOR 16 OZ'},{n:"WAFLES PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},
+    {n:"TORMENTA DE HELADO PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"COPA GELATIN PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},
+    {n:"GUSANITO PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},{n:"PAYASITO PARA LLEVAR",p:12000,ins:'CONTENEDOR 16 OZ'},
+    {n:"ABEJITA PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},{n:"MUÑECO DE NIEVE PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},
+    {n:"OSITO PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},{n:"RATONSITO PARA LLEVAR",p:9000,ins:'CONTENEDOR 16 OZ'},
+    {n:"MICHELADA PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA CEREZADA PARA LLEVAR",p:12000,ins:'VASO 14 OZ'},
+    {n:"JUGO EN LECHE PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA DE COCO PARA LLEVAR",p:12000,ins:'VASO 14 OZ'},
+    {n:"JUGO EN AGUA PARA LLEVAR",p:6000,ins:'VASO 14 OZ'}
+  ].map((x,i)=>({id:700+i,name:x.n,cat:'PARA LLEVAR',emoji:'🥡',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
   ...[
     {n:"PALETAS PARA PERROS",s:23},
     {n:"PALETA ALOHA EN AGUA",s:14},
