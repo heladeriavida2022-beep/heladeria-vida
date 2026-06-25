@@ -378,7 +378,7 @@ tr:last-child td{border-bottom:none}
       <i class="ti ti-login" style="font-size:15px;margin-right:4px"></i>Ingresar al sistema
     </button>
 
-    <div class="login-users-hint">
+    <div class="login-users-hint" style="display:none">
       <div class="luh-title">Acceso rápido (demo)</div>
       <div id="userPills"></div>
     </div>
@@ -1028,18 +1028,18 @@ function togglePass(){
 }
 
 function renderUserPills(){
+  // Acceso rápido deshabilitado — todos deben ingresar usuario y contraseña
   const el=document.getElementById('userPills');
-  el.innerHTML=systemUsers.filter(u=>u.active).map(u=>`
-    <div class="user-pill" onclick="quickLogin('${u.user}','${u.pass}')">
-      <div class="user-pill-av" style="background:${u.color};color:#fff">${u.initials}</div>
-      <span>${u.name} <span style="opacity:.5">(${ROLE_LABELS[u.role]})</span></span>
-    </div>`).join('');
+  if(el) el.style.display='none';
+  const sec=document.getElementById('quick-access-section');
+  if(sec) sec.style.display='none';
 }
 
 function quickLogin(user, pass){
+  // Deshabilitado por seguridad — solo llenar el campo de usuario
   document.getElementById('loginUser').value=user;
-  document.getElementById('loginPass').value=pass;
-  doLogin();
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginPass').focus();
 }
 
 function doLogin(){
