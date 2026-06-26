@@ -1571,7 +1571,8 @@ function confirmarReinicio(){
   try{updateBadges();}catch(e){}
   toast('✅ Registros borrados. Sistema listo para empezar desde cero.','#3aaa6a');
 }
-  if(!cartItems.length){toast('Agrega productos','var(--acc)');return;}
+
+function confirmarVenta(){
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
   var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
   var mesaSel=document.getElementById('pos-mesa-sel');
