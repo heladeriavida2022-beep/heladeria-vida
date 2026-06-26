@@ -385,10 +385,9 @@ tr:last-child td{border-bottom:none}
   </div>
 </div>
 
-<!-- BOTÓN REINICIO FIJO — solo visible para admin -->
-<div id="btn-reinicio-fijo" style="display:none;position:fixed;bottom:60px;left:14px;z-index:9998">
-  <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:8px 14px;border-radius:10px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:11px;box-shadow:0 2px 10px rgba(233,69,96,.4)">🗑️ Reiniciar registros</button>
-</div>
+<!-- ══════════════════════════════════
+     APP SHELL
+══════════════════════════════════ -->
 <div id="appShell">
 
   <!-- TOP NAV -->
@@ -570,12 +569,6 @@ tr:last-child td{border-bottom:none}
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Últimas ventas</div><div class="tw"><table><thead><tr><th>Hora</th><th>Producto</th><th>Empleado</th><th>Total</th></tr></thead><tbody id="dash-sales-tbl"></tbody></table></div></div>
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Inventario crítico</div><div id="dash-inv"></div></div>
             </div>
-            <!-- ZONA REINICIO -->
-            <div style="margin-top:20px;padding:16px;border:2px dashed #e94560;border-radius:12px;background:#fff5f5">
-              <div style="font-size:13px;font-weight:700;color:#e94560;margin-bottom:6px">⚠️ Zona de reinicio</div>
-              <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Borra ventas, gastos, compras, caja, pedidos y deudas. <b>Conserva</b> productos, usuarios, proveedores e inventario.</div>
-              <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:12px"><i class="ti ti-trash"></i> Reiniciar registros para empezar desde cero</button>
-            </div>
           </div>
 
           <!-- ESTADÍSTICAS -->
@@ -692,11 +685,6 @@ tr:last-child td{border-bottom:none}
           <div class="adm-view" id="adv-usuarios" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('usuario')"><i class="ti ti-user-plus"></i> Crear usuario</button></div>
             <div id="user-list"></div>
-            <div style="margin-top:32px;padding:16px;border:2px dashed #e94560;border-radius:12px;background:#fff5f5;max-width:500px">
-              <div style="font-size:13px;font-weight:700;color:#e94560;margin-bottom:6px">⚠️ Zona de reinicio</div>
-              <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Borra ventas, gastos, compras, caja y pedidos. <b>Conserva</b> productos, usuarios, proveedores e inventario.</div>
-              <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:12px"><i class="ti ti-trash"></i> Reiniciar registros para empezar desde cero</button>
-            </div>
           </div>
 
           <!-- ASISTENTE IA -->
@@ -776,7 +764,7 @@ tr:last-child td{border-bottom:none}
   <div class="mt"><i class="ti ti-shield" style="color:var(--acc4)"></i>Editar usuario y permisos</div>
   <input type="hidden" id="edit-user-idx">
   <div class="fr"><div class="fg"><label class="fgrp-label">Nombre</label><input class="finput" id="eu-nm"></div><div class="fg"><label class="fgrp-label">Rol</label><select class="finput" id="eu-rol"><option value="vendedor">Vendedor</option><option value="auxiliar">Auxiliar</option><option value="supervisor">Supervisor</option><option value="admin">Administrador</option></select></div></div>
-  <div class="fr"><div class="fg"><label class="fgrp-label">Usuario (@)</label><input class="finput" id="eu-user" placeholder="nombre.apellido"></div><div class="fg"><label class="fgrp-label">Nueva contraseña</label><input class="finput" type="password" id="eu-pass" placeholder="Dejar vacío para no cambiar"></div></div>
+  <div class="fr"><div class="fg"><label class="fgrp-label">Nueva contraseña</label><input class="finput" type="password" id="eu-pass" placeholder="Dejar vacío para no cambiar"></div><div class="fg"><label class="fgrp-label">Turno</label><select class="finput" id="eu-turno"><option>Mañana (7am-2pm)</option><option>Tarde (2pm-9pm)</option><option>Completo</option><option>Variable</option></select></div></div>
   <div style="background:var(--bg3);border-radius:9px;padding:12px;margin-top:6px">
     <div style="font-size:10px;font-weight:700;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;margin-bottom:10px;font-family:var(--font-head)">Permisos</div>
     <div id="perms-edit"></div>
@@ -1055,22 +1043,14 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
+  var _su=LS.g('users');if(_su&&_su.length>0)systemUsers=_su;else{systemUsers=LS._def().users;LS.set('users',systemUsers);}
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
-  const pass=document.getElementById('loginPass').value.trim();
-  const errEl=document.getElementById('loginError');
-  const errMsg=document.getElementById('loginErrorMsg');
+  const pass=document.getElementById('loginPass').value;
+  const errEl=document.getElementById('loginError');const errMsg=document.getElementById('loginErrorMsg');
   errEl.classList.remove('show');
-  // Admin directo
-  if((user===''||user==='viviana.rojas'||user==='admin')||(pass===''||pass==='1112465394'||pass==='admin')){
-    currentUser={id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'1112465394',active:true,turno:'Completo',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'};
-    showApp();
-    return;
-  }
-  var _su=LS.g('users');
-  if(_su&&_su.length>0) systemUsers=_su;
-  const found=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user&&u.pass===pass&&u.active);
-  if(!found){errMsg.textContent='Usuario o contraseña incorrectos';errEl.classList.add('show');document.getElementById('loginPass').value='';return;}
-  currentUser=found;showApp();
+  const found=systemUsers.find(u=>u.user.toLowerCase()===user&&u.pass===pass&&u.active);
+  if(!found){errMsg.textContent=systemUsers.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';errEl.classList.add('show');document.getElementById('loginPass').value='';return;}
+  currentUser=found;logAction('login','Ingresó al sistema');showApp();
 }
 
 function showApp(){
@@ -1089,11 +1069,7 @@ function showApp(){
   if(_av2&&currentUser){_av2.textContent=currentUser.initials||'?';_av2.style.background=currentUser.color||'linear-gradient(135deg,#f4845f,#9b72cf)';}
   if(_nm2&&currentUser)_nm2.textContent=currentUser.name;
   if(_rl2&&currentUser)_rl2.textContent=currentUser.role==='admin'?'Administrador':'Vendedor';
-  if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);
-    // Mostrar botón reinicio solo para admin
-    var btnR=document.getElementById('btn-reinicio-fijo');
-    if(btnR&&currentUser.role==='admin') btnR.style.display='block';
-  }
+  if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);}
   else{topNav('pos',document.getElementById('tnav-pos'));renderPOS();}
 }
 
@@ -1322,8 +1298,7 @@ function editUser(idx){
   document.getElementById('edit-user-idx').value=idx;
   document.getElementById('eu-nm').value=u.name;
   document.getElementById('eu-rol').value=u.role;
-  var turnoEl=document.getElementById('eu-turno');if(turnoEl)turnoEl.value=u.turno;
-  document.getElementById('eu-user').value=u.user||'';
+  document.getElementById('eu-turno').value=u.turno;
   document.getElementById('eu-pass').value='';
   document.getElementById('eu-toggle-lbl').textContent=u.active?'Desactivar':'Activar';
   renderPermsForm('perms-edit',u.perms);
@@ -1335,14 +1310,11 @@ function guardarEditUser(){
   const u=systemUsers[idx];if(!u)return;
   u.name=document.getElementById('eu-nm').value.trim()||u.name;
   u.role=document.getElementById('eu-rol').value;
-  var turnoEl=document.getElementById('eu-turno');if(turnoEl)u.turno=turnoEl.value;
-  var newUser=document.getElementById('eu-user').value.trim().toLowerCase();
-  if(newUser) u.user=newUser;
+  u.turno=document.getElementById('eu-turno').value;
   const newPass=document.getElementById('eu-pass').value;
   if(newPass)u.pass=newPass;
   u.perms=u.role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-edit');
   u.initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  LS.set('users',systemUsers);
   logAction('admin',`Editó usuario ${u.name}`);
   closeM('edituser');renderUsers();renderUserPills();
   toast('Usuario actualizado ✓');
@@ -1518,41 +1490,7 @@ function renderCart(){
     <div class="ci-price">${i.price>0?fmt(i.price*i.qty):'—'}</div></div>`).join('');
   if(t)t.textContent=fmt(cartItems.reduce((s,i)=>s+(i.price*i.qty),0));
 }
-function confirmarReinicio(){
-  if(currentUser.role!=='admin'){toast('Solo el administrador puede hacer esto','#e94560');return;}
-  if(!confirm('⚠️ ¿Estás segura?\n\nSe borrarán:\n- Todas las ventas\n- Todos los gastos\n- Todas las compras\n- Movimientos de caja\n- Pedidos\n- Deudas\n\nSe CONSERVAN:\n- Productos e inventario\n- Usuarios\n- Proveedores\n\nEsta acción no se puede deshacer.')) return;
-  if(!confirm('Segunda confirmación: ¿Confirmas que quieres borrar todos los registros?')) return;
-
-  // Limpiar datos locales
-  sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];
-  LS.set('sales',[]);
-  LS.set('purchases',[]);
-  LS.set('orders',[]);
-  LS.set('movCaja',[]);
-  LS.set('cierresTurno',[]);
-  LS.set('deudas',[]);
-  LS.set('gastos',[]);
-  LS.set('trazLog',[]);
-  LS.set('orderCounter',100);
-  orderCounter=100;
-
-  // Limpiar en Firebase
-  if(typeof window.FB !== 'undefined'){
-    ['ventas','compras','caja','pedidos','deudas'].forEach(async col=>{
-      try{
-        const {getDocs,collection,deleteDoc,doc}=await import("https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js");
-        // No podemos borrar directo sin db — marcamos con flag
-      }catch(e){}
-    });
-    // Guardar colecciones vacías con un documento especial
-    window.FB.set('_control','reinicio',{fecha:new Date().toISOString(),por:currentUser.name});
-  }
-
-  logAction('admin','Reinició todos los registros','Ventas, compras, gastos, caja, pedidos y deudas borrados');
-  try{renderDash();}catch(e){}
-  try{updateBadges();}catch(e){}
-  toast('✅ Registros reiniciados. Sistema listo para empezar desde cero.','#3aaa6a');
-}
+function confirmarVenta(){
   if(!cartItems.length){toast('Agrega productos','var(--acc)');return;}
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
   var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
@@ -2226,28 +2164,353 @@ const dc=document.createElement('div');dc.className='date-chip';dc.style.cssText
 </script>
 
 
-<!-- ══ FIREBASE DESACTIVADO TEMPORALMENTE ══ -->
-<script>
-// Firebase desactivado - sistema funciona con datos locales
-window.FB = {
-  set: function(){},
-  del: function(){},
-  sync: function(){},
-  saveSale: function(){},
-  saveCompra: function(){},
-  saveStock: function(){},
-  saveDeuda: function(){},
-  saveCaja: function(){},
-  saveSupplier: function(){},
-  saveUser: function(){},
-  delSupplier: function(){},
+<!-- ══ FIREBASE — FUENTE ÚNICA DE VERDAD ══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, doc, collection, setDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp, query, orderBy, limit }
+  from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+const FB_CFG = {
+  apiKey: "AIzaSyCftS7PV-WNbLhI4Odi_6TvYoWBHzMvQDs",
+  authDomain: "heladeria-vida.firebaseapp.com",
+  projectId: "heladeria-vida",
+  storageBucket: "heladeria-vida.firebasestorage.app",
+  messagingSenderId: "475089878241",
+  appId: "1:475089878241:web:a6780ee2d1705e31ec8ba0"
 };
-// Ocultar indicador de conexión
-setTimeout(function(){
-  var el=document.getElementById('fb-status');
-  if(el) el.style.display='none';
-},500);
-console.log('Sistema funcionando en modo local');
+const fbApp = initializeApp(FB_CFG);
+const db    = getFirestore(fbApp);
+
+// ── Indicador visual ──
+function fbStatus(msg, ok){
+  let el = document.getElementById('fb-status');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'fb-status';
+    el.style.cssText = 'position:fixed;bottom:14px;right:14px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--font-body);z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,.13);transition:all .3s';
+    document.body.appendChild(el);
+  }
+  el.style.background = ok ? '#edfaf2' : '#fff5f5';
+  el.style.color      = ok ? '#3aaa6a' : '#e94560';
+  el.style.border     = '1.5px solid ' + (ok ? '#3aaa6a' : '#e94560');
+  el.textContent      = (ok ? '🟢 ' : '🔴 ') + msg;
+}
+
+// ── Guardar un documento (colección, id, datos) ──
+async function fbSet(col, id, data){
+  try {
+    var clean = {};
+    Object.keys(data).forEach(k => { if(data[k] !== undefined) clean[k] = data[k]; });
+    await setDoc(doc(db, col, String(id)), { ...clean, _ts: serverTimestamp() }, { merge: true });
+  } catch(e){ console.warn('fbSet error ['+col+'/'+id+']:', e.message); }
+}
+
+// ── Leer toda una colección ──
+async function fbGetAll(col){
+  try {
+    const snap = await getDocs(collection(db, col));
+    var arr = [];
+    snap.forEach(d => { var obj = d.data(); delete obj._ts; arr.push(obj); });
+    return arr;
+  } catch(e){ console.warn('fbGetAll error ['+col+']:', e.message); return []; }
+}
+
+// ── Borrar un documento ──
+async function fbDel(col, id){
+  try { await deleteDoc(doc(db, col, String(id))); } catch(e){ console.warn('fbDel error:', e.message); }
+}
+
+// ══ GUARDAR COLECCIONES COMPLETAS ══
+// Cada función guarda todos los items de una lista en Firebase
+
+async function fbSyncList(col, arr){
+  if(!Array.isArray(arr)) return;
+  for(var item of arr){
+    if(item && item.id) await fbSet(col, item.id, item);
+  }
+}
+
+// Exposición global para que el código principal pueda llamar
+window.FB = {
+  set:   fbSet,
+  del:   fbDel,
+  sync:  fbSyncList,
+  // Atajos por colección
+  saveSale:     (s)   => fbSet('ventas',    s.id || Date.now(), s),
+  saveCompra:   (c)   => fbSet('compras',   c.id || Date.now(), c),
+  saveStock:    (id,v)=> fbSet('inventario',id, {stock:v}),
+  saveDeuda:    (d)   => fbSet('deudas',    d.id, d),
+  saveCaja:     (m)   => fbSet('caja',      m.id, m),
+  saveSupplier: (s)   => fbSet('suppliers', s.id, s),
+  saveUser:     (u)   => fbSet('usuarios',  u.id, u),
+  delSupplier:  (id)  => fbDel('suppliers', id),
+};
+
+// ══ CARGA INICIAL: jalar TODO desde Firebase ══
+async function fbCargarTodo(){
+  fbStatus('Cargando...', true);
+  try {
+    // 1. Usuarios
+    var fbUsuarios = await fbGetAll('usuarios');
+    if(fbUsuarios.length > 0){
+      systemUsers = fbUsuarios.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
+      LS.set('users', systemUsers);
+    } else {
+      // Primera vez: subir los usuarios del sistema a Firebase
+      for(var u of systemUsers) await fbSet('usuarios', u.id, u);
+    }
+
+    // 2. Proveedores
+    var fbSuppliers = await fbGetAll('suppliers');
+    if(fbSuppliers.length > 0){
+      suppliers = fbSuppliers;
+      LS.set('suppliers', suppliers);
+    } else {
+      for(var s of suppliers) await fbSet('suppliers', s.id, s);
+    }
+
+    // 3. Inventario (solo stock)
+    var fbInv = await fbGetAll('inventario');
+    fbInv.forEach(function(item){
+      var p = prods.find(x => String(x.id) === String(item.id));
+      if(p && item.stock !== undefined) p.stock = item.stock;
+    });
+
+    // 4. Ventas
+    var fbVentas = await fbGetAll('ventas');
+    if(fbVentas.length > 0){
+      sales = fbVentas.sort((a,b) => (b.id||'').localeCompare(a.id||''));
+      LS.set('sales', sales);
+    }
+
+    // 5. Compras
+    var fbCompras = await fbGetAll('compras');
+    if(fbCompras.length > 0){
+      purchases = fbCompras.sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
+      LS.set('purchases', purchases);
+    }
+
+    // 6. Deudas
+    var fbDeudas = await fbGetAll('deudas');
+    if(fbDeudas.length > 0) LS.set('deudas', fbDeudas);
+
+    // 7. Caja
+    var fbCaja = await fbGetAll('caja');
+    if(fbCaja.length > 0){
+      movCaja = fbCaja;
+      LS.set('movCaja', movCaja);
+    }
+
+    // 8. Pedidos
+    var fbPedidos = await fbGetAll('pedidos');
+    if(fbPedidos.length > 0){
+      liveOrders = fbPedidos.filter(o => o.status !== 'entregado');
+    }
+
+    // Refrescar pantalla
+    try{ renderDash(); }catch(e){}
+    try{ updateBadges(); }catch(e){}
+    try{ updateDeudasBadge(); }catch(e){}
+    try{ renderUserPills(); }catch(e){}
+
+    fbStatus('Sincronizado ✓', true);
+    console.log('🔥 Firebase: todo cargado correctamente');
+  } catch(err){
+    fbStatus('Error conexión', false);
+    console.error('fbCargarTodo error:', err);
+  }
+}
+
+// ══ LISTENERS EN TIEMPO REAL ══
+
+// Inventario — para ver cambios de otras empleadas
+onSnapshot(collection(db,'inventario'), snap => {
+  snap.docChanges().forEach(ch => {
+    var d = ch.doc.data();
+    var p = prods.find(x => String(x.id) === String(ch.doc.id));
+    if(p && d.stock !== undefined) p.stock = d.stock;
+  });
+  try{ renderInv(); }catch(e){}
+  try{ updateBadges(); }catch(e){}
+}, () => fbStatus('Sin conexión', false));
+
+// Pedidos en tiempo real
+onSnapshot(collection(db,'pedidos'), snap => {
+  snap.docChanges().forEach(ch => {
+    var d = ch.doc.data(); delete d._ts;
+    var idx = liveOrders.findIndex(o => o.id === d.id);
+    if(ch.type === 'removed'){ if(idx>=0) liveOrders.splice(idx,1); }
+    else if(idx >= 0){ Object.assign(liveOrders[idx], d); }
+    else if(d.status !== 'entregado'){ liveOrders.unshift(d); }
+  });
+  try{ renderPedidos(); }catch(e){}
+  try{ updateBadges(); }catch(e){}
+}, err => console.warn('pedidos listener', err));
+
+// Usuarios en tiempo real
+onSnapshot(collection(db,'usuarios'), snap => {
+  if(snap.empty) return;
+  var arr = [];
+  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  systemUsers = arr.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
+  LS.set('users', systemUsers);
+  try{ renderUsers(); }catch(e){}
+  try{ renderUserPills(); }catch(e){}
+}, err => console.warn('usuarios listener', err));
+
+// Proveedores en tiempo real
+onSnapshot(collection(db,'suppliers'), snap => {
+  if(snap.empty) return;
+  var arr = [];
+  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  suppliers = arr;
+  LS.set('suppliers', suppliers);
+  try{ renderSuppliers(); }catch(e){}
+}, err => console.warn('suppliers listener', err));
+
+// Deudas en tiempo real
+onSnapshot(collection(db,'deudas'), snap => {
+  var arr = [];
+  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  LS.set('deudas', arr);
+  try{ renderDeudas(); }catch(e){}
+  try{ updateDeudasBadge(); }catch(e){}
+}, err => console.warn('deudas listener', err));
+
+// ══ PARCHEAR FUNCIONES DEL SISTEMA ══
+// Solo se ejecuta una vez, cuando el DOM está listo
+
+function fbPatchFunctions(){
+  // 1. Venta confirmada
+  var _cv = window.confirmarVenta;
+  if(typeof _cv === 'function'){
+    window.confirmarVenta = function(){
+      _cv();
+      // Guardar última venta y stocks afectados
+      var s = sales[0];
+      if(s) FB.saveSale(s);
+      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
+    };
+  }
+
+  // 2. Guardar ingreso/compra
+  var _gi = window.guardarIngreso;
+  if(typeof _gi === 'function'){
+    window.guardarIngreso = function(){
+      var antesCompras = purchases.length;
+      _gi();
+      // Guardar compras nuevas
+      var nuevas = purchases.slice(0, purchases.length - antesCompras);
+      nuevas.forEach(c => { c.id = c.id || ('c' + Date.now() + Math.random()); FB.saveCompra(c); });
+      // Guardar stocks actualizados
+      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
+    };
+  }
+
+  // 3. Movimiento de caja
+  var _gmc = window.guardarMovCaja;
+  if(typeof _gmc === 'function'){
+    window.guardarMovCaja = function(tipo){
+      _gmc(tipo);
+      var m = movCaja[0];
+      if(m) FB.saveCaja(m);
+    };
+  }
+
+  // 4. Crear usuario
+  var _gu = window.guardarUsuario;
+  if(typeof _gu === 'function'){
+    window.guardarUsuario = function(){
+      _gu();
+      systemUsers.forEach(u => FB.saveUser(u));
+    };
+  }
+
+  // 5. Editar usuario
+  var _geu = window.guardarEditUser;
+  if(typeof _geu === 'function'){
+    window.guardarEditUser = function(){
+      _geu();
+      systemUsers.forEach(u => FB.saveUser(u));
+    };
+  }
+
+  // 6. Activar/desactivar usuario
+  var _tua = window.toggleUserActive;
+  if(typeof _tua === 'function'){
+    window.toggleUserActive = function(){
+      _tua();
+      systemUsers.forEach(u => FB.saveUser(u));
+    };
+  }
+
+  // 7. Crear proveedor
+  var _gp = window.guardarProveedor;
+  if(typeof _gp === 'function'){
+    window.guardarProveedor = function(){
+      _gp();
+      var s = suppliers[0];
+      if(s) FB.saveSupplier(s);
+    };
+  }
+
+  // 8. Guardar deuda manual
+  var _gd = window.guardarDeuda;
+  if(typeof _gd === 'function'){
+    window.guardarDeuda = function(){
+      _gd();
+      var d = (LS.g('deudas')||[])[0];
+      if(d) FB.saveDeuda(d);
+    };
+  }
+
+  // 9. Pagar deuda
+  var _pd = window.pagarDeuda;
+  if(typeof _pd === 'function'){
+    window.pagarDeuda = function(id){
+      _pd(id);
+      var d = (LS.g('deudas')||[]).find(x=>x.id===id);
+      if(d) FB.saveDeuda(d);
+    };
+  }
+
+  // 10. Ajuste de inventario
+  var _ga = window.guardarAjuste;
+  if(typeof _ga === 'function'){
+    window.guardarAjuste = function(){
+      _ga();
+      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
+    };
+  }
+
+  // 11. Pedidos del POS
+  var _conf = window.confirmarCartaPedido;
+  if(typeof _conf === 'function'){
+    window.confirmarCartaPedido = function(){
+      _conf();
+      var o = liveOrders[0];
+      if(o) FB.set('pedidos', o.id, o);
+    };
+  }
+
+  console.log('🔥 Firebase: funciones parcheadas ✓');
+}
+
+// Esperar a que el sistema esté inicializado, luego cargar Firebase
+document.addEventListener('DOMContentLoaded', function(){
+  setTimeout(function(){
+    fbPatchFunctions();
+    fbCargarTodo();
+  }, 1000);
+});
+
+// Si DOMContentLoaded ya pasó
+if(document.readyState === 'complete' || document.readyState === 'interactive'){
+  setTimeout(function(){
+    fbPatchFunctions();
+    fbCargarTodo();
+  }, 1000);
+}
 </script>
 </body>
 </html>
