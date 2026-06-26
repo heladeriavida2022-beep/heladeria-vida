@@ -1969,7 +1969,10 @@ function renderSuppliers(){
 }
 function guardarProveedor(){
   const nm=document.getElementById('pv-nm').value.trim();if(!nm){toast('Ingresa el nombre','var(--acc)');return;}
-  suppliers.push({name:nm,phone:document.getElementById('pv-tel').value,products:document.getElementById('pv-pr').value,credit:parseInt(document.getElementById('pv-cr').value)||0,owed:0});
+  var sup={id:'s'+Date.now(),name:nm,phone:document.getElementById('pv-tel').value,products:document.getElementById('pv-pr').value,credit:parseInt(document.getElementById('pv-cr').value)||0,owed:0};
+  suppliers.push(sup);
+  LS.set('suppliers',suppliers);
+  if(typeof window.FB!=='undefined') window.FB.saveSupplier(sup);
   closeM('proveedor');renderSuppliers();toast('Proveedor agregado ✓');
 }
 
