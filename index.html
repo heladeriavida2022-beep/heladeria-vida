@@ -1055,14 +1055,26 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  var _su=LS.g('users');if(_su&&_su.length>0)systemUsers=_su;else{systemUsers=LS._def().users;LS.set('users',systemUsers);}
+  // Intentar con usuarios de Firebase primero, luego locales
+  var _su=LS.g('users');
+  if(_su&&_su.length>0) systemUsers=_su;
+  
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
-  const errEl=document.getElementById('loginError');const errMsg=document.getElementById('loginErrorMsg');
+  const errEl=document.getElementById('loginError');
+  const errMsg=document.getElementById('loginErrorMsg');
   errEl.classList.remove('show');
-  const found=systemUsers.find(u=>u.user.toLowerCase()===user&&u.pass===pass&&u.active);
-  if(!found){errMsg.textContent=systemUsers.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';errEl.classList.add('show');document.getElementById('loginPass').value='';return;}
-  currentUser=found;logAction('login','Ingresó al sistema');showApp();
+  
+  const found=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user&&u.pass===pass&&u.active);
+  if(!found){
+    errMsg.textContent=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';
+    errEl.classList.add('show');
+    document.getElementById('loginPass').value='';
+    return;
+  }
+  currentUser=found;
+  logAction('login','Ingresó al sistema');
+  showApp();
 }
 
 function showApp(){
