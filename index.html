@@ -374,7 +374,12 @@ tr:last-child td{border-bottom:none}
       </div>
     </div>
 
-    <button class="btn-login" onclick="doLogin()" id="btnLogin" style="margin-top:18px">
+    <button class="btn-login" id="btnLogin" style="margin-top:18px" onclick="(function(){
+      var u=document.getElementById('loginUser').value.trim().toLowerCase();
+      var p=document.getElementById('loginPass').value.trim();
+      if(!u||!p){document.getElementById('loginErrorMsg').textContent='Ingresa usuario y contraseña';document.getElementById('loginError').classList.add('show');return;}
+      doLogin();
+    })()">
       <i class="ti ti-login" style="font-size:15px;margin-right:4px"></i>Ingresar al sistema
     </button>
 
