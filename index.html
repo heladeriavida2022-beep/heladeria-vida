@@ -429,6 +429,7 @@ tr:last-child td{border-bottom:none}
         <div class="sg">
           <div class="slbl">Finanzas</div>
           <button class="sni" id="sni-ventas" onclick="adminNav('ventas',this)"><i class="ti ti-shopping-cart"></i>Ventas</button>
+          <button class="sni" id="sni-caja" onclick="adminNav('caja',this)"><i class="ti ti-cash-register"></i>Caja</button>
           <button class="sni" id="sni-gastos" onclick="adminNav('gastos',this)"><i class="ti ti-receipt"></i>Gastos</button>
           <button class="sni" id="sni-costos" onclick="adminNav('costos',this)"><i class="ti ti-calculator"></i>Costos</button>
           <button class="sni" id="sni-deudas" onclick="adminNav('deudas',this)"><i class="ti ti-credit-card"></i>Deudas<span class="snb">2</span></button>
@@ -605,6 +606,38 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- VENTAS -->
+          <div class="adm-view" id="adv-caja" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div class="qa">
+              <button class="btn btn-acc" onclick="openM('ingreso-caja')"><i class="ti ti-plus"></i> Ingreso</button>
+              <button class="btn btn-ghost" onclick="openM('egreso-caja')"><i class="ti ti-minus"></i> Egreso</button>
+              <button class="btn btn-ghost" onclick="openM('cierre')"><i class="ti ti-lock"></i> Cierre de turno</button>
+            </div>
+            <div class="g4" id="caja-stats" style="margin-bottom:14px"></div>
+            <div class="g2">
+              <div class="card">
+                <div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Movimientos del día</div>
+                <div style="margin-bottom:8px">
+                  <select class="finput" id="caja-filter-pago" onchange="renderCaja()" style="font-size:11px;padding:5px 8px;width:auto">
+                    <option value="ALL">Todos</option>
+                    <option value="Efectivo">Efectivo</option>
+                    <option value="Nequi/Daviplata">Nequi</option>
+                    <option value="Tarjeta">Tarjeta</option>
+                    <option value="Transferencia">Trans.</option>
+                  </select>
+                </div>
+                <div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Descripción</th><th>Empleado</th><th>Pago</th><th>Monto</th></tr></thead><tbody id="caja-tbl"></tbody></table></div>
+              </div>
+              <div class="card">
+                <div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Por método de pago</div>
+                <div id="caja-donut"></div>
+              </div>
+            </div>
+            <div class="card" style="margin-top:12px">
+              <div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Cierres de turno</div>
+              <div class="tw"><table><thead><tr><th>Fecha/Hora</th><th>Empleado</th><th>Efectivo</th><th>Digital</th><th>Total</th></tr></thead><tbody id="cierres-tbl"></tbody></table></div>
+            </div>
+          </div>
+
           <div class="adm-view" id="adv-ventas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
@@ -881,6 +914,36 @@ tr:last-child td{border-bottom:none}
 </div></div>
 
 <!-- Deuda -->
+<div class="ov" id="ov-ingreso-caja"><div class="modal">
+  <button class="mx" onclick="closeM('ingreso-caja')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-plus" style="color:#3aaa6a"></i>Registrar ingreso a caja</div>
+  <div class="fg"><label class="fgrp-label">Descripción</label><input class="finput" id="icaja-desc" placeholder="Ej: Abono cliente, préstamo..."></div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="icaja-monto" placeholder="0"></div>
+    <div class="fg"><label class="fgrp-label">Método</label><select class="finput" id="icaja-pago"><option>Efectivo</option><option>Nequi/Daviplata</option><option>Transferencia</option></select></div>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1;background:#3aaa6a;border-color:#3aaa6a" onclick="guardarMovCaja('ingreso')"><i class="ti ti-check"></i> Registrar</button><button class="btn btn-ghost" onclick="closeM('ingreso-caja')">Cancelar</button></div>
+</div></div>
+
+<div class="ov" id="ov-egreso-caja"><div class="modal">
+  <button class="mx" onclick="closeM('egreso-caja')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-minus" style="color:#e94560"></i>Registrar egreso de caja</div>
+  <div class="fg"><label class="fgrp-label">Descripción</label><input class="finput" id="ecaja-desc" placeholder="Ej: Pago proveedor, gasto..."></div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="ecaja-monto" placeholder="0"></div>
+    <div class="fg"><label class="fgrp-label">Método</label><select class="finput" id="ecaja-pago"><option>Efectivo</option><option>Nequi/Daviplata</option><option>Transferencia</option></select></div>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1;background:#e94560;border-color:#e94560" onclick="guardarMovCaja('egreso')"><i class="ti ti-check"></i> Registrar</button><button class="btn btn-ghost" onclick="closeM('egreso-caja')">Cancelar</button></div>
+</div></div>
+
+<div class="ov" id="ov-cierre"><div class="modal">
+  <button class="mx" onclick="closeM('cierre')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-lock" style="color:var(--acc2)"></i>Cierre de turno</div>
+  <div id="cierre-detalle" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px"></div>
+  <div class="fg"><label class="fgrp-label">Efectivo contado en caja ($)</label><input class="finput" type="number" id="cierre-efectivo-real" placeholder="0"></div>
+  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1" onclick="guardarCierre()"><i class="ti ti-lock"></i> Cerrar turno</button><button class="btn btn-ghost" onclick="closeM('cierre')">Cancelar</button></div>
+</div></div>
+
 <div class="ov" id="ov-deuda"><div class="modal">
   <button class="mx" onclick="closeM('deuda')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-credit-card" style="color:var(--acc2)"></i>Registrar deuda manual</div>
@@ -1253,6 +1316,7 @@ function renderAdminView(id){
   if(id==='proveedores')renderSuppliers();
   if(id==='usuarios')renderUsers();
   if(id==='ventas')renderSalesTable();
+  if(id==='caja')renderCaja();
   if(id==='compras')renderComprasTable();
   if(id==='deudas')renderDeudas();
   if(id==='trazabilidad')renderTrazabilidad();
@@ -2257,9 +2321,22 @@ try{
   var _d=localStorage.getItem('heladeria_v2');
   if(_d){
     var _obj=JSON.parse(_d);
-    if(_obj&&_obj.users){
-      var _adm=_obj.users.find(function(u){return u.role==='admin'||u.id==='u1';});
-      if(_adm){_adm.pass='3147361722';_adm.user='viviana.rojas';_adm.name='Viviana Rojas';_adm.initials='VR';}
+    if(_obj){
+      // Corregir usuario admin
+      if(_obj.users){
+        var _adm=_obj.users.find(function(u){return u.role==='admin'||u.id==='u1';});
+        if(_adm){_adm.pass='3147361722';_adm.user='viviana.rojas';_adm.name='Viviana Rojas';_adm.initials='VR';}
+      }
+      // Borrar datos de prueba
+      _obj.sales=[];
+      _obj.purchases=[];
+      _obj.gastos=[];
+      _obj.movCaja=[];
+      _obj.cierresTurno=[];
+      _obj.deudas=[];
+      _obj.orders=[];
+      _obj.trazLog=[];
+      _obj.orderCounter=100;
       localStorage.setItem('heladeria_v2',JSON.stringify(_obj));
     }
   }
