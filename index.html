@@ -569,6 +569,11 @@ tr:last-child td{border-bottom:none}
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Últimas ventas</div><div class="tw"><table><thead><tr><th>Hora</th><th>Producto</th><th>Empleado</th><th>Total</th></tr></thead><tbody id="dash-sales-tbl"></tbody></table></div></div>
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Inventario crítico</div><div id="dash-inv"></div></div>
             </div>
+            <div style="margin-top:20px;padding:16px;border:2px dashed #e94560;border-radius:12px;background:#fff5f5">
+              <div style="font-size:13px;font-weight:700;color:#e94560;margin-bottom:6px">⚠️ Zona de reinicio — Solo administrador</div>
+              <div style="font-size:12px;color:var(--text2);margin-bottom:12px">Borra ventas, compras, caja, pedidos y deudas. <b>Conserva</b> productos, usuarios, proveedores e inventario.</div>
+              <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-family:var(--font-body);font-size:12px">🗑️ Reiniciar registros para empezar desde cero</button>
+            </div>
           </div>
 
           <!-- ESTADÍSTICAS -->
@@ -1490,6 +1495,20 @@ function renderCart(){
     <div class="ci-price">${i.price>0?fmt(i.price*i.qty):'—'}</div></div>`).join('');
   if(t)t.textContent=fmt(cartItems.reduce((s,i)=>s+(i.price*i.qty),0));
 }
+function confirmarReinicio(){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede hacer esto','#e94560');return;}
+  if(!confirm('⚠️ ¿Confirmas que quieres borrar todos los registros de ventas, compras, caja, pedidos y deudas?\n\nSe CONSERVAN: productos, usuarios, proveedores e inventario.\n\nEsta acción no se puede deshacer.')) return;
+  if(!confirm('Segunda confirmación: ¿Estás segura?')) return;
+  sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];
+  LS.set('sales',[]);LS.set('purchases',[]);LS.set('orders',[]);
+  LS.set('movCaja',[]);LS.set('cierresTurno',[]);LS.set('deudas',[]);
+  LS.set('gastos',[]);LS.set('trazLog',[]);LS.set('orderCounter',100);
+  orderCounter=100;
+  try{renderDash();}catch(e){}
+  try{updateBadges();}catch(e){}
+  toast('✅ Registros reiniciados. Sistema listo para empezar desde cero.','#3aaa6a');
+}
+
 function confirmarVenta(){
   if(!cartItems.length){toast('Agrega productos','var(--acc)');return;}
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
