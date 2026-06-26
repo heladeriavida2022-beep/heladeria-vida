@@ -1291,7 +1291,10 @@ function guardarUsuario(){
   const perms=role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-new');
   const initials=nm.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
   const colors=['#3b82f6','#06b6d4','#10b981','#f59e0b','#ec4899','#8b5cf6'];
-  systemUsers.push({id:Date.now(),name:nm,role,user,pass,active:true,turno:document.getElementById('u-turno').value,perms,color:colors[systemUsers.length%colors.length],initials});
+  const newUser={id:'u'+Date.now(),name:nm,role,user,pass,active:true,turno:document.getElementById('u-turno').value,perms,color:colors[systemUsers.length%colors.length],initials};
+  systemUsers.push(newUser);
+  LS.set('users',systemUsers);
+  if(typeof window.FB!=='undefined') window.FB.saveUser(newUser);
   logAction('admin',`Creó usuario ${nm} (${ROLE_LABELS[role]})`);
   closeM('usuario');renderUsers();renderUserPills();
   toast('Usuario "'+nm+'" creado ✓');
@@ -1303,7 +1306,8 @@ function editUser(idx){
   document.getElementById('edit-user-idx').value=idx;
   document.getElementById('eu-nm').value=u.name;
   document.getElementById('eu-rol').value=u.role;
-  document.getElementById('eu-turno').value=u.turno;
+  var turnoEl=document.getElementById('eu-turno');if(turnoEl)turnoEl.value=u.turno||'Variable';
+  var userEl=document.getElementById('eu-user');if(userEl)userEl.value=u.user||'';
   document.getElementById('eu-pass').value='';
   document.getElementById('eu-toggle-lbl').textContent=u.active?'Desactivar':'Activar';
   renderPermsForm('perms-edit',u.perms);
@@ -1315,11 +1319,14 @@ function guardarEditUser(){
   const u=systemUsers[idx];if(!u)return;
   u.name=document.getElementById('eu-nm').value.trim()||u.name;
   u.role=document.getElementById('eu-rol').value;
-  u.turno=document.getElementById('eu-turno').value;
+  var turnoEl=document.getElementById('eu-turno');if(turnoEl)u.turno=turnoEl.value;
+  var userEl=document.getElementById('eu-user');if(userEl&&userEl.value.trim())u.user=userEl.value.trim().toLowerCase();
   const newPass=document.getElementById('eu-pass').value;
   if(newPass)u.pass=newPass;
   u.perms=u.role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-edit');
   u.initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  LS.set('users',systemUsers);
+  if(typeof window.FB!=='undefined') window.FB.saveUser(u);
   logAction('admin',`Editó usuario ${u.name}`);
   closeM('edituser');renderUsers();renderUserPills();
   toast('Usuario actualizado ✓');
@@ -1329,6 +1336,8 @@ function toggleUserActive(){
   const idx=parseInt(document.getElementById('edit-user-idx').value);
   const u=systemUsers[idx];if(!u||u.role==='admin')return;
   u.active=!u.active;
+  LS.set('users',systemUsers);
+  if(typeof window.FB!=='undefined') window.FB.saveUser(u);
   logAction('admin',`${u.active?'Activó':'Desactivó'} usuario ${u.name}`);
   document.getElementById('eu-toggle-lbl').textContent=u.active?'Desactivar':'Activar';
   renderUsers();renderUserPills();
@@ -1533,13 +1542,17 @@ function confirmarVenta(){
 
   // Registrar ventas
   cartItems.forEach(function(ci){
-    var sale={id:'#'+String(Date.now()).slice(-6),time:timeStr,name:ci.name,cat:ci.cat,qty:ci.qty,price:ci.price,total:ci.price*ci.qty,canal:canal,pago:pago,emp:currentUser.name,empId:currentUser.id};
+    var sale={id:'v'+Date.now()+Math.floor(Math.random()*1000),time:timeStr,name:ci.name,cat:ci.cat,qty:ci.qty,price:ci.price,total:ci.price*ci.qty,canal:canal,pago:pago,emp:currentUser.name,empId:currentUser.id};
     sales.unshift(sale);LS.push('sales',sale);
+    if(typeof window.FB!=='undefined') window.FB.saveSale(sale);
   });
 
   // Registrar pedido
   var order={id:'#'+String(++orderCounter).padStart(4,'0'),type:posMode,source:canal,items:items,total:tot,status:'prep',time:'ahora',pago:pago};
   liveOrders.unshift(order);LS.push('orders',order);LS.set('orderCounter',orderCounter);
+  if(typeof window.FB!=='undefined') window.FB.savePedido(order);
+  // Guardar stocks actualizados
+  prods.filter(p=>p.descuenta).forEach(p=>{ if(typeof window.FB!=='undefined') window.FB.saveStock(p.id,p.stock); });
 
   // Si es FIADO → crear deuda automáticamente
   if(pago==='Fiado' && tot>0){
@@ -1815,9 +1828,11 @@ function guardarDeuda(){
   var monto=parseFloat(document.getElementById('d-monto').value)||0;
   var vence=document.getElementById('d-fecha').value;
   if(!ac||!monto){toast('Completa acreedor y monto','var(--acc)');return;}
+  var deuda={id:'d'+Date.now(),acreedor:ac,concepto:concepto||'Deuda manual',monto:monto,fecha:new Date().toISOString().split('T')[0],vence:vence,pagada:false,origen:'manual'};
   var deudas=LS.g('deudas')||[];
-  deudas.unshift({id:'d'+Date.now(),acreedor:ac,concepto:concepto||'Deuda manual',monto,fecha:new Date().toISOString().split('T')[0],vence,pagada:false,origen:'manual'});
+  deudas.unshift(deuda);
   LS.set('deudas',deudas);
+  if(typeof window.FB!=='undefined') window.FB.saveDeuda(deuda);
   closeM('deuda');renderDeudas();updateDeudasBadge();
   toast('Deuda registrada ✓');
 }
@@ -1827,15 +1842,14 @@ function pagarDeuda(id){
   var d=deudas.find(x=>x.id===id);
   if(!d)return;
   if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+'?'))return;
-  // Registrar salida de caja
   var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:d.monto,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
   movCaja.unshift(mov);LS.set('movCaja',movCaja);
-  if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
-  // Marcar como pagada
+  if(typeof window.FB!=='undefined') window.FB.saveCaja(mov);
   d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
   LS.set('deudas',deudas);
+  if(typeof window.FB!=='undefined') window.FB.saveDeuda(d);
   renderDeudas();updateDeudasBadge();renderCaja();
-  toast('Pago registrado — salida de caja ✓','#3aaa6a');
+  toast('Pago registrado ✓','#3aaa6a');
 }
 
 function updateDeudasBadge(){
@@ -2111,7 +2125,7 @@ function renderCaja(){movCaja=LS.g('movCaja')||[];cierresTurno=LS.g('cierresTurn
 function openCierre(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var det=document.getElementById('cierre-detalle');if(det)det.innerHTML='<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;font-weight:700"><span>TOTAL</span><span style="color:#3aaa6a">'+fmt(efe+dig)+'</span></div>';}
 function calcDiferencia(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var real=parseFloat(document.getElementById('cierre-efectivo-real').value)||0;var diff=real-efe;var el=document.getElementById('cierre-diferencia');if(el)el.innerHTML='<b>Diferencia: '+(diff>=0?'+':'')+fmt(diff)+'</b>';}
 function guardarCierre(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var real=parseFloat(document.getElementById('cierre-efectivo-real').value)||efe;var now=new Date();var c={id:'c'+Date.now(),fecha:now.toLocaleDateString('es-CO'),hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),emp:currentUser?currentUser.name:'—',efectivo:real,digital:dig,total:real+dig,ventas:sales.length};cierresTurno.unshift(c);LS.set('cierresTurno',cierresTurno);closeM('cierre');renderCaja();toast('Cierre registrado ✓','#3aaa6a');}
-function guardarMovCaja(tipo){var px=tipo==='ingreso'?'icaja':'ecaja';var desc=document.getElementById(px+'-desc').value.trim();var monto=parseFloat(document.getElementById(px+'-monto').value)||0;var pago=document.getElementById(px+'-pago').value;if(!desc||!monto){toast('Completa los campos','var(--acc)');return;}var now=new Date();var mov={id:'m'+Date.now(),hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:tipo,desc:desc,monto:monto,pago:pago,emp:currentUser?currentUser.name:'—'};movCaja.unshift(mov);LS.push('movCaja',mov);closeM(tipo==='ingreso'?'ingreso-caja':'egreso-caja');renderCaja();toast((tipo==='ingreso'?'Ingreso':'Egreso')+' registrado ✓','#3aaa6a');}
+function guardarMovCaja(tipo){var px=tipo==='ingreso'?'icaja':'ecaja';var desc=document.getElementById(px+'-desc').value.trim();var monto=parseFloat(document.getElementById(px+'-monto').value)||0;var pago=document.getElementById(px+'-pago').value;if(!desc||!monto){toast('Completa los campos','var(--acc)');return;}var now=new Date();var mov={id:'m'+Date.now(),hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:tipo,desc:desc,monto:monto,pago:pago,emp:currentUser?currentUser.name:'—'};movCaja.unshift(mov);LS.push('movCaja',mov);if(typeof window.FB!=='undefined')window.FB.saveCaja(mov);closeM(tipo==='ingreso'?'ingreso-caja':'egreso-caja');renderCaja();toast((tipo==='ingreso'?'Ingreso':'Egreso')+' registrado ✓','#3aaa6a');}
 var _baseOM2=openM;openM=function(id){if(id==='cierre'){openCierre();var ov=document.getElementById('ov-cierre');if(ov)ov.classList.add('open');return;}_baseOM2(id);};
 
 var PROD_IMGS={
@@ -2186,12 +2200,16 @@ const dc=document.createElement('div');dc.className='date-chip';dc.style.cssText
 </script>
 
 
-<!-- ══ FIREBASE — FUENTE ÚNICA DE VERDAD ══ -->
+
+<!-- ══════════════════════════════════════════
+     FIREBASE — SINCRONIZACIÓN COMPLETA
+══════════════════════════════════════════ -->
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
-import { getFirestore, doc, collection, setDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp, query, orderBy, limit }
+import { getFirestore, doc, collection, setDoc, getDocs, deleteDoc, onSnapshot, serverTimestamp, query, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
 
+// ── Configuración ──
 const FB_CFG = {
   apiKey: "AIzaSyCftS7PV-WNbLhI4Odi_6TvYoWBHzMvQDs",
   authDomain: "heladeria-vida.firebaseapp.com",
@@ -2200,11 +2218,12 @@ const FB_CFG = {
   messagingSenderId: "475089878241",
   appId: "1:475089878241:web:a6780ee2d1705e31ec8ba0"
 };
-const fbApp = initializeApp(FB_CFG);
-const db    = getFirestore(fbApp);
+
+const app = initializeApp(FB_CFG);
+const db  = getFirestore(app);
 
 // ── Indicador visual ──
-function fbStatus(msg, ok){
+function setStatus(msg, ok){
   let el = document.getElementById('fb-status');
   if(!el){
     el = document.createElement('div');
@@ -2218,113 +2237,102 @@ function fbStatus(msg, ok){
   el.textContent      = (ok ? '🟢 ' : '🔴 ') + msg;
 }
 
-// ── Guardar un documento (colección, id, datos) ──
-async function fbSet(col, id, data){
-  try {
-    var clean = {};
-    Object.keys(data).forEach(k => { if(data[k] !== undefined) clean[k] = data[k]; });
-    await setDoc(doc(db, col, String(id)), { ...clean, _ts: serverTimestamp() }, { merge: true });
-  } catch(e){ console.warn('fbSet error ['+col+'/'+id+']:', e.message); }
-}
-
-// ── Leer toda una colección ──
-async function fbGetAll(col){
-  try {
-    const snap = await getDocs(collection(db, col));
-    var arr = [];
-    snap.forEach(d => { var obj = d.data(); delete obj._ts; arr.push(obj); });
-    return arr;
-  } catch(e){ console.warn('fbGetAll error ['+col+']:', e.message); return []; }
-}
-
-// ── Borrar un documento ──
-async function fbDel(col, id){
-  try { await deleteDoc(doc(db, col, String(id))); } catch(e){ console.warn('fbDel error:', e.message); }
-}
-
-// ══ GUARDAR COLECCIONES COMPLETAS ══
-// Cada función guarda todos los items de una lista en Firebase
-
-async function fbSyncList(col, arr){
-  if(!Array.isArray(arr)) return;
-  for(var item of arr){
-    if(item && item.id) await fbSet(col, item.id, item);
+// ── Guardar documento en Firebase ──
+async function fbGuardar(col, id, datos){
+  try{
+    var d = Object.assign({}, datos);
+    delete d._ts;
+    await setDoc(doc(db, col, String(id)), Object.assign(d, {_ts: serverTimestamp()}), {merge:true});
+    return true;
+  } catch(e){
+    console.warn('fbGuardar error ['+col+'/'+id+']:', e.message);
+    return false;
   }
 }
 
-// Exposición global para que el código principal pueda llamar
+// ── Leer colección completa ──
+async function fbLeer(col){
+  try{
+    const snap = await getDocs(collection(db, col));
+    var arr = [];
+    snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+    return arr;
+  } catch(e){
+    console.warn('fbLeer error ['+col+']:', e.message);
+    return [];
+  }
+}
+
+// ── API global para el sistema ──
 window.FB = {
-  set:   fbSet,
-  del:   fbDel,
-  sync:  fbSyncList,
-  // Atajos por colección
-  saveSale:     (s)   => fbSet('ventas',    s.id || Date.now(), s),
-  saveCompra:   (c)   => fbSet('compras',   c.id || Date.now(), c),
-  saveStock:    (id,v)=> fbSet('inventario',id, {stock:v}),
-  saveDeuda:    (d)   => fbSet('deudas',    d.id, d),
-  saveCaja:     (m)   => fbSet('caja',      m.id, m),
-  saveSupplier: (s)   => fbSet('suppliers', s.id, s),
-  saveUser:     (u)   => fbSet('usuarios',  u.id, u),
-  delSupplier:  (id)  => fbDel('suppliers', id),
+  guardar:      fbGuardar,
+  saveStock:    (id, v)  => fbGuardar('inventario', id, {id: String(id), stock: v}),
+  saveSale:     (s)      => s && s.id ? fbGuardar('ventas',    s.id,  s) : null,
+  saveCompra:   (c)      => c && c.id ? fbGuardar('compras',   c.id,  c) : null,
+  saveDeuda:    (d)      => d && d.id ? fbGuardar('deudas',    d.id,  d) : null,
+  saveCaja:     (m)      => m && m.id ? fbGuardar('caja',      m.id,  m) : null,
+  saveSupplier: (s)      => s && s.id ? fbGuardar('suppliers', s.id,  s) : null,
+  saveUser:     (u)      => u && u.id ? fbGuardar('usuarios',  u.id,  u) : null,
+  savePedido:   (o)      => o && o.id ? fbGuardar('pedidos',   o.id,  o) : null,
 };
 
-// ══ CARGA INICIAL: jalar TODO desde Firebase ══
-async function fbCargarTodo(){
-  fbStatus('Cargando...', true);
-  try {
+// ── Carga inicial desde Firebase ──
+async function cargarDesdeFirebase(){
+  setStatus('Cargando datos...', true);
+  try{
     // 1. Usuarios
-    var fbUsuarios = await fbGetAll('usuarios');
+    var fbUsuarios = await fbLeer('usuarios');
     if(fbUsuarios.length > 0){
-      systemUsers = fbUsuarios.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
+      systemUsers = fbUsuarios.sort((a,b) => a.role==='admin' ? -1 : 1);
       LS.set('users', systemUsers);
     } else {
-      // Primera vez: subir los usuarios del sistema a Firebase
-      for(var u of systemUsers) await fbSet('usuarios', u.id, u);
+      // Primera vez: subir usuarios del sistema
+      for(var u of systemUsers) await fbGuardar('usuarios', u.id, u);
     }
 
     // 2. Proveedores
-    var fbSuppliers = await fbGetAll('suppliers');
+    var fbSuppliers = await fbLeer('suppliers');
     if(fbSuppliers.length > 0){
       suppliers = fbSuppliers;
       LS.set('suppliers', suppliers);
     } else {
-      for(var s of suppliers) await fbSet('suppliers', s.id, s);
+      for(var s of suppliers) await fbGuardar('suppliers', s.id, s);
     }
 
-    // 3. Inventario (solo stock)
-    var fbInv = await fbGetAll('inventario');
-    fbInv.forEach(function(item){
+    // 3. Stock de inventario
+    var fbInv = await fbLeer('inventario');
+    fbInv.forEach(item => {
       var p = prods.find(x => String(x.id) === String(item.id));
       if(p && item.stock !== undefined) p.stock = item.stock;
     });
 
     // 4. Ventas
-    var fbVentas = await fbGetAll('ventas');
+    var fbVentas = await fbLeer('ventas');
     if(fbVentas.length > 0){
       sales = fbVentas.sort((a,b) => (b.id||'').localeCompare(a.id||''));
       LS.set('sales', sales);
     }
 
     // 5. Compras
-    var fbCompras = await fbGetAll('compras');
+    var fbCompras = await fbLeer('compras');
     if(fbCompras.length > 0){
       purchases = fbCompras.sort((a,b) => (b.fecha||'').localeCompare(a.fecha||''));
       LS.set('purchases', purchases);
     }
 
     // 6. Deudas
-    var fbDeudas = await fbGetAll('deudas');
+    var fbDeudas = await fbLeer('deudas');
     if(fbDeudas.length > 0) LS.set('deudas', fbDeudas);
 
     // 7. Caja
-    var fbCaja = await fbGetAll('caja');
+    var fbCaja = await fbLeer('caja');
     if(fbCaja.length > 0){
       movCaja = fbCaja;
       LS.set('movCaja', movCaja);
     }
 
-    // 8. Pedidos
-    var fbPedidos = await fbGetAll('pedidos');
+    // 8. Pedidos activos
+    var fbPedidos = await fbLeer('pedidos');
     if(fbPedidos.length > 0){
       liveOrders = fbPedidos.filter(o => o.status !== 'entregado');
     }
@@ -2332,20 +2340,20 @@ async function fbCargarTodo(){
     // Refrescar pantalla
     try{ renderDash(); }catch(e){}
     try{ updateBadges(); }catch(e){}
-    try{ updateDeudasBadge(); }catch(e){}
     try{ renderUserPills(); }catch(e){}
 
-    fbStatus('Sincronizado ✓', true);
-    console.log('🔥 Firebase: todo cargado correctamente');
+    setStatus('Sincronizado ✓', true);
+    console.log('✅ Firebase: datos cargados');
+
   } catch(err){
-    fbStatus('Error conexión', false);
-    console.error('fbCargarTodo error:', err);
+    setStatus('Error conexión', false);
+    console.error('cargarDesdeFirebase error:', err);
   }
 }
 
-// ══ LISTENERS EN TIEMPO REAL ══
+// ── Listeners tiempo real ──
 
-// Inventario — para ver cambios de otras empleadas
+// Inventario
 onSnapshot(collection(db,'inventario'), snap => {
   snap.docChanges().forEach(ch => {
     var d = ch.doc.data();
@@ -2354,184 +2362,67 @@ onSnapshot(collection(db,'inventario'), snap => {
   });
   try{ renderInv(); }catch(e){}
   try{ updateBadges(); }catch(e){}
-}, () => fbStatus('Sin conexión', false));
+  setStatus('Sincronizado ✓', true);
+}, () => setStatus('Sin conexión', false));
 
-// Pedidos en tiempo real
+// Proveedores
+onSnapshot(collection(db,'suppliers'), snap => {
+  if(snap.empty) return;
+  var arr = []; snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  suppliers = arr; LS.set('suppliers', suppliers);
+  try{ renderSuppliers(); }catch(e){}
+}, err => console.warn('suppliers listener:', err));
+
+// Usuarios
+onSnapshot(collection(db,'usuarios'), snap => {
+  if(snap.empty) return;
+  var arr = []; snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  systemUsers = arr.sort((a,b) => a.role==='admin' ? -1 : 1);
+  LS.set('users', systemUsers);
+  try{ renderUsers(); }catch(e){}
+  try{ renderUserPills(); }catch(e){}
+}, err => console.warn('usuarios listener:', err));
+
+// Pedidos
 onSnapshot(collection(db,'pedidos'), snap => {
   snap.docChanges().forEach(ch => {
     var d = ch.doc.data(); delete d._ts;
     var idx = liveOrders.findIndex(o => o.id === d.id);
-    if(ch.type === 'removed'){ if(idx>=0) liveOrders.splice(idx,1); }
-    else if(idx >= 0){ Object.assign(liveOrders[idx], d); }
+    if(ch.type==='removed'){ if(idx>=0) liveOrders.splice(idx,1); }
+    else if(idx>=0){ Object.assign(liveOrders[idx], d); }
     else if(d.status !== 'entregado'){ liveOrders.unshift(d); }
   });
   try{ renderPedidos(); }catch(e){}
   try{ updateBadges(); }catch(e){}
-}, err => console.warn('pedidos listener', err));
+}, err => console.warn('pedidos listener:', err));
 
-// Usuarios en tiempo real
-onSnapshot(collection(db,'usuarios'), snap => {
-  if(snap.empty) return;
-  var arr = [];
-  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
-  systemUsers = arr.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
-  LS.set('users', systemUsers);
-  try{ renderUsers(); }catch(e){}
-  try{ renderUserPills(); }catch(e){}
-}, err => console.warn('usuarios listener', err));
-
-// Proveedores en tiempo real
-onSnapshot(collection(db,'suppliers'), snap => {
-  if(snap.empty) return;
-  var arr = [];
-  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
-  suppliers = arr;
-  LS.set('suppliers', suppliers);
-  try{ renderSuppliers(); }catch(e){}
-}, err => console.warn('suppliers listener', err));
-
-// Deudas en tiempo real
+// Deudas
 onSnapshot(collection(db,'deudas'), snap => {
-  var arr = [];
-  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  var arr = []; snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
   LS.set('deudas', arr);
   try{ renderDeudas(); }catch(e){}
   try{ updateDeudasBadge(); }catch(e){}
-}, err => console.warn('deudas listener', err));
+}, err => console.warn('deudas listener:', err));
 
-// ══ PARCHEAR FUNCIONES DEL SISTEMA ══
-// Solo se ejecuta una vez, cuando el DOM está listo
-
-function fbPatchFunctions(){
-  // 1. Venta confirmada
-  var _cv = window.confirmarVenta;
-  if(typeof _cv === 'function'){
-    window.confirmarVenta = function(){
-      _cv();
-      // Guardar última venta y stocks afectados
-      var s = sales[0];
-      if(s) FB.saveSale(s);
-      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
-    };
+// Ventas (últimas 500)
+onSnapshot(query(collection(db,'ventas'), orderBy('_ts','desc'), limit(500)), snap => {
+  var arr = []; snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  if(arr.length > 0){
+    sales = arr;
+    LS.set('sales', sales);
+    try{ renderDash(); }catch(e){}
   }
+}, err => console.warn('ventas listener:', err));
 
-  // 2. Guardar ingreso/compra
-  var _gi = window.guardarIngreso;
-  if(typeof _gi === 'function'){
-    window.guardarIngreso = function(){
-      var antesCompras = purchases.length;
-      _gi();
-      // Guardar compras nuevas
-      var nuevas = purchases.slice(0, purchases.length - antesCompras);
-      nuevas.forEach(c => { c.id = c.id || ('c' + Date.now() + Math.random()); FB.saveCompra(c); });
-      // Guardar stocks actualizados
-      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
-    };
-  }
-
-  // 3. Movimiento de caja
-  var _gmc = window.guardarMovCaja;
-  if(typeof _gmc === 'function'){
-    window.guardarMovCaja = function(tipo){
-      _gmc(tipo);
-      var m = movCaja[0];
-      if(m) FB.saveCaja(m);
-    };
-  }
-
-  // 4. Crear usuario
-  var _gu = window.guardarUsuario;
-  if(typeof _gu === 'function'){
-    window.guardarUsuario = function(){
-      _gu();
-      systemUsers.forEach(u => FB.saveUser(u));
-    };
-  }
-
-  // 5. Editar usuario
-  var _geu = window.guardarEditUser;
-  if(typeof _geu === 'function'){
-    window.guardarEditUser = function(){
-      _geu();
-      systemUsers.forEach(u => FB.saveUser(u));
-    };
-  }
-
-  // 6. Activar/desactivar usuario
-  var _tua = window.toggleUserActive;
-  if(typeof _tua === 'function'){
-    window.toggleUserActive = function(){
-      _tua();
-      systemUsers.forEach(u => FB.saveUser(u));
-    };
-  }
-
-  // 7. Crear proveedor
-  var _gp = window.guardarProveedor;
-  if(typeof _gp === 'function'){
-    window.guardarProveedor = function(){
-      _gp();
-      var s = suppliers[0];
-      if(s) FB.saveSupplier(s);
-    };
-  }
-
-  // 8. Guardar deuda manual
-  var _gd = window.guardarDeuda;
-  if(typeof _gd === 'function'){
-    window.guardarDeuda = function(){
-      _gd();
-      var d = (LS.g('deudas')||[])[0];
-      if(d) FB.saveDeuda(d);
-    };
-  }
-
-  // 9. Pagar deuda
-  var _pd = window.pagarDeuda;
-  if(typeof _pd === 'function'){
-    window.pagarDeuda = function(id){
-      _pd(id);
-      var d = (LS.g('deudas')||[]).find(x=>x.id===id);
-      if(d) FB.saveDeuda(d);
-    };
-  }
-
-  // 10. Ajuste de inventario
-  var _ga = window.guardarAjuste;
-  if(typeof _ga === 'function'){
-    window.guardarAjuste = function(){
-      _ga();
-      prods.filter(p=>p.descuenta).forEach(p => FB.saveStock(p.id, p.stock));
-    };
-  }
-
-  // 11. Pedidos del POS
-  var _conf = window.confirmarCartaPedido;
-  if(typeof _conf === 'function'){
-    window.confirmarCartaPedido = function(){
-      _conf();
-      var o = liveOrders[0];
-      if(o) FB.set('pedidos', o.id, o);
-    };
-  }
-
-  console.log('🔥 Firebase: funciones parcheadas ✓');
+// ── Inicializar cuando el DOM esté listo ──
+function inicializar(){
+  cargarDesdeFirebase();
 }
 
-// Esperar a que el sistema esté inicializado, luego cargar Firebase
-document.addEventListener('DOMContentLoaded', function(){
-  setTimeout(function(){
-    fbPatchFunctions();
-    fbCargarTodo();
-  }, 1000);
-});
-
-// Si DOMContentLoaded ya pasó
-if(document.readyState === 'complete' || document.readyState === 'interactive'){
-  setTimeout(function(){
-    fbPatchFunctions();
-    fbCargarTodo();
-  }, 1000);
+if(document.readyState === 'loading'){
+  document.addEventListener('DOMContentLoaded', () => setTimeout(inicializar, 1000));
+} else {
+  setTimeout(inicializar, 1000);
 }
 </script>
 </body>
