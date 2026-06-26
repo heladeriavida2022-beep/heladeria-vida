@@ -2318,29 +2318,43 @@ const dc=document.createElement('div');dc.className='date-chip';dc.style.cssText
 <!-- ══ LIMPIAR CACHE ══ -->
 <script>
 try{
+  // Forzar limpieza completa de datos de prueba
   var _d=localStorage.getItem('heladeria_v2');
+  var _users=null;
+  var _prods=null;
+  var _suppliers=null;
+  
   if(_d){
     var _obj=JSON.parse(_d);
     if(_obj){
-      // Corregir usuario admin
-      if(_obj.users){
-        var _adm=_obj.users.find(function(u){return u.role==='admin'||u.id==='u1';});
-        if(_adm){_adm.pass='3147361722';_adm.user='viviana.rojas';_adm.name='Viviana Rojas';_adm.initials='VR';}
-      }
-      // Borrar datos de prueba
-      _obj.sales=[];
-      _obj.purchases=[];
-      _obj.gastos=[];
-      _obj.movCaja=[];
-      _obj.cierresTurno=[];
-      _obj.deudas=[];
-      _obj.orders=[];
-      _obj.trazLog=[];
-      _obj.orderCounter=100;
-      localStorage.setItem('heladeria_v2',JSON.stringify(_obj));
+      _users=_obj.users||null;
+      _prods=_obj.products||null;
+      _suppliers=_obj.suppliers||null;
     }
   }
-}catch(e){localStorage.removeItem('heladeria_v2');}
+  
+  // Borrar TODO el localStorage
+  localStorage.removeItem('heladeria_v2');
+  
+  // Reconstruir solo con datos importantes (usuarios, productos, proveedores)
+  var _nuevo={
+    users: _users,
+    products: _prods,
+    suppliers: _suppliers,
+    sales:[],
+    purchases:[],
+    orders:[],
+    trazLog:[],
+    gastos:[],
+    movCaja:[],
+    cierresTurno:[],
+    deudas:[],
+    orderCounter:100
+  };
+  localStorage.setItem('heladeria_v2', JSON.stringify(_nuevo));
+}catch(e){
+  localStorage.removeItem('heladeria_v2');
+}
 </script>
 
 <!-- ══ FIREBASE DESACTIVADO TEMPORALMENTE ══ -->
