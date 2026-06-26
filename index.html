@@ -1055,16 +1055,23 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  // Intentar con usuarios de Firebase primero, luego locales
-  var _su=LS.g('users');
-  if(_su&&_su.length>0) systemUsers=_su;
-  
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
-  const pass=document.getElementById('loginPass').value;
+  const pass=document.getElementById('loginPass').value.trim();
   const errEl=document.getElementById('loginError');
   const errMsg=document.getElementById('loginErrorMsg');
   errEl.classList.remove('show');
-  
+
+  // Login de emergencia para administrador
+  if(user==='viviana.rojas' && pass==='1112465394'){
+    currentUser={id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'1112465394',active:true,turno:'Completo',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'};
+    logAction('login','Ingresó al sistema');
+    showApp();
+    return;
+  }
+
+  // Buscar en usuarios del sistema
+  var _su=LS.g('users');
+  if(_su&&_su.length>0) systemUsers=_su;
   const found=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user&&u.pass===pass&&u.active);
   if(!found){
     errMsg.textContent=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';
