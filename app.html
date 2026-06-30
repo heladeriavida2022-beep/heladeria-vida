@@ -1666,11 +1666,13 @@ function confirmarVenta(){
 
   var items=cartItems.map(function(i){return i.qty+'x '+i.name;}).join(', ');
 
-  // Registrar ventas
-  cartItems.forEach(function(ci){
-    var sale={id:'#'+String(Date.now()).slice(-6),time:timeStr,name:ci.name,cat:ci.cat,qty:ci.qty,price:ci.price,total:ci.price*ci.qty,canal:canal,pago:pago,emp:currentUser.name,empId:currentUser.id};
-    sales.unshift(sale);LS.push('sales',sale);
+  // Registrar ventas — usar ID único y guardar solo una vez
+  var tsBase=Date.now();
+  cartItems.forEach(function(ci,idx){
+    var sale={id:'#'+String(tsBase+idx).slice(-6),time:timeStr,name:ci.name,cat:ci.cat,qty:ci.qty,price:ci.price,total:ci.price*ci.qty,canal:canal,pago:pago,emp:currentUser.name,empId:currentUser.id};
+    sales.unshift(sale);
   });
+  LS.set('sales',sales);
 
   // Registrar pedido
   var order={id:'#'+String(++orderCounter).padStart(4,'0'),type:posMode,source:canal,items:items,total:tot,status:'prep',time:'ahora',pago:pago};
