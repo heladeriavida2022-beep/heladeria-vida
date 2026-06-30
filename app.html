@@ -112,7 +112,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 /* BODY LAYOUT */
 .body-wrap{position:relative;flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:row}
 .sidebar{width:196px;background:#fff;border-right:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;box-shadow:2px 0 8px rgba(160,110,70,.05)}
-.sidebar.hidden{display:none}
+.sidebar.hidden{display:none !important;width:0 !important;flex:0 !important}
 .main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
 
 /* SIDEBAR */
@@ -232,7 +232,7 @@ tr:last-child td{border-bottom:none}
 
 /* POS */
 .pos-wrap{display:flex;flex:1;overflow:hidden}
-.pos-menu{flex:1;overflow-y:auto;padding:14px 16px}
+.pos-menu{flex:1;overflow-y:auto;padding:10px 14px}
 .pos-cart{width:260px;background:#fff;border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;box-shadow:-2px 0 8px rgba(160,110,70,.05)}
 .cart-hdr{padding:10px 13px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;font-family:var(--font-head);background:var(--bg3)}
 .cart-body{flex:1;overflow-y:auto;padding:9px 13px}
