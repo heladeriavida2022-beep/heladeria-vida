@@ -643,7 +643,7 @@ tr:last-child td{border-bottom:none}
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
             <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div><input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:140px;padding:5px 9px;font-size:11px"></div>
-            <div class="tw"><table><thead><tr><th>#</th><th>Hora</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>Total</th><th>Canal</th><th>Empleado</th></tr></thead><tbody id="sales-tbl"></tbody></table></div></div>
+            <div class="tw"><table><thead><tr><th>#</th><th>Hora</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>Total</th><th>Canal</th><th>Empleado</th><th>Detalle</th></tr></thead><tbody id="sales-tbl"></tbody></table></div></div>
           </div>
 
           <!-- GASTOS -->
@@ -2086,20 +2086,36 @@ function renderSalesTable(){
   const tot=sales.reduce((s,v)=>s+v.total,0);const unds=sales.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
   if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Transacciones</div><div class="sval" style="color:var(--acc4)">${sales.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${sales.length?fmt(tot/sales.length):'$0'}</div></div>`;
-  if(!sales.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
-  tbl.innerHTML=[...sales].reverse().map(s=>{
-    var detalle=s.detalle&&s.detalle.length>1?`<div style="font-size:9.5px;color:var(--text3);margin-top:2px">${s.detalle.map(d=>d.qty+'x '+d.name).join(' · ')}</div>`:'';
+  if(!sales.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
+  tbl.innerHTML=[...sales].reverse().map((s,i)=>{
+    var tieneDetalle=s.detalle&&s.detalle.length>0;
+    var detalleHtml=tieneDetalle?s.detalle.map(d=>`
+      <tr style="background:#f9fafb">
+        <td colspan="2"></td>
+        <td style="font-size:11px;color:var(--text2);padding:4px 8px">↳ ${d.name}</td>
+        <td></td>
+        <td style="font-size:11px;text-align:center">${d.qty}</td>
+        <td style="font-size:11px;color:var(--acc3);font-weight:600">${fmt(d.total)}</td>
+        <td colspan="3"></td>
+      </tr>`).join(''):'';
     return `<tr>
       <td>${s.id}</td>
       <td>${s.time}</td>
-      <td><div style="font-size:11.5px;font-weight:600">${s.name}</div>${detalle}</td>
+      <td><div style="font-size:11.5px;font-weight:600">${s.name}</div></td>
       <td>${catBadge(s.cat)}</td>
       <td>${s.qty}</td>
       <td style="color:${s.total>0?'var(--acc3)':'var(--text2)'};font-weight:700">${s.total>0?fmt(s.total):'—'}</td>
       <td><span style="font-size:10px;background:var(--bg3);padding:2px 6px;border-radius:10px">${s.canal}</span></td>
       <td style="color:var(--text2);font-size:11px">${s.emp}</td>
-    </tr>`;
+      <td>${tieneDetalle?`<button onclick="toggleDetalle('det-${i}')" style="background:none;border:1px solid var(--border);border-radius:6px;padding:2px 7px;cursor:pointer;font-size:10px;color:var(--acc)">Ver</button>`:''}</td>
+    </tr>
+    <tr id="det-${i}" style="display:none">${detalleHtml?`<td colspan="9" style="padding:0"><table style="width:100%">${detalleHtml}</table></td>`:''}</tr>`;
   }).join('');
+}
+
+function toggleDetalle(id){
+  var el=document.getElementById(id);
+  if(el) el.style.display=el.style.display==='none'?'table-row':'none';
 }
 
 // ══════════════════════════════════════════════
