@@ -1667,12 +1667,23 @@ function confirmarVenta(){
 
   var items=cartItems.map(function(i){return i.qty+'x '+i.name;}).join(', ');
 
-  // Registrar ventas — usar ID único y guardar solo una vez
-  var tsBase=Date.now();
-  cartItems.forEach(function(ci,idx){
-    var sale={id:'#'+String(tsBase+idx).slice(-6),time:timeStr,name:ci.name,cat:ci.cat,qty:ci.qty,price:ci.price,total:ci.price*ci.qty,canal:canal,pago:pago,emp:currentUser.name,empId:currentUser.id};
-    sales.unshift(sale);
-  });
+  // Registrar como UNA SOLA venta con todos los productos
+  var saleId='#'+String(Date.now()).slice(-6);
+  var sale={
+    id:saleId,
+    time:timeStr,
+    name:items,
+    cat:cartItems.length>1?'VARIOS':cartItems[0].cat,
+    qty:cartItems.reduce(function(s,i){return s+i.qty;},0),
+    price:tot,
+    total:tot,
+    canal:canal,
+    pago:pago,
+    emp:currentUser.name,
+    empId:currentUser.id,
+    detalle:cartItems.map(function(i){return {name:i.name,qty:i.qty,price:i.price,total:i.price*i.qty};})
+  };
+  sales.unshift(sale);
   LS.set('sales',sales);
 
   // Registrar pedido
@@ -2076,7 +2087,19 @@ function renderSalesTable(){
   const st=document.getElementById('ventas-stats');
   if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Transacciones</div><div class="sval" style="color:var(--acc4)">${sales.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${sales.length?fmt(tot/sales.length):'$0'}</div></div>`;
   if(!sales.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
-  tbl.innerHTML=[...sales].reverse().map(s=>`<tr><td>${s.id}</td><td>${s.time}</td><td>${s.name}</td><td>${catBadge(s.cat)}</td><td>${s.qty}</td><td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td><td>${s.canal}</td><td style="color:var(--text2);font-size:11px">${s.emp}</td></tr>`).join('');
+  tbl.innerHTML=[...sales].reverse().map(s=>{
+    var detalle=s.detalle&&s.detalle.length>1?`<div style="font-size:9.5px;color:var(--text3);margin-top:2px">${s.detalle.map(d=>d.qty+'x '+d.name).join(' · ')}</div>`:'';
+    return `<tr>
+      <td>${s.id}</td>
+      <td>${s.time}</td>
+      <td><div style="font-size:11.5px;font-weight:600">${s.name}</div>${detalle}</td>
+      <td>${catBadge(s.cat)}</td>
+      <td>${s.qty}</td>
+      <td style="color:${s.total>0?'var(--acc3)':'var(--text2)'};font-weight:700">${s.total>0?fmt(s.total):'—'}</td>
+      <td><span style="font-size:10px;background:var(--bg3);padding:2px 6px;border-radius:10px">${s.canal}</span></td>
+      <td style="color:var(--text2);font-size:11px">${s.emp}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════
