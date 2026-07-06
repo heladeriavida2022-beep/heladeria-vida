@@ -112,7 +112,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 /* BODY LAYOUT */
 .body-wrap{position:relative;flex:1;overflow:hidden;min-height:0;display:flex;flex-direction:row}
 .sidebar{width:196px;background:#fff;border-right:1px solid var(--border);flex-shrink:0;display:flex;flex-direction:column;overflow-y:auto;box-shadow:2px 0 8px rgba(160,110,70,.05)}
-.sidebar.hidden{display:none !important;width:0 !important;flex:0 !important}
+.sidebar.hidden{display:none !important;width:0 !important;min-width:0 !important;max-width:0 !important;flex:0 0 0 !important;overflow:hidden !important;padding:0 !important;border:none !important}
 .main{flex:1;overflow:hidden;display:flex;flex-direction:column;position:relative}
 
 /* SIDEBAR */
@@ -521,7 +521,7 @@ tr:last-child td{border-bottom:none}
       </div>
 
       <!-- POS -->
-      <div class="page" id="pg-pos" style="overflow:hidden">
+      <div class="page" id="pg-pos" style="overflow:hidden;left:0 !important;width:100% !important">
         <div class="page-bar" style="padding:4px 10px;display:flex;align-items:center;gap:6px;flex-wrap:nowrap;min-height:0;border-bottom:1px solid var(--border);background:#fff">
           <div style="position:relative;flex-shrink:0"><i class="ti ti-search" style="position:absolute;left:7px;top:50%;transform:translateY(-50%);font-size:11px;color:var(--text3)"></i><input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:24px;width:110px;font-size:11px;padding-top:4px;padding-bottom:4px;height:30px"></div>
           <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:110px;padding:4px 6px;font-size:10px;flex-shrink:0;height:30px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="PARA LLEVAR">🥡 Para Llevar</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
