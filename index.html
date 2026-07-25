@@ -2701,6 +2701,18 @@ onSnapshot(collection(db,'deudas'), snap=>{
   try{updateDeudasBadge();}catch(e){}
 },e=>console.warn('deudas listener',e));
 
+onSnapshot(collection(db,'pedidos'), snap=>{
+  var arr=[];snap.forEach(d=>{var o=d.data();delete o._ts;if(o.status!=='entregado')arr.push(o);});
+  liveOrders=arr;
+  try{renderOrders();}catch(e){}
+  try{updateBadges();}catch(e){}
+},e=>console.warn('pedidos listener',e));
+
+onSnapshot(collection(db,'caja'), snap=>{
+  var arr=[];snap.forEach(d=>{var o=d.data();delete o._ts;arr.push(o);});
+  if(arr.length>0){movCaja=arr;LS.set('movCaja',movCaja);}
+},e=>console.warn('caja listener',e));
+
 // ── Parchear funciones para guardar en Firebase ──
 setTimeout(function(){
   // Venta
@@ -2736,7 +2748,12 @@ setTimeout(function(){
   // Cargar datos de Firebase
   fbCargar();
   console.log('🔥 Firebase activo');
-}, 1500);
+}, 2500);
+
+// Si el DOM ya está listo, también intentar cargar
+if(document.readyState==='complete'){
+  setTimeout(fbCargar, 3000);
+}
 </script>
 </body>
 </html>
