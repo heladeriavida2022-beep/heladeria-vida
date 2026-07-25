@@ -2577,28 +2577,166 @@ try{
 }
 </script>
 
-<!-- ══ FIREBASE DESACTIVADO TEMPORALMENTE ══ -->
-<script>
-// Firebase desactivado - sistema funciona con datos locales
-window.FB = {
-  set: function(){},
-  del: function(){},
-  sync: function(){},
-  saveSale: function(){},
-  saveCompra: function(){},
-  saveStock: function(){},
-  saveDeuda: function(){},
-  saveCaja: function(){},
-  saveSupplier: function(){},
-  saveUser: function(){},
-  delSupplier: function(){},
+<!-- ══ FIREBASE — SINCRONIZACIÓN EN TIEMPO REAL ══ -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+import { getFirestore, doc, collection, setDoc, getDocs, onSnapshot, addDoc, deleteDoc, serverTimestamp, query, orderBy, limit }
+  from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+
+const FB_CFG = {
+  apiKey: "AIzaSyCftS7PV-WNbLhI4Odi_6TvYoWBHzMvQDs",
+  authDomain: "heladeria-vida.firebaseapp.com",
+  projectId: "heladeria-vida",
+  storageBucket: "heladeria-vida.firebasestorage.app",
+  messagingSenderId: "475089878241",
+  appId: "1:475089878241:web:a6780ee2d1705e31ec8ba0"
 };
-// Ocultar indicador de conexión
-setTimeout(function(){
+
+const fbApp = initializeApp(FB_CFG);
+const db = getFirestore(fbApp);
+
+// ── Indicador ──
+function fbStatus(msg, ok){
   var el=document.getElementById('fb-status');
-  if(el) el.style.display='none';
-},500);
-console.log('Sistema funcionando en modo local');
+  if(!el){el=document.createElement('div');el.id='fb-status';
+    el.style.cssText='position:fixed;bottom:14px;right:14px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;font-family:var(--font-body);z-index:9999;box-shadow:0 2px 10px rgba(0,0,0,.13);transition:all .3s';
+    document.body.appendChild(el);}
+  el.style.background=ok?'#edfaf2':'#fff5f5';
+  el.style.color=ok?'#3aaa6a':'#e94560';
+  el.style.border='1.5px solid '+(ok?'#3aaa6a':'#e94560');
+  el.textContent=(ok?'🟢 ':'🔴 ')+msg;
+}
+
+// ── Helpers ──
+async function fbSet(col,id,data){
+  try{var c={};Object.keys(data).forEach(k=>{if(data[k]!==undefined)c[k]=data[k];});
+  await setDoc(doc(db,col,String(id)),{...c,_ts:serverTimestamp()},{merge:true});}
+  catch(e){console.warn('fbSet',col,e.message);}
+}
+async function fbGetAll(col){
+  try{var s=await getDocs(collection(db,col));var r=[];s.forEach(d=>{var o=d.data();delete o._ts;r.push(o);});return r;}
+  catch(e){console.warn('fbGetAll',col,e.message);return[];}
+}
+
+// ── API global ──
+window.FB={
+  set:fbSet,
+  saveSale:(s)=>fbSet('ventas',s.id||Date.now(),s),
+  saveCompra:(c)=>fbSet('compras',c.id||Date.now(),c),
+  saveStock:(id,v)=>fbSet('inventario',id,{stock:v}),
+  saveDeuda:(d)=>fbSet('deudas',d.id,d),
+  saveCaja:(m)=>fbSet('caja',m.id||Date.now(),m),
+  saveSupplier:(s)=>fbSet('suppliers',s.id,s),
+  saveUser:(u)=>fbSet('usuarios',u.id,u),
+  delSupplier:async(id)=>{try{await deleteDoc(doc(db,'suppliers',String(id)));}catch(e){}},
+};
+
+// ── Carga inicial ──
+async function fbCargar(){
+  fbStatus('Conectando...', true);
+  try{
+    // Ventas
+    var fv=await fbGetAll('ventas');
+    if(fv.length>0){sales=fv.sort((a,b)=>(b.id||'').localeCompare(a.id||''));LS.set('sales',sales);}
+
+    // Compras
+    var fc=await fbGetAll('compras');
+    if(fc.length>0){purchases=fc;LS.set('purchases',purchases);}
+
+    // Inventario
+    var fi=await fbGetAll('inventario');
+    fi.forEach(item=>{var p=prods.find(x=>String(x.id)===String(item.id));if(p&&item.stock!==undefined)p.stock=item.stock;});
+
+    // Deudas
+    var fd=await fbGetAll('deudas');
+    if(fd.length>0)LS.set('deudas',fd);
+
+    // Caja
+    var fca=await fbGetAll('caja');
+    if(fca.length>0){movCaja=fca;LS.set('movCaja',movCaja);}
+
+    // Pedidos
+    var fp=await fbGetAll('pedidos');
+    if(fp.length>0)liveOrders=fp.filter(o=>o.status!=='entregado');
+
+    try{renderDash();}catch(e){}
+    try{updateBadges();}catch(e){}
+    fbStatus('Sincronizado ✓', true);
+    setTimeout(()=>fbStatus('Sincronizado ✓',true),1000);
+  }catch(e){fbStatus('Sin conexión',false);console.warn('fbCargar',e);}
+}
+
+// ── Listeners tiempo real ──
+onSnapshot(collection(db,'ventas'), snap=>{
+  var arr=[];snap.forEach(d=>{var o=d.data();delete o._ts;arr.push(o);});
+  if(arr.length>0){sales=arr.sort((a,b)=>(b.id||'').localeCompare(a.id||''));LS.set('sales',sales);}
+  try{if(document.getElementById('adv-ventas')?.classList.contains('active'))renderSalesTable();}catch(e){}
+  try{renderDash();}catch(e){}
+},e=>fbStatus('Sin conexión',false));
+
+onSnapshot(collection(db,'inventario'), snap=>{
+  snap.docChanges().forEach(ch=>{
+    var d=ch.doc.data();var p=prods.find(x=>String(x.id)===String(ch.doc.id));
+    if(p&&d.stock!==undefined)p.stock=d.stock;
+  });
+  try{updateBadges();}catch(e){}
+},e=>console.warn('inv listener',e));
+
+onSnapshot(collection(db,'pedidos'), snap=>{
+  snap.docChanges().forEach(ch=>{
+    var d=ch.doc.data();delete d._ts;var id=ch.doc.id;
+    var idx=liveOrders.findIndex(o=>o.id===id);
+    if(ch.type==='removed'){if(idx>=0)liveOrders.splice(idx,1);}
+    else if(idx>=0){Object.assign(liveOrders[idx],d);}
+    else if(d.status!=='entregado'){liveOrders.unshift(d);}
+  });
+  try{renderOrders();}catch(e){}
+  try{updateBadges();}catch(e){}
+},e=>console.warn('pedidos listener',e));
+
+onSnapshot(collection(db,'deudas'), snap=>{
+  var arr=[];snap.forEach(d=>{var o=d.data();delete o._ts;arr.push(o);});
+  LS.set('deudas',arr);
+  try{renderDeudas();}catch(e){}
+  try{updateDeudasBadge();}catch(e){}
+},e=>console.warn('deudas listener',e));
+
+// ── Parchear funciones para guardar en Firebase ──
+setTimeout(function(){
+  // Venta
+  var _cv=window.confirmarVenta;
+  if(typeof _cv==='function'){
+    window.confirmarVenta=function(){
+      _cv();
+      var s=sales[0];if(s)window.FB.saveSale(s);
+      prods.filter(p=>p.descuenta).forEach(p=>window.FB.saveStock(p.id,p.stock));
+    };
+  }
+  // Caja
+  var _gmc=window.guardarMovCaja;
+  if(typeof _gmc==='function'){
+    window.guardarMovCaja=function(t){_gmc(t);var m=movCaja[0];if(m)window.FB.saveCaja(m);};
+  }
+  // Deuda
+  var _gd=window.guardarDeuda;
+  if(typeof _gd==='function'){
+    window.guardarDeuda=function(){_gd();var d=(LS.g('deudas')||[])[0];if(d)window.FB.saveDeuda(d);};
+  }
+  // Pagar deuda
+  var _pd=window.pagarDeuda;
+  if(typeof _pd==='function'){
+    window.pagarDeuda=function(id){_pd(id);var d=(LS.g('deudas')||[]).find(x=>x.id===id);if(d)window.FB.saveDeuda(d);};
+  }
+  // Ajuste inventario
+  var _ga=window.guardarAjuste;
+  if(typeof _ga==='function'){
+    window.guardarAjuste=function(){_ga();prods.filter(p=>p.descuenta).forEach(p=>window.FB.saveStock(p.id,p.stock));};
+  }
+
+  // Cargar datos de Firebase
+  fbCargar();
+  console.log('🔥 Firebase activo');
+}, 1500);
 </script>
 </body>
 </html>
