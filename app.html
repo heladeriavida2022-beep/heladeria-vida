@@ -1142,12 +1142,12 @@ let prods=[
     {n:"MECHAS LOKAS",p:4000},{n:"BOLA DE CHICLE",p:0},{n:"CAPRI",p:500},
     {n:"TAKIS FUEGO",p:3800},{n:"OKA LOKA FUSION",p:1200},{n:"GALLETA CAPRI",p:0}
   ].map(({n,p},i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:p,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
-  ...["BOTELLA CON AGUA GRANDE","BOTELLA CON AGUA PEQUEÑA","CERVEZA","BOTELLA DE TAMARINDO","JUGO HIT"]
-    .map((n,i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:0,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
-  ...[{n:"BROWNIE",p:0},{n:"QUESO",p:4000}]
+  ...[[{n:"BOTELLA CON AGUA GRANDE",p:2000},{n:"BOTELLA CON AGUA PEQUEÑA",p:1000},{n:"CERVEZA",p:4500},{n:"BOTELLA DE TAMARINDO",p:0},{n:"JUGO HIT",p:0}]
+    .map(({n,p},i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:p,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
+  ...[{n:"BROWNIE",p:4000},{n:"QUESO",p:4000}]
     .map(({n,p},i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:p,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
-  ...["VASO 14 OZ","CONTENEDOR 16 OZ","SOBRE COPA DOMO","TAPA BONYURT","EMPAQUE BANANA SPLIT"]
-    .map((n,i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:0,stock:200,min:50,unit:'unidades',descuenta:true,active:true})),
+  ...[[{n:"VASO 14 OZ",p:1000},{n:"CONTENEDOR 16 OZ",p:2000},{n:"SOBRE COPA DOMO",p:1000},{n:"TAPA BONYURT",p:0},{n:"EMPAQUE BANANA SPLIT",p:1000}]
+    .map(({n,p},i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:p,stock:200,min:50,unit:'unidades',descuenta:true,active:true})),
 ];
 
 // ══════════════════════════════════════════════
