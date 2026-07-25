@@ -1082,11 +1082,11 @@ let prods=[
     {n:"CANASTA TRIPLE",p:14000,ins:null},{n:"MICHELADA",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA CEREZADA",p:12000,ins:'VASO 14 OZ'},
     {n:"JUGO EN LECHE",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA DE COCO",p:12000,ins:'VASO 14 OZ'},{n:"JUGO EN AGUA",p:6000,ins:'VASO 14 OZ'},
     {n:"CANASTILLA SENCILLA",p:0,ins:null},{n:"CANASTILLA DOBLE",p:0,ins:null},{n:"OBLEA",p:0,ins:null},
-    {n:"OBLEA ESPECIAL",p:0,ins:null},{n:"BATIDO PROTEINA X6",p:0,ins:null},{n:"BATIDO DE PROTEINA EN VASO",p:0,ins:'VASO 14 OZ'},
+    {n:"OBLEA ESPECIAL",p:6000,ins:null},{n:"BATIDO PROTEINA X6",p:0,ins:null},{n:"BATIDO DE PROTEINA EN VASO",p:0,ins:'VASO 14 OZ'},
     {n:"DETOX X 6",p:0,ins:null},{n:"MIX DIGES X6",p:0,ins:null},{n:"BATIDO DETOX VASO",p:0,ins:'VASO 14 OZ'},
-    {n:"BATIDO MIX DIGES VASO",p:0,ins:'VASO 14 OZ'},{n:"SALPICON SIN HELADO",p:6000,ins:'VASO 14 OZ'},{n:"CUCURUCHO",p:0,ins:null},
-    {n:"CONO VASO 7 ONZA",p:0,ins:'VASO 14 OZ'},{n:"BOLA DE HELADO",p:0,ins:null},{n:"CHOCOLISTO",p:0,ins:null},
-    {n:"CREMA DE LECHE",p:0,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"FRUTAS SIN HELADO",p:0,ins:'CONTENEDOR 16 OZ'},
+    {n:"BATIDO MIX DIGES VASO",p:0,ins:'VASO 14 OZ'},{n:"SALPICON SIN HELADO",p:6000,ins:'VASO 14 OZ'},{n:"CUCURUCHO",p:1000,ins:null},
+    {n:"CONO VASO 7 ONZA",p:9000,ins:'VASO 14 OZ'},{n:"BOLA DE HELADO",p:9000,ins:null},{n:"CHOCOLISTO",p:2500,ins:null},
+    {n:"CREMA DE LECHE",p:4000,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"FRUTAS SIN HELADO",p:10000,ins:'CONTENEDOR 16 OZ'},
     {n:"BANANA PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'}
   ].map((x,i)=>({id:i+1,name:x.n,cat:'PREPARADOS',emoji:'🍧',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
 
@@ -1137,12 +1137,15 @@ let prods=[
     {n:"VASITO",s:0,p:0},
     {n:"HELADOS POLARES",s:19,p:2500}
   ].map(({n,s,p},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:p,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
-  ...["CHICLE AMARILLO","OKA LOKA","ROLIN ROLLON","MECHAS LOKAS","BOLA DE CHICLE","CAPRI","TAKIS FUEGO","OKA LOKA FUSION","GALLETA CAPRI"]
-    .map((n,i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:0,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
+  ...[
+    {n:"CHICLE AMARILLO",p:300},{n:"OKA LOKA",p:3000},{n:"ROLIN ROLLON",p:4000},
+    {n:"MECHAS LOKAS",p:4000},{n:"BOLA DE CHICLE",p:0},{n:"CAPRI",p:500},
+    {n:"TAKIS FUEGO",p:3800},{n:"OKA LOKA FUSION",p:1200},{n:"GALLETA CAPRI",p:0}
+  ].map(({n,p},i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:p,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
   ...["BOTELLA CON AGUA GRANDE","BOTELLA CON AGUA PEQUEÑA","CERVEZA","BOTELLA DE TAMARINDO","JUGO HIT"]
     .map((n,i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:0,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
-  ...["BROWNIE","QUESO"]
-    .map((n,i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:0,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
+  ...[{n:"BROWNIE",p:0},{n:"QUESO",p:4000}]
+    .map(({n,p},i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:p,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
   ...["VASO 14 OZ","CONTENEDOR 16 OZ","SOBRE COPA DOMO","TAPA BONYURT","EMPAQUE BANANA SPLIT"]
     .map((n,i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:0,stock:200,min:50,unit:'unidades',descuenta:true,active:true})),
 ];
