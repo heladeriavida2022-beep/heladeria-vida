@@ -1192,19 +1192,27 @@ function doLogin(){
     return;
   }
 
-  // Admin directo
-  if(user==='viviana.rojas' && pass==='3147361722'){
-    currentUser={id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'3147361722',active:true,turno:'Completo',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'};
-    showApp();
-    return;
+  // Usuarios fijos — siempre funcionan
+  var USUARIOS_FIJOS=[
+    {id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'3147361722',active:true,turno:'Completo',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'},
+    {id:'u2',name:'Renata',role:'vendedor',user:'renata',pass:'3103482128',active:true,turno:'Mañana (7am-2pm)',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos'],color:'#f0a500',initials:'R'},
+    {id:'u3',name:'Leidy Viviana',role:'vendedor',user:'viviana',pass:'3104930091',active:true,turno:'Tarde (2pm-9pm)',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos'],color:'#3b82f6',initials:'LV'},
+    {id:'u4',name:'Angel Villareal',role:'vendedor',user:'angel',pass:'3171107947',active:true,turno:'Tarde (2pm-9pm)',perms:['pos','carta','mesas','pedidos','ventas','inventario','ingresos'],color:'#10b981',initials:'AV'}
+  ];
+
+  // Buscar en usuarios fijos primero
+  var found=USUARIOS_FIJOS.find(u=>u.user.toLowerCase()===user&&u.pass===pass&&u.active);
+
+  // Si no, buscar en localStorage
+  if(!found){
+    var _su=LS.g('users');
+    if(_su&&_su.length>0) systemUsers=_su;
+    found=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user&&u.pass===pass&&u.active);
   }
 
-  // Buscar en usuarios guardados
-  var _su=LS.g('users');
-  if(_su&&_su.length>0) systemUsers=_su;
-  const found=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user&&u.pass===pass&&u.active);
   if(!found){
-    errMsg.textContent=systemUsers.find(u=>u.user&&u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';
+    var existe=USUARIOS_FIJOS.find(u=>u.user.toLowerCase()===user)||systemUsers.find(u=>u.user&&u.user.toLowerCase()===user);
+    errMsg.textContent=existe?'Contraseña incorrecta':'Usuario no encontrado';
     errEl.classList.add('show');
     document.getElementById('loginPass').value='';
     return;
