@@ -1248,7 +1248,7 @@ function showApp(){
   try{
     if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){
       topNav('admin',document.getElementById('tnav-admin'));
-      setTimeout(function(){try{renderDashboard();}catch(e){}},80);
+      setTimeout(function(){try{renderDashboard();}catch(e){}},200);
       var btnR=document.getElementById('btn-reinicio-fijo');
       if(btnR&&currentUser.role==='admin') btnR.style.display='block';
     } else {
@@ -2777,11 +2777,18 @@ setTimeout(function(){
   // Cargar datos de Firebase
   fbCargar();
   console.log('🔥 Firebase activo');
+
+  // Garantizar que el dashboard se muestra aunque Firebase falle
+  setTimeout(function(){
+    try{renderDashboard();}catch(e){}
+    try{updateBadges();}catch(e){}
+  }, 4000);
+
 }, 2500);
 
 // Si el DOM ya está listo, también intentar cargar
 if(document.readyState==='complete'){
-  setTimeout(fbCargar, 3000);
+  setTimeout(fbCargar, 3500);
 }
 </script>
 </body>
