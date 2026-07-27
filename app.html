@@ -1757,6 +1757,16 @@ function confirmarVenta(){
   };
   sales.unshift(sale);
   LS.set('sales',sales);
+  // Guardar en Firebase
+  if(typeof window.FB!=='undefined') window.FB.saveSale(sale);
+
+  // Registrar movimiento en caja si no es fiado
+  if(pago!=='Fiado' && tot>0){
+    var mov={id:'m'+Date.now(),hora:timeStr,tipo:'ingreso',desc:'Venta: '+items,monto:tot,pago:pago,emp:currentUser.name};
+    movCaja.unshift(mov);
+    LS.set('movCaja',movCaja);
+    if(typeof window.FB!=='undefined') window.FB.saveCaja(mov);
+  }
 
   // Registrar pedido
   var order={id:'#'+String(++orderCounter).padStart(4,'0'),type:posMode,source:canal,items:items,total:tot,status:'prep',time:'ahora',pago:pago};
