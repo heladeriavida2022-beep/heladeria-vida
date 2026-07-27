@@ -1222,27 +1222,29 @@ function doLogin(){
 }
 
 function showApp(){
-  document.getElementById('loginScreen').style.display='none';
-  var _sh=document.getElementById('appShell');if(_sh){_sh.style.display='flex';_sh.classList.add('show');}
-  // update header
-  var _ucav=document.getElementById('uc-av');if(_ucav){_ucav.textContent=currentUser.initials;_ucav.style.background=currentUser.color;}
-  var _ucnm=document.getElementById('uc-name');if(_ucnm)_ucnm.textContent=currentUser.name;
-  var _ucrl=document.getElementById('uc-role');if(_ucrl)_ucrl.textContent=ROLE_LABELS[currentUser.role];
-  document.getElementById('sb-av').textContent=currentUser.initials;
-  document.getElementById('sb-av').style.background=currentUser.color;
-  document.getElementById('sb-name').textContent=currentUser.name;
-  document.getElementById('sb-role').textContent=ROLE_LABELS[currentUser.role];
-  applyPermissions();
-  var _av2=document.getElementById('suf-av');var _nm2=document.getElementById('suf-nm');var _rl2=document.getElementById('suf-rl');
-  if(_av2&&currentUser){_av2.textContent=currentUser.initials||'?';_av2.style.background=currentUser.color||'linear-gradient(135deg,#f4845f,#9b72cf)';}
-  if(_nm2&&currentUser)_nm2.textContent=currentUser.name;
-  if(_rl2&&currentUser)_rl2.textContent=currentUser.role==='admin'?'Administrador':'Vendedor';
-  if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);
-    // Mostrar botón reinicio solo para admin
-    var btnR=document.getElementById('btn-reinicio-fijo');
-    if(btnR&&currentUser.role==='admin') btnR.style.display='block';
-  }
-  else{topNav('pos',document.getElementById('tnav-pos'));renderPOS();}
+  try{document.getElementById('loginScreen').style.display='none';}catch(e){}
+  try{var _sh=document.getElementById('appShell');if(_sh){_sh.style.display='flex';_sh.classList.add('show');}}catch(e){}
+  try{var _ucav=document.getElementById('uc-av');if(_ucav){_ucav.textContent=currentUser.initials;_ucav.style.background=currentUser.color;}}catch(e){}
+  try{var _ucnm=document.getElementById('uc-name');if(_ucnm)_ucnm.textContent=currentUser.name;}catch(e){}
+  try{var _ucrl=document.getElementById('uc-role');if(_ucrl)_ucrl.textContent=ROLE_LABELS[currentUser.role];}catch(e){}
+  try{var _sbav=document.getElementById('sb-av');if(_sbav){_sbav.textContent=currentUser.initials;_sbav.style.background=currentUser.color;}}catch(e){}
+  try{var _sbnm=document.getElementById('sb-name');if(_sbnm)_sbnm.textContent=currentUser.name;}catch(e){}
+  try{var _sbrl=document.getElementById('sb-role');if(_sbrl)_sbrl.textContent=ROLE_LABELS[currentUser.role];}catch(e){}
+  try{applyPermissions();}catch(e){}
+  try{var _av2=document.getElementById('suf-av');if(_av2){_av2.textContent=currentUser.initials||'?';_av2.style.background=currentUser.color||'linear-gradient(135deg,#f4845f,#9b72cf)';}}catch(e){}
+  try{var _nm2=document.getElementById('suf-nm');if(_nm2)_nm2.textContent=currentUser.name;}catch(e){}
+  try{var _rl2=document.getElementById('suf-rl');if(_rl2)_rl2.textContent=currentUser.role==='admin'?'Administrador':'Vendedor';}catch(e){}
+  try{
+    if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){
+      topNav('admin',document.getElementById('tnav-admin'));
+      setTimeout(function(){try{renderDashboard();}catch(e){}},80);
+      var btnR=document.getElementById('btn-reinicio-fijo');
+      if(btnR&&currentUser.role==='admin') btnR.style.display='block';
+    } else {
+      topNav('pos',document.getElementById('tnav-pos'));
+      try{renderPOS();}catch(e){}
+    }
+  }catch(e){}
 }
 
 function logout(){
