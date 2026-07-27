@@ -1346,9 +1346,12 @@ function topNav(id,btn){
   if(btn)btn.classList.add('active');
   else document.getElementById('tnav-'+id)?.classList.add('active');
   document.getElementById('sidebar').classList.toggle('hidden',id!=='admin'||!hasAnyAdminPerm());
-  // Ocultar sidebar completamente en POS para más espacio
   var sb=document.getElementById('sidebar');
-  if(sb) sb.style.display=(id==='pos')?'none':(id==='admin'&&hasAnyAdminPerm()?'':'none');
+  if(sb){
+    if(id==='pos') sb.style.display='none';
+    else if(id==='admin') sb.style.display='';
+    else sb.style.display='none';
+  }
   if(id==='carta')renderCarta();
   if(id==='cliente')renderCliente();
   if(id==='mesas')renderMesas();
@@ -1358,13 +1361,16 @@ function topNav(id,btn){
 }
 
 function adminNav(id,btn){
-  if(btn&&btn.classList.contains('locked')){toast('Sin permiso','var(--acc)');return;}
-  document.querySelectorAll('.adm-view').forEach(function(v){v.style.display='none';v.classList.remove('active');});
-  var v=document.getElementById('adv-'+id);
-  if(v){v.style.display='flex';v.style.flexDirection='column';v.style.flex='1';v.style.minHeight='0';v.style.overflowY='auto';v.style.background='#f7f8fa';v.style.padding=(id==='dashboard'?'0':'20px 24px');v.classList.add('active');}
-  document.querySelectorAll('.sni').forEach(function(b){b.classList.remove('active');});
-  if(btn)btn.classList.add('active');
-  renderAdminView(id);
+  try{
+    if(btn&&btn.classList.contains('locked')){toast('Sin permiso','var(--acc)');return;}
+    document.querySelectorAll('.adm-view').forEach(function(v){v.style.display='none';v.classList.remove('active');});
+    var v=document.getElementById('adv-'+id);
+    if(v){v.style.display='flex';v.style.flexDirection='column';v.style.flex='1';v.style.minHeight='0';v.style.overflowY='auto';v.style.background='#f7f8fa';v.style.padding=(id==='dashboard'?'0':'20px 24px');v.classList.add('active');}
+    else{console.warn('Vista no encontrada: adv-'+id);}
+    document.querySelectorAll('.sni').forEach(function(b){b.classList.remove('active');});
+    if(btn)btn.classList.add('active');
+    try{renderAdminView(id);}catch(e){console.error('renderAdminView error:',e);}
+  }catch(e){console.error('adminNav error:',e);}
 }
 
 function renderAdminView(id){
