@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Test Login Heladería</title>
+<style>
+body{font-family:Arial,sans-serif;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f5f5f5;margin:0}
+.box{background:#fff;padding:30px;border-radius:12px;box-shadow:0 2px 20px rgba(0,0,0,.1);width:300px}
+h2{text-align:center;color:#f4845f;margin-bottom:20px}
+input{width:100%;padding:10px;margin-bottom:12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px}
+button{width:100%;padding:12px;background:#f4845f;color:#fff;border:none;border-radius:8px;font-size:16px;cursor:pointer;font-weight:bold}
+button:hover{background:#e07040}
+#msg{text-align:center;color:red;margin-top:10px;display:none}
+#ok{text-align:center;color:green;margin-top:10px;display:none;font-weight:bold}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>🍦 Heladería ViDa</h2>
+  <input type="text" id="u" placeholder="Usuario">
+  <input type="password" id="p" placeholder="Contraseña">
+  <button onclick="entrar()">Ingresar</button>
+  <div id="msg">Usuario o contraseña incorrectos</div>
+  <div id="ok">✅ Login correcto! Redirigiendo...</div>
+</div>
+<script>
+var usuarios = [
+  {user:'viviana.rojas', pass:'3147361722'},
+  {user:'renata', pass:'3103482128'},
+  {user:'viviana', pass:'3104930091'},
+  {user:'angel', pass:'3171107947'}
+];
+function entrar(){
+  var u = document.getElementById('u').value.trim().toLowerCase();
+  var p = document.getElementById('p').value.trim();
+  var ok = usuarios.find(function(x){ return x.user === u && x.pass === p; });
+  if(ok){
+    document.getElementById('ok').style.display='block';
+    document.getElementById('msg').style.display='none';
+    setTimeout(function(){ window.location.href='app.html'; }, 1500);
+  } else {
+    document.getElementById('msg').style.display='block';
+    document.getElementById('ok').style.display='none';
+  }
+}
+document.getElementById('p').addEventListener('keypress', function(e){ if(e.key==='Enter') entrar(); });
+</script>
+</body>
+</html>
