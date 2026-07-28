@@ -569,6 +569,12 @@ tr:last-child td{border-bottom:none}
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Últimas ventas</div><div class="tw"><table><thead><tr><th>Hora</th><th>Producto</th><th>Empleado</th><th>Total</th></tr></thead><tbody id="dash-sales-tbl"></tbody></table></div></div>
               <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Inventario crítico</div><div id="dash-inv"></div></div>
             </div>
+            <!-- REINICIO - solo admin -->
+            <div id="zona-reinicio" style="display:none;margin-top:20px;padding:16px;border:2px dashed #e94560;border-radius:12px;background:#fff5f5">
+              <div style="font-size:13px;font-weight:700;color:#e94560;margin-bottom:6px">⚠️ Zona de reinicio</div>
+              <div style="font-size:12px;color:#666;margin-bottom:12px">Borra ventas, compras, caja, pedidos y deudas. <b>Conserva</b> productos, usuarios e inventario.</div>
+              <button onclick="confirmarReinicio()" style="background:#e94560;color:#fff;border:none;padding:9px 20px;border-radius:8px;font-weight:700;cursor:pointer;font-size:12px">🗑️ Reiniciar registros para empezar desde cero</button>
+            </div>
           </div>
 
           <!-- ESTADÍSTICAS -->
@@ -1071,6 +1077,9 @@ function showApp(){
   if(_rl2&&currentUser)_rl2.textContent=currentUser.role==='admin'?'Administrador':'Vendedor';
   if(currentUser&&(currentUser.role==='admin'||hasAnyAdminPerm())){topNav('admin',document.getElementById('tnav-admin'));setTimeout(function(){renderDashboard();},80);}
   else{topNav('pos',document.getElementById('tnav-pos'));renderPOS();}
+  // Mostrar reinicio solo para admin
+  var zr=document.getElementById('zona-reinicio');
+  if(zr) zr.style.display=(currentUser&&currentUser.role==='admin')?'block':'none';
 }
 
 function logout(){
@@ -2056,6 +2065,20 @@ function setOSt(id,st){
 // ══════════════════════════════════════════════
 // DASHBOARD
 // ══════════════════════════════════════════════
+function confirmarReinicio(){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede hacer esto','#e94560');return;}
+  if(!confirm('⚠️ ¿Estás segura?\n\nSe borrarán:\n- Ventas\n- Compras\n- Caja\n- Pedidos\n- Deudas\n\nSe conservan: productos, usuarios, inventario.\n\nEsta acción NO se puede deshacer.')) return;
+  if(!confirm('¿Confirmas que quieres borrar todos los registros?')) return;
+  // Borrar datos
+  sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];orderCounter=100;
+  LS.set('sales',[]);LS.set('purchases',[]);LS.set('orders',[]);
+  LS.set('movCaja',[]);LS.set('cierresTurno',[]);LS.set('deudas',[]);
+  LS.set('gastos',[]);LS.set('trazLog',[]);LS.set('orderCounter',100);
+  try{renderDashboard();}catch(e){}
+  try{updateBadges();}catch(e){}
+  toast('✅ Registros borrados. Sistema listo para empezar.','#3aaa6a');
+}
+
 function renderDashboard(){
   const tot=sales.reduce((s,v)=>s+v.total,0);
   const low=prods.filter(p=>p.active&&p.descuenta&&p.stock>0&&p.stock<=p.min);
