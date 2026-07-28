@@ -578,7 +578,7 @@ tr:last-child td{border-bottom:none}
         <div id="adm-content" style="flex:1;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);min-width:0">
 
           <!-- DASHBOARD -->
-          <div class="adm-view active" id="adv-dashboard">
+          <div class="adm-view active" id="adv-dashboard" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="g4" id="dash-stats"></div>
             <div id="dash-alerts"></div>
             <div class="g2">
@@ -598,7 +598,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- ESTADÍSTICAS -->
-          <div class="adm-view" id="adv-estadisticas">
+          <div class="adm-view" id="adv-estadisticas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="g4">
               <div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ingresos mes</div><div class="sval" style="color:var(--acc3)">$5.820.000</div><div class="schg up">+12%</div></div>
               <div class="stat"><div class="sico"><i class="ti ti-receipt-2"></i></div><div class="slb">Gastos mes</div><div class="sval" style="color:var(--acc)">$1.240.000</div><div class="schg dn">-5%</div></div>
@@ -610,7 +610,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- TRAZABILIDAD -->
-          <div class="adm-view" id="adv-trazabilidad">
+          <div class="adm-view" id="adv-trazabilidad" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa">
               <select class="finput" id="traza-filter-user" style="width:160px;padding:6px 9px;font-size:12px" onchange="renderTrazabilidad()"><option value="ALL">Todos los empleados</option></select>
               <select class="finput" id="traza-filter-type" style="width:150px;padding:6px 9px;font-size:12px" onchange="renderTrazabilidad()"><option value="ALL">Todas las acciones</option><option value="login">Login</option><option value="venta">Ventas</option><option value="ingreso">Ingresos stock</option><option value="ajuste">Ajustes</option><option value="logout">Logout</option></select>
@@ -619,7 +619,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- CAJA -->
-          <div class="adm-view" id="adv-caja">
+          <div class="adm-view" id="adv-caja" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa">
               <button class="btn btn-acc" onclick="openM('ingreso-caja')"><i class="ti ti-plus"></i> Ingreso</button>
               <button class="btn btn-ghost" onclick="openM('egreso-caja')"><i class="ti ti-minus"></i> Egreso</button>
@@ -651,7 +651,7 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
 
-          <div class="adm-view" id="adv-ventas">
+          <div class="adm-view" id="adv-ventas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
             <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div><input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:140px;padding:5px 9px;font-size:11px"></div>
@@ -659,7 +659,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- AHORRO -->
-          <div class="adm-view" id="adv-ahorro">
+          <div class="adm-view" id="adv-ahorro" style="flex:1;overflow-y:auto;padding:16px 18px">
 
             <!-- Resumen gastos fijos -->
             <div class="g4" style="margin-bottom:16px">
@@ -701,7 +701,7 @@ tr:last-child td{border-bottom:none}
             </div>
           </div>
 
-          <div class="adm-view" id="adv-gastos">
+          <div class="adm-view" id="adv-gastos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('gasto')"><i class="ti ti-plus"></i> Registrar gasto</button></div>
             <div class="g4">
               <div class="stat"><div class="slb">Gastos hoy</div><div class="sval" style="color:var(--acc)">$84.000</div></div>
@@ -717,7 +717,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- COSTOS -->
-          <div class="adm-view" id="adv-costos">
+          <div class="adm-view" id="adv-costos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="g4">
               <div class="stat"><div class="slb">Costo prom/prod.</div><div class="sval" style="color:var(--acc2)">$1.820</div></div>
               <div class="stat"><div class="slb">Margen promedio</div><div class="sval" style="color:var(--acc3)">68%</div></div>
@@ -733,7 +733,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- DEUDAS -->
-          <div class="adm-view" id="adv-deudas">
+          <div class="adm-view" id="adv-deudas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('deuda')"><i class="ti ti-plus"></i> Registrar deuda manual</button></div>
             <div id="deudas-alerts"></div>
             <div class="g2" style="margin-bottom:12px">
@@ -744,7 +744,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- INVENTARIO -->
-          <div class="adm-view" id="adv-inventario">
+          <div class="adm-view" id="adv-inventario" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa" id="inv-qa-btns"><button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Registrar compra</button></div>
             <div id="inv-alerts2"></div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="inv-pills">
@@ -762,13 +762,13 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- COMPRAS -->
-          <div class="adm-view" id="adv-compras">
+          <div class="adm-view" id="adv-compras" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Nueva compra</button></div>
             <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Total</th><th>Proveedor</th><th>Por</th></tr></thead><tbody id="compras-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr></tbody></table></div></div>
           </div>
 
           <!-- PRODUCTOS GESTIÓN -->
-          <div class="adm-view" id="adv-productos">
+          <div class="adm-view" id="adv-productos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('producto')"><i class="ti ti-plus"></i> Nuevo producto</button></div>
             <div class="tabs" id="prod-tabs"><div class="tab active" onclick="setProdCat('ALL',this)">Todos</div><div class="tab" onclick="setProdCat('PREPARADOS',this)">🍧</div><div class="tab" onclick="setProdCat('EMPAQUETADOS',this)">📦</div><div class="tab" onclick="setProdCat('DULCERIA',this)">🍬</div><div class="tab" onclick="setProdCat('NEVERA',this)">❄️</div><div class="tab" onclick="setProdCat('ADICIONAL',this)">✨</div><div class="tab" onclick="setProdCat('DESECHABLES',this)">🧴</div></div>
             <div style="position:relative;margin-bottom:11px"><i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="prod-search" placeholder="Buscar..." oninput="renderProdTable()" style="padding-left:28px;font-size:12px"></div>
@@ -776,13 +776,13 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- PROVEEDORES -->
-          <div class="adm-view" id="adv-proveedores">
+          <div class="adm-view" id="adv-proveedores" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('proveedor')"><i class="ti ti-plus"></i> Nuevo proveedor</button></div>
             <div id="sup-list"></div>
           </div>
 
           <!-- USUARIOS Y PERMISOS -->
-          <div class="adm-view" id="adv-usuarios">
+          <div class="adm-view" id="adv-usuarios" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('usuario')"><i class="ti ti-user-plus"></i> Crear usuario</button></div>
             <div id="user-list"></div>
             <div style="margin-top:32px;padding:16px;border:2px dashed #e94560;border-radius:12px;background:#fff5f5;max-width:500px">
@@ -793,7 +793,7 @@ tr:last-child td{border-bottom:none}
           </div>
 
           <!-- ASISTENTE IA -->
-          <div class="adm-view" id="adv-asistente">
+          <div class="adm-view" id="adv-asistente" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="alert ao" style="max-width:600px"><i class="ti ti-robot"></i>Asistente inteligente conectado.</div>
             <div style="max-width:600px">
               <div style="background:var(--bg3);border:1px solid var(--border);border-radius:11px;overflow:hidden">
