@@ -1345,18 +1345,27 @@ function topNav(id,btn){
   document.querySelectorAll('.tnav-tab').forEach(t=>t.classList.remove('active'));
   if(btn)btn.classList.add('active');
   else document.getElementById('tnav-'+id)?.classList.add('active');
-  document.getElementById('sidebar').classList.toggle('hidden',id!=='admin'||!hasAnyAdminPerm());
+  // Sidebar: visible solo en admin
   var sb=document.getElementById('sidebar');
   if(sb){
-    if(id==='pos') sb.style.display='none';
-    else if(id==='admin') sb.style.display='';
-    else sb.style.display='none';
+    if(id==='admin'){
+      sb.classList.remove('hidden');
+      sb.style.display='';
+    } else {
+      sb.classList.add('hidden');
+      sb.style.display='none';
+    }
   }
   if(id==='carta')renderCarta();
   if(id==='cliente')renderCliente();
   if(id==='mesas')renderMesas();
   if(id==='pos')renderPOS();
-  if(id==='admin'){renderAdminView('dashboard');adminNav('dashboard',document.querySelector('.sni.active'));}
+  if(id==='admin'){
+    setTimeout(function(){
+      try{renderAdminView('dashboard');}catch(e){}
+      try{adminNav('dashboard',document.querySelector('.sni'));}catch(e){}
+    },100);
+  }
   if(id==='pedidos')renderOrders();
 }
 
