@@ -2069,11 +2069,32 @@ function confirmarReinicio(){
   if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede hacer esto','#e94560');return;}
   if(!confirm('⚠️ ¿Estás segura?\n\nSe borrarán:\n- Ventas\n- Compras\n- Caja\n- Pedidos\n- Deudas\n\nSe conservan: productos, usuarios, inventario.\n\nEsta acción NO se puede deshacer.')) return;
   if(!confirm('¿Confirmas que quieres borrar todos los registros?')) return;
-  // Borrar datos
+  
+  // Borrar datos locales
   sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];orderCounter=100;
   LS.set('sales',[]);LS.set('purchases',[]);LS.set('orders',[]);
   LS.set('movCaja',[]);LS.set('cierresTurno',[]);LS.set('deudas',[]);
   LS.set('gastos',[]);LS.set('trazLog',[]);LS.set('orderCounter',100);
+
+  // Borrar en Firebase
+  var script=document.createElement('script');
+  script.type='module';
+  script.textContent=`
+    import { initializeApp,getApps } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
+    import { getFirestore, collection, getDocs, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
+    const cfg={apiKey:"AIzaSyCftS7PV-WNbLhI4Odi_6TvYoWBHzMvQDs",authDomain:"heladeria-vida.firebaseapp.com",projectId:"heladeria-vida",storageBucket:"heladeria-vida.firebasestorage.app",messagingSenderId:"475089878241",appId:"1:475089878241:web:a6780ee2d1705e31ec8ba0"};
+    const app=getApps().length?getApps()[0]:initializeApp(cfg);
+    const db=getFirestore(app);
+    const cols=['ventas','compras','caja','pedidos','deudas'];
+    for(const col of cols){
+      const snap=await getDocs(collection(db,col));
+      for(const d of snap.docs) await deleteDoc(doc(db,col,d.id));
+      console.log('Borrado: '+col);
+    }
+    console.log('Firebase limpiado ✓');
+  `;
+  document.head.appendChild(script);
+
   try{renderDashboard();}catch(e){}
   try{updateBadges();}catch(e){}
   toast('✅ Registros borrados. Sistema listo para empezar.','#3aaa6a');
