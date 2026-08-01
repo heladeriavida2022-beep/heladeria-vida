@@ -332,6 +332,27 @@ tr:last-child td{border-bottom:none}
   .tnav-tab{padding:0 10px}
 }
 </style>
+<!-- LIMPIEZA INICIAL -->
+<script>
+try{
+  var _d=localStorage.getItem('heladeria_v2');
+  if(_d){
+    var _obj=JSON.parse(_d);
+    if(_obj){
+      _obj.sales=[];
+      _obj.purchases=[];
+      _obj.gastos=[];
+      _obj.movCaja=[];
+      _obj.cierresTurno=[];
+      _obj.deudas=[];
+      _obj.orders=[];
+      _obj.trazLog=[];
+      _obj.orderCounter=100;
+      localStorage.setItem('heladeria_v2',JSON.stringify(_obj));
+    }
+  }
+}catch(e){}
+</script>
 </head>
 <body>
 
