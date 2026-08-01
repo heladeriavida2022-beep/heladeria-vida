@@ -1074,12 +1074,12 @@ let prods=[
     {n:"JUGO EN AGUA PARA LLEVAR",p:6000,ins:'VASO 14 OZ'}
   ].map((x,i)=>({id:700+i,name:x.n,cat:'PARA LLEVAR',emoji:'🥡',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
   ...[
-    {n:"PALETAS PARA PERROS",s:29},
+    {n:"PALETAS PARA PERROS",s:18},
     {n:"PALETA ALOHA EN AGUA",s:14},
     {n:"CHOCOCONOS",s:3},
     {n:"CHOCOCONO CRISPY",s:23},
-    {n:"ARTESANAL",s:9},
-    {n:"HELADOS CASEROS",s:12},
+    {n:"ARTESANAL",s:8},
+    {n:"HELADOS CASEROS",s:9},
     {n:"PALETA POLET",s:6},
     {n:"PALETAS JET",s:2},
     {n:"PLATILLO",s:1},
@@ -1090,10 +1090,10 @@ let prods=[
     {n:"PALETAS MANGO BICHE",s:5},
     {n:"PALETAS DE SALPICON",s:0},
     {n:"PALETA DE COLORES",s:1},
-    {n:"MEDIO LITRO DE HELADO",s:15},
-    {n:"CUARTOS DE HELADO",s:14},
+    {n:"MEDIO LITRO DE HELADO",s:12},
+    {n:"CUARTOS DE HELADO",s:7},
     {n:"VASITO",s:0},
-    {n:"HELADOS POLARES",s:15},{n:"CHOCOCONO TRADICIONAL",s:30,p:3500},{n:"CHOCOCONO FLOW",s:13,p:4500},{n:"PLATILLO JUMBO",s:2,p:5000},{n:"ALOHA TAJIN",s:18,p:3500}
+    {n:"HELADOS POLARES",s:12},{n:"CHOCOCONO TRADICIONAL",s:29,p:3500},{n:"CHOCOCONO FLOW",s:12,p:4500},{n:"PLATILLO JUMBO",s:2,p:5000},{n:"ALOHA TAJIN",s:15,p:3500}
   ].map(({n,s},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:0,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
   ...["CHICLE AMARILLO","OKA LOKA","ROLIN ROLLON","MECHAS LOKAS","BOLA DE CHICLE","CAPRI","TAKIS FUEGO","OKA LOKA FUSION","GALLETA CAPRI"]
     .map((n,i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:0,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
