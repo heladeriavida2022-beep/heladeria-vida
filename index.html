@@ -629,18 +629,40 @@ try{
 
           <!-- GASTOS -->
           <div class="adm-view" id="adv-gastos" style="flex:1;overflow-y:auto;padding:16px 18px">
-            <div class="qa"><button class="btn btn-acc" onclick="openM('gasto')"><i class="ti ti-plus"></i> Registrar gasto</button></div>
-            <div class="g4">
-              <div class="stat"><div class="slb">Gastos hoy</div><div class="sval" style="color:var(--acc)">$84.000</div></div>
-              <div class="stat"><div class="slb">Gastos semana</div><div class="sval" style="color:var(--acc)">$410.000</div></div>
-              <div class="stat"><div class="slb">Gastos mes</div><div class="sval" style="color:var(--acc)">$1.240.000</div></div>
-              <div class="stat"><div class="slb">Mayor categoría</div><div class="sval" style="color:var(--acc2);font-size:13px">Mat. prima</div></div>
+            <div class="qa">
+              <button class="btn btn-acc" onclick="openM('gasto')"><i class="ti ti-plus"></i> Registrar gasto</button>
             </div>
-            <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Monto</th></tr></thead><tbody id="gastos-tbl">
-              <tr><td>15 may</td><td>Leche 20L</td><td><span class="badge bp">Materia prima</span></td><td style="color:var(--acc);font-weight:600">$84.000</td></tr>
-              <tr><td>14 may</td><td>Servicios</td><td><span class="badge bb">Servicios</span></td><td style="color:var(--acc);font-weight:600">$120.000</td></tr>
-              <tr><td>12 may</td><td>Salarios</td><td><span class="badge by">Nómina</span></td><td style="color:var(--acc);font-weight:600">$750.000</td></tr>
-            </tbody></table></div></div>
+            <div class="g4" id="gastos-stats" style="margin-bottom:12px">
+              <div class="stat"><div class="slb">Gastos hoy</div><div class="sval" id="gasto-hoy" style="color:var(--acc)">$0</div></div>
+              <div class="stat"><div class="slb">Gastos mes</div><div class="sval" id="gasto-mes" style="color:var(--acc)">$0</div></div>
+              <div class="stat"><div class="slb">Contado</div><div class="sval" id="gasto-contado" style="color:var(--acc3)">$0</div></div>
+              <div class="stat"><div class="slb">Crédito pendiente</div><div class="sval" id="gasto-credito" style="color:var(--acc2)">$0</div></div>
+            </div>
+            <!-- Filtro por tercero -->
+            <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
+              <input class="finput" id="gasto-buscar" placeholder="🔍 Buscar por tercero o concepto..." oninput="renderGastos()" style="flex:1;font-size:12px">
+              <select class="finput" id="gasto-filtro-cat" onchange="renderGastos()" style="width:150px;font-size:12px">
+                <option value="ALL">Todas las categorías</option>
+                <option>Materia prima</option>
+                <option>Nómina</option>
+                <option>Servicios públicos</option>
+                <option>Arriendo</option>
+                <option>Transporte</option>
+                <option>Mantenimiento</option>
+                <option>Otros</option>
+              </select>
+              <select class="finput" id="gasto-filtro-pago" onchange="renderGastos()" style="width:130px;font-size:12px">
+                <option value="ALL">Todos los pagos</option>
+                <option value="contado">Contado</option>
+                <option value="credito">Crédito</option>
+              </select>
+            </div>
+            <div class="card">
+              <div class="tw"><table>
+                <thead><tr><th>Fecha</th><th>Tercero</th><th>NIT/Cédula</th><th>Concepto</th><th>Categoría</th><th>Tipo pago</th><th>Monto</th><th>Vence</th></tr></thead>
+                <tbody id="gastos-tbl"></tbody>
+              </table></div>
+            </div>
           </div>
 
           <!-- COSTOS -->
@@ -882,12 +904,51 @@ try{
 </div></div>
 
 <!-- Gasto -->
-<div class="ov" id="ov-gasto"><div class="modal">
+<div class="ov" id="ov-gasto"><div class="modal" style="max-width:500px">
   <button class="mx" onclick="closeM('gasto')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-receipt" style="color:var(--acc)"></i>Registrar gasto</div>
-  <div class="fg"><label class="fgrp-label">Descripción</label><input class="finput" id="g-desc" placeholder="Descripción"></div>
-  <div class="fr"><div class="fg"><label class="fgrp-label">Categoría</label><select class="finput" id="g-cat"><option>Materia prima</option><option>Nómina</option><option>Servicios</option><option>Arriendo</option><option>Otros</option></select></div><div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="g-monto" placeholder="0"></div></div>
-  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1" onclick="guardarGasto()"><i class="ti ti-check"></i> Guardar</button><button class="btn btn-ghost" onclick="closeM('gasto')">Cancelar</button></div>
+  
+  <!-- Datos del tercero -->
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase">Datos del tercero</div>
+    <div class="fr">
+      <div class="fg"><label class="fgrp-label">Nombre / Razón social</label><input class="finput" id="g-tercero-nombre" placeholder="Nombre del proveedor o persona"></div>
+      <div class="fg"><label class="fgrp-label">NIT / Cédula</label><input class="finput" id="g-tercero-id" placeholder="Identificación"></div>
+    </div>
+  </div>
+
+  <!-- Datos del gasto -->
+  <div class="fg"><label class="fgrp-label">Descripción / Concepto</label><input class="finput" id="g-desc" placeholder="Ej: Compra de leche, pago arriendo..."></div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Categoría</label>
+      <select class="finput" id="g-cat">
+        <option>Materia prima</option>
+        <option>Nómina</option>
+        <option>Servicios públicos</option>
+        <option>Arriendo</option>
+        <option>Transporte</option>
+        <option>Mantenimiento</option>
+        <option>Otros</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="g-monto" placeholder="0"></div>
+  </div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Tipo de pago</label>
+      <select class="finput" id="g-tipo-pago" onchange="toggleGastoCredito()">
+        <option value="contado">💵 Contado</option>
+        <option value="credito">📋 Crédito</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fgrp-label">Fecha</label><input class="finput" type="date" id="g-fecha"></div>
+  </div>
+  <div id="g-vence-wrap" style="display:none">
+    <div class="fg"><label class="fgrp-label">Fecha vencimiento</label><input class="finput" type="date" id="g-vence"></div>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <button class="btn btn-acc" style="flex:1" onclick="guardarGasto()"><i class="ti ti-check"></i> Guardar</button>
+    <button class="btn btn-ghost" onclick="closeM('gasto')">Cancelar</button>
+  </div>
 </div></div>
 
 <!-- Deuda -->
@@ -1234,6 +1295,7 @@ function renderAdminView(id){
   if(id==='usuarios')renderUsers();
   if(id==='ventas')renderSalesTable();
   if(id==='compras')renderComprasTable();
+  if(id==='gastos'){renderGastos();}
   if(id==='deudas')renderDeudas();
   if(id==='trazabilidad')renderTrazabilidad();
   if(id==='estadisticas')renderEmpStats();
@@ -1376,7 +1438,15 @@ function openM(id){
       fillIngProv();
       renderIngItems();
       calcIngGranTotal();
-      addIngItem(); // agregar primer ítem automáticamente
+      addIngItem();
+    },50);
+  }
+  if(id==='gasto'){
+    setTimeout(()=>{
+      var f=document.getElementById('g-fecha');
+      if(f) f.value=new Date().toISOString().split('T')[0];
+      var wrap=document.getElementById('g-vence-wrap');
+      if(wrap) wrap.style.display='none';
     },50);
   }
   if(id==='usuario')setTimeout(()=>renderPermsForm('perms-new',ROLE_DEFAULT_PERMS.vendedor),50);
@@ -1955,16 +2025,121 @@ function renderSalesTable(){
 // ══════════════════════════════════════════════
 // GASTOS
 // ══════════════════════════════════════════════
-function guardarGasto(){
-  const desc=document.getElementById('g-desc').value.trim();const monto=parseFloat(document.getElementById('g-monto').value)||0;
-  if(!desc||!monto){toast('Completa los campos','var(--acc)');return;}
-  const row=document.createElement('tr');
-  const cat=document.getElementById('g-cat').value;
-  row.innerHTML=`<td>${new Date().toLocaleDateString('es-CO')}</td><td>${desc}</td><td><span class="badge bp">${cat}</span></td><td style="color:var(--acc);font-weight:600">${fmt(monto)}</td>`;
-  document.getElementById('gastos-tbl').prepend(row);
-  logAction('admin',`Registró gasto: ${desc}`,fmt(monto));
-  closeM('gasto');toast('Gasto registrado ✓');
+function toggleGastoCredito(){
+  var tipo=document.getElementById('g-tipo-pago').value;
+  var wrap=document.getElementById('g-vence-wrap');
+  if(wrap) wrap.style.display=tipo==='credito'?'':'none';
 }
+
+function guardarGasto(){
+  var desc=document.getElementById('g-desc').value.trim();
+  var monto=parseFloat(document.getElementById('g-monto').value)||0;
+  var cat=document.getElementById('g-cat').value;
+  var tipoPago=document.getElementById('g-tipo-pago').value;
+  var fecha=document.getElementById('g-fecha').value||new Date().toISOString().split('T')[0];
+  var vence=tipoPago==='credito'?(document.getElementById('g-vence').value||''):'';
+  var terceroNombre=document.getElementById('g-tercero-nombre').value.trim();
+  var terceroId=document.getElementById('g-tercero-id').value.trim();
+
+  if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
+
+  var gasto={
+    id:'g'+Date.now(),
+    fecha:fecha,
+    desc:desc,
+    cat:cat,
+    monto:monto,
+    tipoPago:tipoPago,
+    vence:vence,
+    terceroNombre:terceroNombre||'—',
+    terceroId:terceroId||'—',
+    por:currentUser.name,
+    pagado:tipoPago==='contado'
+  };
+
+  var gastos=LS.g('gastos')||[];
+  gastos.unshift(gasto);
+  LS.set('gastos',gastos);
+
+  // Si es crédito, registrar como deuda
+  if(tipoPago==='credito'&&monto>0){
+    var deuda={
+      id:'d'+Date.now(),
+      acreedor:terceroNombre||desc,
+      concepto:'Gasto: '+desc,
+      monto:monto,
+      fecha:fecha,
+      vence:vence,
+      pagada:false,
+      origen:'gasto',
+      terceroId:terceroId
+    };
+    var deudas=LS.g('deudas')||[];
+    deudas.unshift(deuda);
+    LS.set('deudas',deudas);
+    updateDeudasBadge();
+  }
+
+  // Limpiar campos
+  document.getElementById('g-desc').value='';
+  document.getElementById('g-monto').value='';
+  document.getElementById('g-tercero-nombre').value='';
+  document.getElementById('g-tercero-id').value='';
+  document.getElementById('g-vence-wrap').style.display='none';
+  document.getElementById('g-tipo-pago').value='contado';
+
+  logAction('admin','Registró gasto: '+desc+' a '+terceroNombre,fmt(monto)+' - '+tipoPago);
+  closeM('gasto');
+  renderGastos();
+  toast('Gasto registrado ✓'+(tipoPago==='credito'?' — Deuda creada':''),'#3aaa6a');
+}
+
+function renderGastos(){
+  var gastos=LS.g('gastos')||[];
+  var buscar=(document.getElementById('gasto-buscar')?.value||'').toLowerCase();
+  var filtCat=document.getElementById('gasto-filtro-cat')?.value||'ALL';
+  var filtPago=document.getElementById('gasto-filtro-pago')?.value||'ALL';
+
+  var filtrados=gastos.filter(function(g){
+    var matchBuscar=!buscar||(g.terceroNombre||'').toLowerCase().includes(buscar)||(g.desc||'').toLowerCase().includes(buscar)||(g.terceroId||'').includes(buscar);
+    var matchCat=filtCat==='ALL'||g.cat===filtCat;
+    var matchPago=filtPago==='ALL'||g.tipoPago===filtPago;
+    return matchBuscar&&matchCat&&matchPago;
+  });
+
+  // Actualizar stats
+  var hoy=new Date().toISOString().split('T')[0];
+  var mesActual=hoy.substring(0,7);
+  var totalHoy=gastos.filter(g=>g.fecha===hoy).reduce((s,g)=>s+g.monto,0);
+  var totalMes=gastos.filter(g=>(g.fecha||'').startsWith(mesActual)).reduce((s,g)=>s+g.monto,0);
+  var totalContado=gastos.filter(g=>g.tipoPago==='contado').reduce((s,g)=>s+g.monto,0);
+  var totalCredito=gastos.filter(g=>g.tipoPago==='credito'&&!g.pagado).reduce((s,g)=>s+g.monto,0);
+
+  var el=document.getElementById('gasto-hoy');if(el)el.textContent=fmt(totalHoy);
+  var el2=document.getElementById('gasto-mes');if(el2)el2.textContent=fmt(totalMes);
+  var el3=document.getElementById('gasto-contado');if(el3)el3.textContent=fmt(totalContado);
+  var el4=document.getElementById('gasto-credito');if(el4)el4.textContent=fmt(totalCredito);
+
+  var tbl=document.getElementById('gastos-tbl');if(!tbl)return;
+  if(!filtrados.length){
+    tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin gastos registrados</td></tr>';
+    return;
+  }
+
+  tbl.innerHTML=filtrados.map(function(g){
+    return `<tr>
+      <td style="font-size:11px">${g.fecha||'—'}</td>
+      <td><b style="font-size:12px">${g.terceroNombre||'—'}</b></td>
+      <td style="font-size:11px;color:var(--text2)">${g.terceroId||'—'}</td>
+      <td style="font-size:11.5px">${g.desc}</td>
+      <td><span class="badge bp" style="font-size:9.5px">${g.cat}</span></td>
+      <td><span class="badge ${g.tipoPago==='contado'?'bg':'by'}" style="font-size:9.5px">${g.tipoPago==='contado'?'💵 Contado':'📋 Crédito'}</span></td>
+      <td style="color:var(--acc);font-weight:700">${fmt(g.monto)}</td>
+      <td style="font-size:11px;color:var(--text2)">${g.vence||'—'}</td>
+    </tr>`;
+  }).join('');
+}
+
 
 // ══════════════════════════════════════════════
 // PROVEEDORES
