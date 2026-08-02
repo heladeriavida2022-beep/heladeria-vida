@@ -335,37 +335,32 @@ tr:last-child td{border-bottom:none}
   .tnav-tab{padding:0 10px}
 }
 </style>
-<!-- LIMPIEZA INICIAL -->
+<!-- LIMPIEZA INICIAL v20260801 -->
 <script>
 (function(){
+  var KEY = 'heladeria_v2';
+  var VERSION_CAT = '20260801';
   try{
-    // Borrar completamente el localStorage en cada carga
-    // Los precios siempre vienen del código
-    var KEY = 'heladeria_v2';
     var saved = localStorage.getItem(KEY);
-    if(saved){
-      var obj = JSON.parse(saved);
-      // Conservar solo datos de transacciones y stocks
-      var nuevo = {
-        users: obj.users || null,
-        sales: obj.sales || [],
-        purchases: obj.purchases || [],
-        gastos: obj.gastos || [],
-        movCaja: obj.movCaja || [],
-        cierresTurno: obj.cierresTurno || [],
-        deudas: obj.deudas || [],
-        orders: obj.orders || [],
-        trazLog: obj.trazLog || [],
-        orderCounter: obj.orderCounter || 100,
-        suppliers: obj.suppliers || null,
-        stocks: obj.stocks || {},
-        // NUNCA guardar products - siempre del código
-        products: null
-      };
-      localStorage.setItem(KEY, JSON.stringify(nuevo));
+    var obj = saved ? JSON.parse(saved) : {};
+    
+    // Si la versión del catálogo cambió, resetear solo productos (no stocks de inventario)
+    if(obj.cat_version !== VERSION_CAT){
+      obj.products = null;
+      obj.cat_version = VERSION_CAT;
+      // Conservar stocks existentes del inventario
+      localStorage.setItem(KEY, JSON.stringify(obj));
+      console.log('Catálogo actualizado a versión ' + VERSION_CAT);
     }
+    
+    // Siempre limpiar productos del localStorage (precios siempre del código)
+    if(obj.products){
+      delete obj.products;
+      localStorage.setItem(KEY, JSON.stringify(obj));
+    }
+    
   }catch(e){
-    try{ localStorage.removeItem('heladeria_v2'); }catch(e2){}
+    try{ localStorage.removeItem(KEY); }catch(e2){}
   }
 })();
 </script>
