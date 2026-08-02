@@ -1026,7 +1026,7 @@ const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',
 let prods=[
   ...[
     {n:"SALPICON",p:8000,ins:'VASO 14 OZ'},{n:"CONO SENCILLO EN VASO",p:4500,ins:'VASO PEQUEÑO'},{n:"FRESAS CON CREMA",p:14000,ins:'SOBRE COPA DOMO'},
-    {n:"TAMARINDO MICHELADO",p:5000,ins:'VASO 14 OZ'},{n:"ENSALADA DE FRUTAS PEQUEÑA",p:16000,ins:'SOBRE COPA DOMO'},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:'CONTENEDOR 16 OZ'},
+    {n:"TAMARINDO MICHELADO",p:5000,ins:'VASO 14 OZ'},{n:"ENSALADA DE FRUTAS PEQUEÑA",p:16000,ins:'SOBRE COPA DOMO'},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:['CONTENEDOR 24 OZ','SOBRE COPA DOMO']},
     {n:"ENSALADA DE FRUTAS GRANDE",p:20000,ins:null},{n:"BANANA SPLIT",p:16000,ins:'EMPAQUE BANANA SPLIT'},{n:"SUNDAE DE DURAZNO O FRESA",p:12000,ins:'SOBRE COPA DOMO'},
     {n:"COPA FANTASY",p:15000,ins:null},{n:"MALTEADA",p:14000,ins:'VASO 14 OZ'},{n:"FUSION DE OREO",p:15000,ins:null},
     {n:"MALTEADA DE CERVEZA",p:16000,ins:'VASO 14 OZ'},{n:"EXPLOSION DE CHOCOLATE",p:16000,ins:null},{n:"BREVAS CON CREMA",p:12000,ins:null},
@@ -1045,7 +1045,7 @@ let prods=[
     {n:"DETOX X 6",p:0,ins:null},{n:"MIX DIGES X6",p:0,ins:null},{n:"BATIDO DETOX VASO",p:0,ins:'VASO 14 OZ'},
     {n:"BATIDO MIX DIGES VASO",p:0,ins:'VASO 14 OZ'},{n:"SALPICON SIN HELADO",p:6000,ins:'VASO 14 OZ'},{n:"CUCURUCHO",p:0,ins:null},
     {n:"CONO VASO 7 ONZA",p:0,ins:'VASO 14 OZ'},{n:"BOLA DE HELADO",p:0,ins:null},{n:"CHOCOLISTO",p:0,ins:null},
-    {n:"CREMA DE LECHE",p:0,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"FRUTAS SIN HELADO",p:0,ins:'CONTENEDOR 16 OZ'},
+    {n:"CREMA DE LECHE",p:0,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:['CONTENEDOR 16 OZ','SOBRE COPA DOMO']},{n:"FRUTAS SIN HELADO",p:0,ins:'CONTENEDOR 16 OZ'},
     {n:"BANANA PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'}
   ].map((x,i)=>({id:i+1,name:x.n,cat:'PREPARADOS',emoji:'🍧',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
 
@@ -1053,7 +1053,7 @@ let prods=[
   ...[
     {n:"SALPICON PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"CONO EN VASO PARA LLEVAR",p:4500,ins:'VASO 14 OZ'},
     {n:"FRESAS CON CREMA PARA LLEVAR",p:14000,ins:'SOBRE COPA DOMO'},{n:"TAMARINDO MICHELADO PARA LLEVAR",p:5000,ins:'VASO 14 OZ'},
-    {n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:'CONTENEDOR 16 OZ'},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:'CONTENEDOR 16 OZ'},
+    {n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:['CONTENEDOR 16 OZ','SOBRE COPA DOMO']},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:['CONTENEDOR 24 OZ','SOBRE COPA DOMO']},
     {n:"BANANA SPLIT PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'},{n:"SUNDAE PARA LLEVAR",p:12000,ins:'SOBRE COPA DOMO'},
     {n:"COPA FANTASY PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"MALTEADA PARA LLEVAR",p:14000,ins:'VASO 14 OZ'},
     {n:"FUSION DE OREO PARA LLEVAR",p:15000,ins:'CONTENEDOR 16 OZ'},{n:"MALTEADA DE CERVEZA PARA LLEVAR",p:16000,ins:'VASO 14 OZ'},
@@ -1070,8 +1070,8 @@ let prods=[
     {n:"ABEJITA PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},{n:"MUÑECO DE NIEVE PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},
     {n:"OSITO PARA LLEVAR",p:10000,ins:'CONTENEDOR 16 OZ'},{n:"RATONSITO PARA LLEVAR",p:9000,ins:'CONTENEDOR 16 OZ'},
     {n:"MICHELADA PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA CEREZADA PARA LLEVAR",p:12000,ins:'VASO 14 OZ'},
-    {n:"JUGO EN LECHE PARA LLEVAR",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA DE COCO PARA LLEVAR",p:12000,ins:'VASO 14 OZ'},
-    {n:"JUGO EN AGUA PARA LLEVAR",p:6000,ins:'VASO 14 OZ'}
+    {n:"JUGO EN LECHE PARA LLEVAR",p:8000,ins:'CONTENEDOR 24 OZ'},{n:"LIMONADA DE COCO PARA LLEVAR",p:12000,ins:'VASO 14 OZ'},
+    {n:"JUGO EN AGUA PARA LLEVAR",p:6000,ins:'CONTENEDOR 24 OZ'}
   ].map((x,i)=>({id:700+i,name:x.n,cat:'PARA LLEVAR',emoji:'🥡',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
   ...[
     {n:"PALETAS PARA PERROS",s:18},
@@ -1101,7 +1101,7 @@ let prods=[
     .map((n,i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:0,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
   ...["BROWNIE","QUESO"]
     .map((n,i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:0,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
-  ...[{n:"VASO 14 OZ",s:200,p:0},{n:"CONTENEDOR 16 OZ",s:200,p:0},{n:"SOBRE COPA DOMO",s:200,p:0},{n:"TAPA BONYURT",s:200,p:0},{n:"EMPAQUE BANANA SPLIT",s:200,p:0},{n:"CONO",s:28,p:0},{n:"CANASTA",s:24,p:0},{n:"VASO PEQUEÑO",s:34,p:0},{n:"VASO 7 ONZAS",s:41,p:0}]
+  ...[{n:"VASO 14 OZ",s:200,p:0},{n:"CONTENEDOR 16 OZ",s:53,p:0},{n:"SOBRE COPA DOMO",s:13,p:0},{n:"TAPA BONYURT",s:200,p:0},{n:"EMPAQUE BANANA SPLIT",s:200,p:0},{n:"CONO",s:28,p:0},{n:"CANASTA",s:24,p:0},{n:"VASO PEQUEÑO",s:34,p:0},{n:"VASO 7 ONZAS",s:41,p:0},{n:"CONTENEDOR 24 OZ",s:35,p:0}]
     .map(({n,s,p},i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:p,stock:s,min:10,unit:'unidades',descuenta:true,active:true})),
 ];
 
@@ -1603,10 +1603,13 @@ function confirmarVenta(){
     var p=gP(ci.id);if(!p)return;
     // Descontar stock si aplica
     if(p.descuenta){p.stock=Math.max(0,p.stock-ci.qty);LS.updProd(p.id,{stock:p.stock});}
-    // Descontar insumo/desechable si tiene receta
+    // Descontar insumo/desechable si tiene receta (puede ser string o array)
     if(p.insumo){
-      var ins=prods.find(function(x){return x.name===p.insumo&&x.descuenta;});
-      if(ins){ins.stock=Math.max(0,ins.stock-ci.qty);LS.updProd(ins.id,{stock:ins.stock});if(typeof window.FB!=='undefined')window.FB.saveStock(ins.id,ins.stock);}
+      var insumos=Array.isArray(p.insumo)?p.insumo:[p.insumo];
+      insumos.forEach(function(insNombre){
+        var ins=prods.find(function(x){return x.name===insNombre&&x.descuenta;});
+        if(ins){ins.stock=Math.max(0,ins.stock-ci.qty);LS.updProd(ins.id,{stock:ins.stock});}
+      });
     }
   });
 
