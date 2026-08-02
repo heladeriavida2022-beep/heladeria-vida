@@ -600,11 +600,11 @@ try{
 
           <!-- ESTADÍSTICAS -->
           <div class="adm-view" id="adv-estadisticas" style="flex:1;overflow-y:auto;padding:16px 18px">
-            <div class="g4">
-              <div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ingresos mes</div><div class="sval" style="color:var(--acc3)">$5.820.000</div><div class="schg up">+12%</div></div>
-              <div class="stat"><div class="sico"><i class="ti ti-receipt-2"></i></div><div class="slb">Gastos mes</div><div class="sval" style="color:var(--acc)">$1.240.000</div><div class="schg dn">-5%</div></div>
-              <div class="stat"><div class="sico"><i class="ti ti-percentage"></i></div><div class="slb">Margen</div><div class="sval" style="color:var(--acc5)">78.7%</div><div class="schg up">+3.2%</div></div>
-              <div class="stat"><div class="sico"><i class="ti ti-chart-bar"></i></div><div class="slb">Ganancia neta</div><div class="sval" style="color:var(--acc4)">$3.820.000</div><div class="schg up">+12%</div></div>
+            <div class="g4" id="stats-cards">
+              <div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ingresos mes</div><div class="sval" style="color:var(--acc3)" id="stat-ingresos">$0</div></div>
+              <div class="stat"><div class="sico"><i class="ti ti-receipt-2"></i></div><div class="slb">Gastos mes</div><div class="sval" style="color:var(--acc)" id="stat-gastos">$0</div></div>
+              <div class="stat"><div class="sico"><i class="ti ti-percentage"></i></div><div class="slb">Margen</div><div class="sval" style="color:var(--acc5)" id="stat-margen">0%</div></div>
+              <div class="stat"><div class="sico"><i class="ti ti-chart-bar"></i></div><div class="slb">Ganancia neta</div><div class="sval" style="color:var(--acc4)" id="stat-ganancia">$0</div></div>
             </div>
             <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Resumen por empleado (mes actual)</div>
             <div class="tw"><table><thead><tr><th>Empleado</th><th>Turno</th><th>Ventas</th><th>Total generado</th><th>Promedio/venta</th></tr></thead><tbody id="emp-stats-tbl"></tbody></table></div></div>
@@ -2179,6 +2179,18 @@ function guardarProveedor(){
 // ESTADÍSTICAS POR EMPLEADO
 // ══════════════════════════════════════════════
 function renderEmpStats(){
+  // Calcular estadísticas del mes actual
+  var mesActual=new Date().toISOString().substring(0,7);
+  var ventasMes=sales.filter(function(s){return (s.time||s.fecha||'').substring&&((s.id||'').length>0);});
+  var ingresosMes=sales.reduce(function(t,s){return t+(s.total||0);},0);
+  var gastosMes=(LS.g('gastos')||[]).filter(function(g){return (g.fecha||'').startsWith(mesActual);}).reduce(function(t,g){return t+(g.monto||0);},0);
+  var ganancia=ingresosMes-gastosMes;
+  var margen=ingresosMes>0?Math.round((ganancia/ingresosMes)*100):0;
+
+  var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
+  var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes);
+  var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
+  var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
   const tbl=document.getElementById('emp-stats-tbl');if(!tbl)return;
   tbl.innerHTML=systemUsers.filter(u=>u.active).map(u=>{
     const myS=sales.filter(s=>s.empId===u.id);
