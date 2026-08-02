@@ -337,7 +337,7 @@ tr:last-child td{border-bottom:none}
 </style>
 <!-- FORZAR PRECIOS -->
 <script>
-// Eliminar productos y usuarios del localStorage para forzar recarga desde código
+// Forzar usuarios correctos SIEMPRE - ignorar localStorage
 try{ 
   var d = JSON.parse(localStorage.getItem('heladeria_v2')||'{}');
   delete d.products;
@@ -1138,7 +1138,9 @@ const ROLE_DEFAULT_PERMS = {
 const ROLE_COLORS = {admin:'var(--acc4)',supervisor:'var(--acc2)',vendedor:'var(--acc5)',auxiliar:'var(--acc3)'};
 const ROLE_LABELS = {admin:'Administrador',supervisor:'Supervisor',vendedor:'Vendedor',auxiliar:'Auxiliar'};
 
-var _lsU=LS.g('users');let systemUsers=(_lsU&&_lsU.length>0)?_lsU:(function(){var d=LS._def().users;LS.set('users',d);return d;})();
+// Usuarios siempre del código - nunca del localStorage
+let systemUsers = LS._def().users;
+LS.set('users', systemUsers);
 let currentUser=null;
 var _lsT=LS.g('trazLog');let trazLog=_lsT||[];
 var _lsS=LS.g('sales');let sales=_lsS||[];
