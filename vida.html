@@ -1243,6 +1243,10 @@ function aplicarPreciosCatalogo(){
     if(PRECIO_CATALOGO[p.name] !== undefined){
       p.price = PRECIO_CATALOGO[p.name];
     }
+    // Aplicar imagen si existe en PROD_IMGS
+    if(typeof PROD_IMGS !== 'undefined' && PROD_IMGS[p.name]){
+      p.img = PROD_IMGS[p.name];
+    }
   });
 }
 
