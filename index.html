@@ -335,34 +335,14 @@ tr:last-child td{border-bottom:none}
   .tnav-tab{padding:0 10px}
 }
 </style>
-<!-- LIMPIEZA INICIAL v20260801 -->
+<!-- FORZAR PRECIOS -->
 <script>
-(function(){
-  var KEY = 'heladeria_v2';
-  var VERSION_CAT = '20260801';
-  try{
-    var saved = localStorage.getItem(KEY);
-    var obj = saved ? JSON.parse(saved) : {};
-    
-    // Si la versión del catálogo cambió, resetear solo productos (no stocks de inventario)
-    if(obj.cat_version !== VERSION_CAT){
-      obj.products = null;
-      obj.cat_version = VERSION_CAT;
-      // Conservar stocks existentes del inventario
-      localStorage.setItem(KEY, JSON.stringify(obj));
-      console.log('Catálogo actualizado a versión ' + VERSION_CAT);
-    }
-    
-    // Siempre limpiar productos del localStorage (precios siempre del código)
-    if(obj.products){
-      delete obj.products;
-      localStorage.setItem(KEY, JSON.stringify(obj));
-    }
-    
-  }catch(e){
-    try{ localStorage.removeItem(KEY); }catch(e2){}
-  }
-})();
+// Eliminar productos del localStorage SIEMPRE para que carguen del código
+try{ 
+  var d = JSON.parse(localStorage.getItem('heladeria_v2')||'{}');
+  delete d.products;
+  localStorage.setItem('heladeria_v2', JSON.stringify(d));
+}catch(e){ localStorage.removeItem('heladeria_v2'); }
 </script>
 </head>
 <body>
