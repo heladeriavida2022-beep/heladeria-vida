@@ -3305,15 +3305,12 @@ window.FB = {
 async function fbCargarTodo(){
   fbStatus('Cargando...', true);
   try {
-    // 1. Usuarios
-    var fbUsuarios = await fbGetAll('usuarios');
-    if(fbUsuarios.length > 0){
-      systemUsers = fbUsuarios.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
-      LS.set('users', systemUsers);
-    } else {
-      // Primera vez: subir los usuarios del sistema a Firebase
-      for(var u of systemUsers) await fbSet('usuarios', u.id, u);
-    }
+    // 1. Usuarios — siempre del código, actualizar Firebase
+    var usuariosDelCodigo = LS._def().users;
+    systemUsers = usuariosDelCodigo;
+    LS.set('users', systemUsers);
+    // Sincronizar usuarios del código a Firebase
+    for(var u of systemUsers) await fbSet('usuarios', u.id, u);
 
     // 2. Proveedores
     var fbSuppliers = await fbGetAll('suppliers');
