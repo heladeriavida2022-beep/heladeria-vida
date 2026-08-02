@@ -2426,7 +2426,7 @@ async function sendAI(){
 }
 
 // ══ INIT LOCAL ══
-(function(){var su=LS.g('users');if(su&&su.length>0)systemUsers=su;var sa=LS.g('sales');if(sa)sales=sa;var sp=LS.g('purchases');if(sp)purchases=sp;var st=LS.g('trazLog');if(st)trazLog=st;var so=LS.g('orders');if(so)liveOrders=so.filter(function(o){return o.status!=='entregado';});var ss=LS.g('suppliers');if(ss&&ss.length>0)suppliers=ss;var oc=LS.g('orderCounter');if(oc)orderCounter=oc;var pr=LS.g('products');if(pr&&pr.length>0)prods=pr;movCaja=LS.g('movCaja')||[];cierresTurno=LS.g('cierresTurno')||[];})();
+(function(){var su=LS.g('users');if(su&&su.length>0)systemUsers=su;var sa=LS.g('sales');if(sa)sales=sa;var sp=LS.g('purchases');if(sp)purchases=sp;var st=LS.g('trazLog');if(st)trazLog=st;var so=LS.g('orders');if(so)liveOrders=so.filter(function(o){return o.status!=='entregado';});var ss=LS.g('suppliers');if(ss&&ss.length>0)suppliers=ss;var oc=LS.g('orderCounter');if(oc)orderCounter=oc;/* Productos siempre del código, no del localStorage */movCaja=LS.g('movCaja')||[];cierresTurno=LS.g('cierresTurno')||[];})();
 updateBadges();
 renderUserPills();
 document.getElementById('dateChip')?.remove();
