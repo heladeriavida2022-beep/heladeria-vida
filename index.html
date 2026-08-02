@@ -337,10 +337,11 @@ tr:last-child td{border-bottom:none}
 </style>
 <!-- FORZAR PRECIOS -->
 <script>
-// Eliminar productos del localStorage SIEMPRE para que carguen del código
+// Eliminar productos y usuarios del localStorage para forzar recarga desde código
 try{ 
   var d = JSON.parse(localStorage.getItem('heladeria_v2')||'{}');
   delete d.products;
+  delete d.users;
   localStorage.setItem('heladeria_v2', JSON.stringify(d));
 }catch(e){ localStorage.removeItem('heladeria_v2'); }
 </script>
