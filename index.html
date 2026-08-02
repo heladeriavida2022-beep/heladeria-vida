@@ -562,7 +562,8 @@ try{
               </div>
               <input type="hidden" id="cart-pago" value="Efectivo">
               <div class="cart-total"><span>Total</span><span id="cart-total" style="color:var(--acc3)">$0</span></div>
-              <button class="btn btn-acc" style="width:100%;padding:10px" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
+              <input class="finput" id="cart-obs" placeholder="📝 Observaciones del pedido (opcional)" style="font-size:11px;padding:6px 9px;margin-bottom:6px;width:100%">
+              <button id="btn-confirmar-venta" class="btn btn-acc" style="width:100%;padding:10px" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
             </div>
           </div>
         </div>
@@ -1817,20 +1818,29 @@ function renderCart(){
     <div class="ci-price">${i.price>0?fmt(i.price*i.qty):'—'}</div></div>`).join('');
   if(t)t.textContent=fmt(cartItems.reduce((s,i)=>s+(i.price*i.qty),0));
 }
+var _ventaEnProceso = false; // Protección contra duplicados
+
 function confirmarVenta(){
+  // PROTECCIÓN CONTRA DUPLICADOS
+  if(_ventaEnProceso){toast('Procesando venta, espera...','#f0a500');return;}
   if(!cartItems.length){toast('Agrega productos','var(--acc)');return;}
+
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
   var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
   var mesaSel=document.getElementById('pos-mesa-sel');
   var canal=posMode==='mostrador'?'Mostrador':posMode==='mesa'?(mesaSel?mesaSel.value:'Mesa'):'Domicilio';
+  var obsEl=document.getElementById('cart-obs');var obs=obsEl?obsEl.value.trim():'';
   var now=new Date();var timeStr=now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+
+  // Bloquear botón inmediatamente
+  _ventaEnProceso = true;
+  var btnConf=document.getElementById('btn-confirmar-venta');
+  if(btnConf){btnConf.disabled=true;btnConf.style.opacity='0.5';}
 
   // Descontar stock + insumos de desechables
   cartItems.forEach(function(ci){
     var p=gP(ci.id);if(!p)return;
-    // Descontar stock si aplica
     if(p.descuenta){p.stock=Math.max(0,p.stock-ci.qty);LS.updProd(p.id,{stock:p.stock});}
-    // Descontar insumo/desechable si tiene receta (puede ser string o array)
     if(p.insumo){
       var insumos=Array.isArray(p.insumo)?p.insumo:[p.insumo];
       insumos.forEach(function(insNombre){
@@ -1842,11 +1852,13 @@ function confirmarVenta(){
 
   var items=cartItems.map(function(i){return i.qty+'x '+i.name;}).join(', ');
 
-  // Registrar como UNA SOLA venta con ID único
-  var saleId='#'+String(Date.now()).slice(-6);
+  // ID único garantizado
+  var saleId='v'+now.getTime()+'_'+Math.random().toString(36).slice(2,6);
   var sale={
     id:saleId,
     time:timeStr,
+    fecha:now.toISOString().split('T')[0],
+    timestamp:now.toISOString(),
     name:items,
     cat:cartItems.length===1?cartItems[0].cat:'VARIOS',
     qty:cartItems.reduce(function(s,i){return s+i.qty;},0),
@@ -1854,15 +1866,23 @@ function confirmarVenta(){
     total:tot,
     canal:canal,
     pago:pago,
+    obs:obs,
     emp:currentUser.name,
     empId:currentUser.id,
     detalle:cartItems.map(function(i){return {name:i.name,qty:i.qty,price:i.price,total:i.price*i.qty};})
   };
+
+  // Guardar localmente
   sales.unshift(sale);
   LS.set('sales',sales);
 
+  // Guardar en Firebase (sincronización entre dispositivos)
+  if(typeof window.FB!=='undefined' && window.FB.saveSale){
+    try{ window.FB.saveSale(sale); }catch(e){ console.warn('Firebase venta:', e); }
+  }
+
   // Registrar pedido
-  var order={id:'#'+String(++orderCounter).padStart(4,'0'),type:posMode,source:canal,items:items,total:tot,status:'prep',time:'ahora',pago:pago};
+  var order={id:'#'+String(++orderCounter).padStart(4,'0'),type:posMode,source:canal,items:items,total:tot,status:'prep',time:'ahora',pago:pago,obs:obs};
   liveOrders.unshift(order);LS.push('orders',order);LS.set('orderCounter',orderCounter);
 
   // Si es FIADO → crear deuda automáticamente
@@ -1874,11 +1894,11 @@ function confirmarVenta(){
       acreedor: nombreFiado+(telFiado?' ('+telFiado+')':''),
       concepto:'Venta fiada: '+items,
       monto:tot,
-      fecha:new Date().toISOString().split('T')[0],
+      fecha:now.toISOString().split('T')[0],
       vence:'',
       pagada:false,
       origen:'fiado',
-      tipo:'cobrar' // es plata que nos deben a nosotros
+      tipo:'cobrar'
     };
     var deudas=LS.g('deudas')||[];
     deudas.unshift(deuda);
@@ -1887,15 +1907,23 @@ function confirmarVenta(){
     if(typeof updateDeudasBadge==='function') updateDeudasBadge();
     toast('✅ Entregado — Pago pendiente de '+nombreFiado+' ('+fmt(tot)+')','#d48a00');
   } else {
-    toast('Venta registrada — '+canal+(tot>0?' '+fmt(tot):''));
+    toast('✅ Venta registrada — '+canal+(tot>0?' '+fmt(tot):''),'#3aaa6a');
   }
 
   logAction('venta','Vendió: '+items,canal+' — '+pago+(tot>0?' — '+fmt(tot):''));
   updateBadges();clearCart();renderPOS();renderOrders();
-  // Limpiar campos fiado
+
+  // Limpiar campos
   var ff=document.getElementById('fiado-fields');if(ff)ff.style.display='none';
   var fn=document.getElementById('fiado-nombre');if(fn)fn.value='';
   var ft=document.getElementById('fiado-tel');if(ft)ft.value='';
+  if(obsEl) obsEl.value='';
+
+  // Liberar bloqueo después de 1.5 segundos
+  setTimeout(function(){
+    _ventaEnProceso = false;
+    if(btnConf){btnConf.disabled=false;btnConf.style.opacity='1';}
+  }, 1500);
 }
 
 // ══════════════════════════════════════════════
@@ -3399,15 +3427,29 @@ onSnapshot(collection(db,'pedidos'), snap => {
   try{ updateBadges(); }catch(e){}
 }, err => console.warn('pedidos listener', err));
 
-// Usuarios en tiempo real
+// Ventas en tiempo real (sincronización entre dispositivos)
+onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200)), snap => {
+  snap.docChanges().forEach(ch => {
+    if(ch.type === 'removed') return;
+    var d = ch.doc.data(); delete d._ts;
+    var idx = sales.findIndex(s => s.id === d.id);
+    if(idx >= 0){ Object.assign(sales[idx], d); }
+    else { sales.unshift(d); }
+  });
+  // Ordenar por timestamp
+  sales.sort((a,b) => (b.timestamp||'') > (a.timestamp||'') ? 1 : -1);
+  LS.set('sales', sales);
+  try{ renderVentas(); }catch(e){}
+  try{ updateBadges(); }catch(e){}
+  try{ renderDashboard(); }catch(e){}
+}, err => console.warn('ventas listener', err));
+
+// Usuarios en tiempo real — SIEMPRE del código, no de Firebase
 onSnapshot(collection(db,'usuarios'), snap => {
+  // No sobreescribir systemUsers desde Firebase — los usuarios vienen del código
+  // Solo sincronizar si hay cambios de permisos hechos desde admin
   if(snap.empty) return;
-  var arr = [];
-  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
-  systemUsers = arr.sort((a,b) => a.role==='admin' ? -1 : b.role==='admin' ? 1 : 0);
-  LS.set('users', systemUsers);
-  try{ renderUsers(); }catch(e){}
-  try{ renderUserPills(); }catch(e){}
+  // Ignorar — usuarios siempre del código
 }, err => console.warn('usuarios listener', err));
 
 // Proveedores en tiempo real
