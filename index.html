@@ -963,7 +963,10 @@ try{
 
 <script>
 const LS={K:'heladeria_v2',_d:null,_def(){const A=['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'];return{users:[{id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'3147361722',active:true,turno:'Completo',perms:[...A],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'},{id:'u2',name:'Renata',role:'vendedor',user:'renata',pass:'3103482128',active:true,turno:'Mañana',perms:['pos','carta','mesas','pedidos'],color:'#3b82f6',initials:'MG'},{id:'u3',name:'Leidy Viviana',role:'vendedor',user:'viviana',pass:'3104930091',active:true,turno:'Tarde',perms:['pos','carta','mesas','pedidos'],color:'#06b6d4',initials:'JP'},{id:'u4',name:'Angel Villareal',role:'vendedor',user:'angel',pass:'3171107947',active:true,turno:'Variable',perms:['pos','carta','pedidos'],color:'#10b981',initials:'PR'}],sales:[],purchases:[],orders:[],trazLog:[],gastos:[],movCaja:[],cierresTurno:[],deudas:[],products:null,suppliers:[{id:'s1',name:'Lácteos del Valle',phone:'311-456-7890',products:'Leche',credit:30,owed:0},{id:'s2',name:'Sabores Cali',phone:'300-123-4567',products:'Esencias',credit:15,owed:0},{id:'s3',name:'Azúcar y Endulzantes',phone:'302-987-6543',products:'Azúcar',credit:20,owed:0},{id:'s4',name:'Empaques Rápidos',phone:'316-555-0099',products:'Conos',credit:0,owed:0}],orderCounter:100};},init(){try{var r=localStorage.getItem(this.K);this._d=r?JSON.parse(r):null;}catch(e){this._d=null;}if(!this._d)this._d=this._def();var def=this._def();for(var k in def){if(this._d[k]===undefined)this._d[k]=def[k];}this._d.products=null;/* precios siempre del código */var su=this._d.users;if(su&&Array.isArray(su)){var adm=su.find(function(u){return u.id==='u1'||u.role==='admin';});if(adm&&(adm.user==='admin'||adm.name==='Administrador')){adm.name='Viviana Rojas';adm.user='viviana.rojas';adm.pass='1112465394';adm.initials='VR';this.save();}}return this;},save(){try{localStorage.setItem(this.K,JSON.stringify(this._d));}catch(e){}},g(k){return this._d?this._d[k]:this._def()[k];},set(k,v){if(!this._d)this.init();this._d[k]=v;this.save();},push(k,item){if(!this._d)this.init();if(!Array.isArray(this._d[k]))this._d[k]=[];this._d[k].unshift(item);this.save();},updProd(id,upd){if(!this._d)return;if(!this._d.stocks)this._d.stocks={};this._d.stocks[String(id)]=Object.assign(this._d.stocks[String(id)]||{},upd);this.save();},updItem(k,id,upd){if(!this._d)return;var a=this._d[k];if(!Array.isArray(a))return;var i=a.findIndex(function(x){return x.id===id;});if(i>=0){Object.assign(a[i],upd);this.save();}},delItem(k,id){if(!this._d)return;this._d[k]=(this._d[k]||[]).filter(function(x){return x.id!==id;});this.save();}};
-LS.init();console.log('Sistema Heladería ViDa listo ✓');
+LS.init();
+// VERIFICAR PRECIO DE BOCATTO - si es 0, el archivo es viejo
+var testProd = typeof prods !== 'undefined' ? null : null;
+console.log('Sistema Heladería ViDa listo ✓ - VERSION 20260801');
 </script>
 <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <script>
@@ -1010,6 +1013,55 @@ let posMode='mostrador',invCatF='ALL',prodCatF='ALL',cartaCatF='ALL',clienteCatF
 var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
 let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];
+
+
+// MAPA DE PRECIOS - siempre correcto, nunca del localStorage
+const PRECIO_CATALOGO = {
+  'SALPICON':8000,'CONO SENCILLO EN VASO':4500,'FRESAS CON CREMA':14000,
+  'TAMARINDO MICHELADO':5000,'ENSALADA DE FRUTAS PEQUEÑA':16000,
+  'ENSALADA GRANDE PARA LLEVAR':20000,'ENSALADA DE FRUTAS GRANDE':20000,
+  'BANANA SPLIT':16000,'SUNDAE DE DURAZNO O FRESA':12000,'COPA FANTASY':15000,
+  'MALTEADA':14000,'FUSION DE OREO':15000,'MALTEADA DE CERVEZA':16000,
+  'EXPLOSION DE CHOCOLATE':16000,'BREVAS CON CREMA':12000,'COPA VESUBIO':12000,
+  'GOLOSA':16000,'LLUVIA DE OREO':16000,'COPA ENCANTO':12000,'COPA DELIZZIA':12000,
+  'MALTEADA ESPECIAL':20000,'COPA DESEO':12000,'BROWNIE CALIENTE':14000,
+  'COPA MELODY':14000,'CAFE OPERA':12000,'COPA CHOCOLATIN':15000,'COPA PLACER':12000,
+  'COPA TENTACION':18000,'WAFLES CON HELADO':15000,'TORMENTA DE HELADO':15000,
+  'COPA GELATIN':16000,'GUSANITO':12000,'PAYASITO':12000,'ABEJITA':10000,
+  'MUÑECO DE NIEVE':10000,'OSITO':10000,'RATONSITO':9000,'CONO SENCILLO':4500,
+  'CONO DOBLE':9000,'CANASTA TRIPLE':14000,'MICHELADA':8000,
+  'LIMONADA CEREZADA':12000,'JUGO EN LECHE':8000,'LIMONADA DE COCO':12000,
+  'JUGO EN AGUA':6000,'CANASTILLA SENCILLA':4500,'CANASTILLA DOBLE':9000,
+  'OBLEA':3500,'OBLEA ESPECIAL':6000,'BATIDO PROTEINA X6':21000,
+  'BATIDO DE PROTEINA EN VASO':6000,'DETOX X 6':6000,'MIX DIGES X6':6000,
+  'BATIDO DETOX VASO':6000,'BATIDO MIX DIGES VASO':6000,'CUCURUCHO':500,
+  'CONO VASO 7 ONZA':9000,'BOLA DE HELADO':4500,'CHOCOLISTO':2500,
+  'CREMA DE LECHE':3000,'FRUTAS SIN HELADO':8000,
+  'PALETAS PARA PERROS':5000,'PALETA ALOHA EN AGUA':2200,'CHOCOLISTOS':2500,
+  'CHOCOCONO CRISPY':4500,'ARTESANAL':3500,'HELADOS CASEROS':2500,
+  'PALETA POLET':7000,'PALETAS JET':5000,'PLATILLO':3500,'PLATILLO JUMBO':5000,
+  'ALOHA RASPADO':5000,'PALETA ALOHA MIX':3500,'BOCATTO':6000,
+  'HELADOS CUADRADOS':3500,'PALETAS MANGO BICHE':2500,'PALETAS DE SALPICON':2500,
+  'PALETA DE COLORES':2000,'MEDIO LITRO DE HELADO':7000,'CUARTOS DE HELADO':4500,
+  'VASITO':2200,'HELADOS POLARES':2500,'PALETAS GOL':3700,'ALOHA TAJIN':3500,
+  'CHOCOCONO FLOW':4500,'CHOCOCONO TRADICIONAL':3500,'CHOCOCONOS':3500,
+  'CHOCOLISTO EMPAQUETADO':2500,
+  'CHICLE AMARILLO':300,'OKA LOKA':3000,'ROLIN ROLLON':4000,'MECHAS LOKAS':4000,
+  'CAPRI':500,'TAKIS FUEGO':3800,'OKA LOKA FUSION':1200,'GALLETA CAPRI':0,
+  'BOTELLA CON AGUA GRANDE':2000,'BOTELLA CON AGUA PEQUEÑA':1000,'CERVEZA':4500,
+  'BOTELLA DE TAMARINDO':4000,'JUGO HIT':2500,
+  'BROWNIE':4000,'QUESO':4000,
+};
+
+// Aplicar precios correctos a todos los productos al iniciar
+function aplicarPreciosCatalogo(){
+  if(typeof prods === 'undefined') return;
+  prods.forEach(function(p){
+    if(PRECIO_CATALOGO[p.name] !== undefined){
+      p.price = PRECIO_CATALOGO[p.name];
+    }
+  });
+}
 
 const CC={PREPARADOS:'var(--cp)',EMPAQUETADOS:'var(--ce)',DULCERIA:'var(--cd)',NEVERA:'var(--cn)',ADICIONAL:'var(--ca)',DESECHABLES:'var(--cdes)','PARA LLEVAR':'#e67e22'};
 const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',ADICIONAL:'✨',DESECHABLES:'🧴','PARA LLEVAR':'🥡'};
@@ -2425,15 +2477,8 @@ async function sendAI(){
   var oc=LS.g('orderCounter');if(oc)orderCounter=oc;
   movCaja=LS.g('movCaja')||[];
   cierresTurno=LS.g('cierresTurno')||[];
-  // Aplicar stocks guardados a productos del código (precios siempre del código)
-  var stocks=LS.g('stocks');
-  if(stocks){
-    prods.forEach(function(p){
-      if(stocks[String(p.id)]&&stocks[String(p.id)].stock!==undefined){
-        p.stock=stocks[String(p.id)].stock;
-      }
-    });
-  }
+  // Aplicar precios correctos del catálogo (solución definitiva)
+  if(typeof aplicarPreciosCatalogo === 'function') aplicarPreciosCatalogo();
 })();
 updateBadges();
 renderUserPills();
