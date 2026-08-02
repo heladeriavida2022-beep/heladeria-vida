@@ -248,6 +248,9 @@ tr:last-child td{border-bottom:none}
 .qbtn:hover{background:rgba(255,255,255,.08)}
 .cart-total{display:flex;justify-content:space-between;font-size:13px;font-weight:700;margin-bottom:9px;font-family:var(--font-head)}
 .cart-empty{text-align:center;color:var(--text3);font-size:12px;padding:25px 0;font-style:italic}
+.btn-cambio{padding:7px 4px;border:1.5px solid #3aaa6a;background:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;color:#3aaa6a;font-family:var(--font-body);transition:all .12s}
+.btn-cambio:hover{background:#3aaa6a;color:#fff}
+.btn-cambio.sel{background:#3aaa6a;color:#fff}
 
 /* PRODUCT CARDS */
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:9px}
@@ -562,6 +565,20 @@ try{
               </div>
               <input type="hidden" id="cart-pago" value="Efectivo">
               <div class="cart-total"><span>Total</span><span id="cart-total" style="color:var(--acc3)">$0</span></div>
+
+              <!-- CALCULADORA DE CAMBIO — solo visible con Efectivo -->
+              <div id="cambio-wrap" style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:10px;padding:10px;margin-bottom:8px">
+                <div style="font-size:10px;font-weight:700;color:#3aaa6a;text-transform:uppercase;letter-spacing:.5px;margin-bottom:7px">💵 Dinero recibido</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px">
+                  <button onclick="setRecibido(10000)" class="btn-cambio">$10.000</button>
+                  <button onclick="setRecibido(20000)" class="btn-cambio">$20.000</button>
+                  <button onclick="setRecibido(50000)" class="btn-cambio">$50.000</button>
+                  <button onclick="setRecibido(100000)" class="btn-cambio">$100.000</button>
+                </div>
+                <input id="efectivo-recibido" type="number" placeholder="Otro valor..." oninput="calcCambio()" style="width:100%;padding:6px 9px;border:1.5px solid #3aaa6a;border-radius:7px;font-size:13px;font-weight:700;background:#fff;box-sizing:border-box;margin-bottom:7px">
+                <div id="cambio-resultado" style="font-size:13px;font-weight:700;text-align:center;padding:6px;border-radius:7px;background:#fff;border:1.5px solid var(--border)">Ingresa el valor recibido</div>
+              </div>
+
               <input class="finput" id="cart-obs" placeholder="📝 Observaciones del pedido (opcional)" style="font-size:11px;padding:6px 9px;margin-bottom:6px;width:100%">
               <button id="btn-confirmar-venta" class="btn btn-acc" style="width:100%;padding:10px" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
             </div>
@@ -1841,7 +1858,14 @@ function addToCart(id){
   renderCart();
 }
 function chQty(id,d){const p=gP(id);const i=cartItems.findIndex(x=>x.id===id);if(i<0)return;cartItems[i].qty+=d;if(d>0&&p?.descuenta&&cartItems[i].qty>p.stock)cartItems[i].qty=p.stock;if(cartItems[i].qty<=0)cartItems.splice(i,1);renderCart();}
-function clearCart(){cartItems=[];renderCart();}
+function clearCart(){
+  cartItems=[];renderCart();
+  // Resetear calculadora de cambio
+  var er=document.getElementById('efectivo-recibido');if(er)er.value='';
+  var cr=document.getElementById('cambio-resultado');
+  if(cr){cr.innerHTML='Ingresa el valor recibido';cr.style.background='#fff';cr.style.color='var(--text)';cr.style.borderColor='var(--border)';}
+  document.querySelectorAll('.btn-cambio').forEach(function(b){b.classList.remove('sel');});
+}
 function renderCart(){
   const b=document.getElementById('cart-body');const t=document.getElementById('cart-total');if(!b)return;
   if(!cartItems.length){b.innerHTML='<div class="cart-empty">Agrega productos</div>';if(t)t.textContent='$0';return;}
@@ -1860,6 +1884,16 @@ function confirmarVenta(){
 
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
   var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+
+  // VALIDAR EFECTIVO SUFICIENTE
+  if(pago==='Efectivo' && tot>0){
+    var recibidoEl=document.getElementById('efectivo-recibido');
+    var recibido=parseFloat(recibidoEl?recibidoEl.value:0)||0;
+    if(recibido>0 && recibido<tot){
+      toast('❌ Dinero insuficiente — Falta '+fmt(tot-recibido),'#e94560');
+      return;
+    }
+  }
   var mesaSel=document.getElementById('pos-mesa-sel');
   var canal=posMode==='mostrador'?'Mostrador':posMode==='mesa'?(mesaSel?mesaSel.value:'Mesa'):'Domicilio';
   var obsEl=document.getElementById('cart-obs');var obs=obsEl?obsEl.value.trim():'';
@@ -2784,6 +2818,57 @@ function selectPago(m,btn){
   // Mostrar campos de fiado
   var ff=document.getElementById('fiado-fields');
   if(ff)ff.style.display=m==='Fiado'?'block':'none';
+  // Mostrar/ocultar calculadora de cambio
+  var cw=document.getElementById('cambio-wrap');
+  if(cw){
+    cw.style.display=m==='Efectivo'?'block':'none';
+    if(m==='Efectivo'){
+      // Resetear calculadora
+      var er=document.getElementById('efectivo-recibido');
+      if(er) er.value='';
+      var cr=document.getElementById('cambio-resultado');
+      if(cr) cr.innerHTML='Ingresa el valor recibido';
+      cr.style.background='#fff';cr.style.color='var(--text)';
+      document.querySelectorAll('.btn-cambio').forEach(function(b){b.classList.remove('sel');});
+    }
+  }
+}
+
+function setRecibido(valor){
+  var er=document.getElementById('efectivo-recibido');
+  if(er){ er.value=valor; calcCambio(); }
+  document.querySelectorAll('.btn-cambio').forEach(function(b){b.classList.remove('sel');});
+  // Resaltar botón seleccionado
+  document.querySelectorAll('.btn-cambio').forEach(function(b){
+    if(b.textContent.replace(/\./g,'').replace('$','')===String(valor)) b.classList.add('sel');
+  });
+}
+
+function calcCambio(){
+  var totalEl=document.getElementById('cart-total');
+  var total=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  var recibidoEl=document.getElementById('efectivo-recibido');
+  var recibido=parseFloat(recibidoEl?recibidoEl.value:0)||0;
+  var cr=document.getElementById('cambio-resultado');
+  if(!cr) return;
+
+  if(!recibido){
+    cr.innerHTML='Ingresa el valor recibido';
+    cr.style.background='#fff';cr.style.color='var(--text)';cr.style.borderColor='var(--border)';
+    return;
+  }
+
+  var cambio=recibido-total;
+  if(cambio<0){
+    cr.innerHTML='❌ Falta: <b style="font-size:15px">'+fmt(Math.abs(cambio))+'</b>';
+    cr.style.background='#fff5f5';cr.style.color='#e94560';cr.style.borderColor='#e94560';
+  } else if(cambio===0){
+    cr.innerHTML='✅ Pago exacto — Cambio: <b style="font-size:15px">$0</b>';
+    cr.style.background='#edfaf2';cr.style.color='#3aaa6a';cr.style.borderColor='#3aaa6a';
+  } else {
+    cr.innerHTML='💵 Cambio: <b style="font-size:18px">'+fmt(cambio)+'</b>';
+    cr.style.background='#edfaf2';cr.style.color='#3aaa6a';cr.style.borderColor='#3aaa6a';
+  }
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});sales.forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
