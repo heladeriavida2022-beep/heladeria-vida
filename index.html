@@ -643,7 +643,10 @@ try{
 
           <!-- CIERRES DE CAJA -->
           <div class="adm-view" id="adv-cierres" style="flex:1;overflow-y:auto;padding:16px 18px">
-            <div style="font-size:14px;font-weight:700;margin-bottom:16px;font-family:var(--font-head)">🔒 Cierres de Caja por Turno</div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+              <div style="font-size:14px;font-weight:700;font-family:var(--font-head)">🔒 Cierres de Caja por Turno</div>
+              <button class="btn btn-acc" style="background:#1a1a2e;border-color:#1a1a2e" onclick="abrirCierreGeneral()"><i class="ti ti-lock-square"></i> Cierre General del Día</button>
+            </div>
             <!-- Filtros -->
             <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
               <input class="finput" type="date" id="cf-desde" style="width:140px;font-size:11px" onchange="renderCierres()">
@@ -671,6 +674,16 @@ try{
               <div class="tw"><table id="cierres-tabla">
                 <thead><tr><th>Fecha</th><th>Turno</th><th>Usuario</th><th>Fondo</th><th>Ventas</th><th>Gastos</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th>Estado</th><th>Detalle</th></tr></thead>
                 <tbody id="cierres-tbl-admin"></tbody>
+              </table></div>
+            </div>
+
+            <!-- HISTORIAL CIERRES GENERALES -->
+            <div style="font-size:13px;font-weight:700;margin:20px 0 10px;font-family:var(--font-head)">📋 Historial de Cierres Generales</div>
+            <div class="g4" id="cg-resumen" style="margin-bottom:12px"></div>
+            <div class="card">
+              <div class="tw"><table>
+                <thead><tr><th>Fecha</th><th>Hora</th><th>Admin</th><th>T1 Ventas</th><th>T2 Ventas</th><th>Total día</th><th>Gastos</th><th>Diferencia</th><th>Estado</th><th>Acción</th></tr></thead>
+                <tbody id="cg-tbl"></tbody>
               </table></div>
             </div>
           </div>
@@ -1007,6 +1020,36 @@ try{
 </div></div>
 
 <!-- Deuda -->
+<!-- CIERRE GENERAL DEL DÍA -->
+<div class="ov" id="ov-cierre-general"><div class="modal" style="max-width:600px">
+  <button class="mx" onclick="closeM('cierre-general')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-lock-square" style="color:#1a1a2e"></i>Cierre General del Día</div>
+  <div id="cg-validacion" style="margin-bottom:12px"></div>
+  <div id="cg-consolidado" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:12px"></div>
+  <div class="fg"><label class="fgrp-label">💵 Efectivo total contado al cierre del día ($)</label>
+    <input class="finput" type="number" id="cg-contado" placeholder="0" oninput="calcCierreGeneral()">
+  </div>
+  <div id="cg-diferencia-wrap" style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0"></div>
+  <div class="fg"><label class="fgrp-label">Observaciones del día</label>
+    <input class="finput" id="cg-obs" placeholder="Novedades del día (opcional)">
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <button class="btn btn-acc" id="cg-confirmar-btn" style="flex:1;background:#1a1a2e;border-color:#1a1a2e" onclick="confirmarCierreGeneral()"><i class="ti ti-lock-square"></i> Confirmar Cierre General</button>
+    <button class="btn btn-ghost" onclick="closeM('cierre-general')">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- DETALLE CIERRE GENERAL -->
+<div class="ov" id="ov-detalle-cg"><div class="modal" style="max-width:600px">
+  <button class="mx" onclick="closeM('detalle-cg')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-file-description"></i>Detalle Cierre General</div>
+  <div id="detalle-cg-content"></div>
+  <div style="display:flex;gap:7px;margin-top:12px">
+    <button class="btn btn-acc" onclick="imprimirCierreGeneral()"><i class="ti ti-printer"></i> Imprimir</button>
+    <button class="btn btn-ghost" onclick="closeM('detalle-cg')">Cerrar</button>
+  </div>
+</div></div>
+
 <!-- INGRESO CAJA -->
 <div class="ov" id="ov-ingreso-caja"><div class="modal">
   <button class="mx" onclick="closeM('ingreso-caja')"><i class="ti ti-x"></i></button>
@@ -1150,7 +1193,7 @@ let cartItems=[],cartaCart=[];
 let posMode='mostrador',invCatF='ALL',prodCatF='ALL',cartaCatF='ALL',clienteCatF='ALL';
 var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
-let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];
+let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];let cierresGeneral=LS.g('cierresGeneral')||[];
 
 
 // MAPA DE PRECIOS - siempre correcto, nunca del localStorage
@@ -1478,7 +1521,7 @@ function renderAdminView(id){
   if(id==='ventas')renderSalesTable();
   if(id==='compras')renderComprasTable();
   if(id==='caja'){renderCaja();}
-  if(id==='cierres'){renderCierres();}
+  if(id==='cierres'){renderCierres();renderCierresGeneral();}
   if(id==='gastos'){renderGastos();}
   if(id==='deudas')renderDeudas();
   if(id==='trazabilidad')renderTrazabilidad();
@@ -2479,7 +2522,7 @@ function confirmarReinicio(){
   if(!confirm('¿Confirmas que quieres borrar todos los registros?')) return;
   
   // Borrar datos locales
-  sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];orderCounter=100;
+  sales=[];purchases=[];liveOrders=[];movCaja=[];cierresTurno=[];cierresGeneral=[];orderCounter=100;
   LS.set('sales',[]);LS.set('purchases',[]);LS.set('orders',[]);
   LS.set('movCaja',[]);LS.set('cierresTurno',[]);LS.set('deudas',[]);
   LS.set('gastos',[]);LS.set('trazLog',[]);LS.set('orderCounter',100);
@@ -2652,6 +2695,289 @@ function confirmarCierreTurno(){
   closeM('cierre-turno');
   toast('✅ Cierre de Turno '+turno+' registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
   renderCaja();
+}
+
+// ══════════════════════════════════════════════
+// CIERRE GENERAL DEL DÍA
+// ══════════════════════════════════════════════
+
+var _cgActivo = null;
+
+function abrirCierreGeneral(){
+  if(!currentUser || currentUser.role !== 'admin'){
+    toast('Solo el administrador puede hacer el Cierre General','#e94560');
+    return;
+  }
+
+  cierresTurno = LS.g('cierresTurno')||[];
+  cierresGeneral = LS.g('cierresGeneral')||[];
+
+  var hoy = new Date().toLocaleDateString('es-CO');
+
+  // Verificar si ya existe cierre general hoy
+  var cgHoy = cierresGeneral.find(function(c){ return c.fecha === hoy; });
+  if(cgHoy){
+    toast('Ya existe un Cierre General para hoy — consulta en el historial','#e94560');
+    return;
+  }
+
+  // Obtener cierres de hoy
+  var cierresHoy = cierresTurno.filter(function(c){ return c.fecha === hoy; });
+  var t1 = cierresHoy.filter(function(c){ return c.turno === '1'; });
+  var t2 = cierresHoy.filter(function(c){ return c.turno === '2'; });
+
+  // Validación
+  var valEl = document.getElementById('cg-validacion');
+  var validar = '';
+  var puedeConfirmar = true;
+
+  if(!t1.length){
+    validar += '<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px;color:#e94560">⚠️ <b>Turno 1 no cerrado</b> — La empleada del Turno 1 debe hacer su cierre primero.</div>';
+    puedeConfirmar = false;
+  } else {
+    validar += '<div style="background:#edfaf2;border:1px solid #6ee7b7;border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px;color:#065f46">✅ Turno 1 cerrado por <b>'+t1[0].usuario+'</b> a las '+t1[0].horaCierre+'</div>';
+  }
+
+  if(!t2.length){
+    validar += '<div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:8px;padding:10px;margin-bottom:8px;font-size:12px;color:#e94560">⚠️ <b>Turno 2 no cerrado</b> — La empleada del Turno 2 debe hacer su cierre primero.</div>';
+    puedeConfirmar = false;
+  } else {
+    validar += '<div style="background:#edfaf2;border:1px solid #6ee7b7;border-radius:8px;padding:8px;margin-bottom:8px;font-size:12px;color:#065f46">✅ Turno 2 cerrado por <b>'+t2[0].usuario+'</b> a las '+t2[0].horaCierre+'</div>';
+  }
+
+  if(valEl) valEl.innerHTML = validar;
+
+  // Consolidar datos
+  var ventasT1 = t1.length ? t1[0].totalVentas : 0;
+  var ventasT2 = t2.length ? t2[0].totalVentas : 0;
+  var totalVentas = ventasT1 + ventasT2;
+  var totalEfe = (t1.length?t1[0].ventasEfectivo:0) + (t2.length?t2[0].ventasEfectivo:0);
+  var totalNequi = (t1.length?t1[0].ventasNequi:0) + (t2.length?t2[0].ventasNequi:0);
+  var totalTarjeta = (t1.length?t1[0].ventasTarjeta:0) + (t2.length?t2[0].ventasTarjeta:0);
+  var totalTrans = (t1.length?t1[0].ventasTransferencia:0) + (t2.length?t2[0].ventasTransferencia:0);
+  var totalGastos = (t1.length?t1[0].gastos:0) + (t2.length?t2[0].gastos:0);
+  var fondoTotal = (t1.length?t1[0].fondo:0) + (t2.length?t2[0].fondo:0);
+  var esperado = fondoTotal + totalEfe;
+
+  // Mostrar consolidado
+  var consEl = document.getElementById('cg-consolidado');
+  if(consEl) consEl.innerHTML =
+    '<div style="font-size:12px;font-weight:700;margin-bottom:10px;color:var(--text)">📊 Consolidado del día — '+hoy+'</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
+    '<div><span style="color:var(--text2)">Ventas Turno 1:</span> <b style="color:#3aaa6a">'+fmt(ventasT1)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Ventas Turno 2:</span> <b style="color:#3aaa6a">'+fmt(ventasT2)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Efectivo:</span> <b>'+fmt(totalEfe)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b>'+fmt(totalNequi)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Tarjeta:</span> <b>'+fmt(totalTarjeta)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Transferencia:</span> <b>'+fmt(totalTrans)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Gastos del día:</span> <b style="color:#e94560">'+fmt(totalGastos)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Fondo inicial total:</span> <b>'+fmt(fondoTotal)+'</b></div>' +
+    '</div>' +
+    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:13px">' +
+    '<span>TOTAL VENTAS DÍA:</span><span style="color:#3aaa6a">'+fmt(totalVentas)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-top:4px">' +
+    '<span>Efectivo esperado en caja:</span><span style="font-weight:700">'+fmt(esperado)+'</span></div>';
+
+  // Deshabilitar botón si faltan turnos
+  var btn = document.getElementById('cg-confirmar-btn');
+  if(btn) btn.disabled = !puedeConfirmar;
+  if(btn) btn.style.opacity = puedeConfirmar ? '1' : '0.4';
+
+  document.getElementById('cg-contado').value = '';
+  document.getElementById('cg-obs').value = '';
+  document.getElementById('cg-diferencia-wrap').innerHTML = '';
+
+  openM('cierre-general');
+}
+
+function calcCierreGeneral(){
+  cierresTurno = LS.g('cierresTurno')||[];
+  var hoy = new Date().toLocaleDateString('es-CO');
+  var cierresHoy = cierresTurno.filter(function(c){ return c.fecha === hoy; });
+  var t1 = cierresHoy.find(function(c){ return c.turno === '1'; });
+  var t2 = cierresHoy.find(function(c){ return c.turno === '2'; });
+
+  var totalEfe = (t1?t1.ventasEfectivo:0) + (t2?t2.ventasEfectivo:0);
+  var fondoTotal = (t1?t1.fondo:0) + (t2?t2.fondo:0);
+  var esperado = fondoTotal + totalEfe;
+  var contado = parseFloat(document.getElementById('cg-contado').value)||0;
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+  var color = estado==='correcto'?'#3aaa6a':estado==='sobrante'?'#f0a500':'#e94560';
+  var icon = estado==='correcto'?'✅':estado==='sobrante'?'🟡':'🔴';
+
+  var el = document.getElementById('cg-diferencia-wrap');
+  if(el && contado > 0) el.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px">' +
+    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>';
+}
+
+function confirmarCierreGeneral(){
+  if(!currentUser || currentUser.role !== 'admin'){toast('Solo admin','#e94560');return;}
+  var contado = parseFloat(document.getElementById('cg-contado').value)||0;
+  if(contado <= 0){toast('Ingresa el efectivo contado','var(--acc)');return;}
+  if(!confirm('¿Confirmas el Cierre General del día? El día quedará bloqueado para nuevas ventas y gastos.')) return;
+
+  cierresTurno = LS.g('cierresTurno')||[];
+  cierresGeneral = LS.g('cierresGeneral')||[];
+  var hoy = new Date().toLocaleDateString('es-CO');
+  var cierresHoy = cierresTurno.filter(function(c){ return c.fecha === hoy; });
+  var t1 = cierresHoy.find(function(c){ return c.turno === '1'; });
+  var t2 = cierresHoy.find(function(c){ return c.turno === '2'; });
+
+  var ventasT1 = t1?t1.totalVentas:0;
+  var ventasT2 = t2?t2.totalVentas:0;
+  var totalVentas = ventasT1 + ventasT2;
+  var totalEfe = (t1?t1.ventasEfectivo:0)+(t2?t2.ventasEfectivo:0);
+  var totalNequi = (t1?t1.ventasNequi:0)+(t2?t2.ventasNequi:0);
+  var totalTarjeta = (t1?t1.ventasTarjeta:0)+(t2?t2.ventasTarjeta:0);
+  var totalTrans = (t1?t1.ventasTransferencia:0)+(t2?t2.ventasTransferencia:0);
+  var totalGastos = (t1?t1.gastos:0)+(t2?t2.gastos:0);
+  var fondoTotal = (t1?t1.fondo:0)+(t2?t2.fondo:0);
+  var esperado = fondoTotal + totalEfe;
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia)<100?'correcto':diferencia>0?'sobrante':'faltante';
+  var now = new Date();
+
+  var cg = {
+    id: 'cg'+Date.now(),
+    fecha: hoy,
+    hora: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    admin: currentUser.name,
+    ventasT1: ventasT1,
+    ventasT2: ventasT2,
+    totalVentas: totalVentas,
+    totalEfectivo: totalEfe,
+    totalNequi: totalNequi,
+    totalTarjeta: totalTarjeta,
+    totalTransferencia: totalTrans,
+    totalGastos: totalGastos,
+    fondoTotal: fondoTotal,
+    esperado: esperado,
+    contado: contado,
+    diferencia: diferencia,
+    estado: estado,
+    observaciones: document.getElementById('cg-obs').value.trim(),
+    cierreT1: t1||null,
+    cierreT2: t2||null,
+    timestamp: now.toISOString(),
+    bloqueado: true
+  };
+
+  cierresGeneral.unshift(cg);
+  LS.set('cierresGeneral', cierresGeneral);
+  // Bloquear el día
+  LS.set('diaBloqueado', hoy);
+
+  closeM('cierre-general');
+  toast('✅ Cierre General del día registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
+  renderCierres();
+}
+
+function renderCierresGeneral(){
+  cierresGeneral = LS.g('cierresGeneral')||[];
+  var tbl = document.getElementById('cg-tbl');
+  var res = document.getElementById('cg-resumen');
+
+  if(res){
+    var totV = cierresGeneral.reduce(function(s,c){return s+c.totalVentas;},0);
+    var totG = cierresGeneral.reduce(function(s,c){return s+c.totalGastos;},0);
+    res.innerHTML =
+      '<div class="stat"><div class="slb">Días cerrados</div><div class="sval">'+cierresGeneral.length+'</div></div>' +
+      '<div class="stat"><div class="slb">Total ventas</div><div class="sval" style="color:#3aaa6a">'+fmt(totV)+'</div></div>' +
+      '<div class="stat"><div class="slb">Total gastos</div><div class="sval" style="color:#e94560">'+fmt(totG)+'</div></div>' +
+      '<div class="stat"><div class="slb">Ganancia neta</div><div class="sval" style="color:#9b72cf">'+fmt(totV-totG)+'</div></div>';
+  }
+
+  if(!tbl) return;
+  if(!cierresGeneral.length){
+    tbl.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--text3);padding:20px">Sin cierres generales registrados</td></tr>';
+    return;
+  }
+  tbl.innerHTML = cierresGeneral.map(function(c){
+    var est = c.estado||'correcto';
+    var estColor = est==='correcto'?'#3aaa6a':est==='sobrante'?'#f0a500':'#e94560';
+    var estIcon = est==='correcto'?'✅':est==='sobrante'?'🟡':'🔴';
+    return '<tr>' +
+      '<td style="font-weight:700">'+c.fecha+'</td>' +
+      '<td style="font-size:11px">'+c.hora+'</td>' +
+      '<td style="font-size:11.5px">'+c.admin+'</td>' +
+      '<td style="color:#3aaa6a;font-weight:700">'+fmt(c.ventasT1)+'</td>' +
+      '<td style="color:#3aaa6a;font-weight:700">'+fmt(c.ventasT2)+'</td>' +
+      '<td style="color:#3aaa6a;font-weight:700;font-size:13px">'+fmt(c.totalVentas)+'</td>' +
+      '<td style="color:#e94560">'+fmt(c.totalGastos)+'</td>' +
+      '<td style="color:'+(c.diferencia>=0?'#3aaa6a':'#e94560')+';font-weight:700">'+(c.diferencia>=0?'+':'')+fmt(c.diferencia)+'</td>' +
+      '<td><span style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';color:'+estColor+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">'+estIcon+' '+est.charAt(0).toUpperCase()+est.slice(1)+'</span></td>' +
+      '<td><button onclick="verDetalleCierreGeneral(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px">Ver</button> <button onclick="imprimirCGById(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px"><i class="ti ti-printer"></i></button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function verDetalleCierreGeneral(id){
+  cierresGeneral = LS.g('cierresGeneral')||[];
+  var c = cierresGeneral.find(function(x){return x.id===id;});
+  if(!c) return;
+  _cgActivo = c;
+  var est = c.estado||'correcto';
+  var estColor = est==='correcto'?'#3aaa6a':est==='sobrante'?'#f0a500':'#e94560';
+  document.getElementById('detalle-cg-content').innerHTML =
+    '<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
+    '<div><b>Fecha:</b> '+c.fecha+'</div><div><b>Hora:</b> '+c.hora+'</div>' +
+    '<div><b>Administrador:</b> '+c.admin+'</div><div><b>Estado:</b> <span style="color:'+estColor+'">'+est.toUpperCase()+'</span></div>' +
+    '</div></div>' +
+    '<div style="font-size:12px">' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Turno 1:</span><span style="color:#3aaa6a">'+fmt(c.ventasT1)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Turno 2:</span><span style="color:#3aaa6a">'+fmt(c.ventasT2)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-weight:700"><span>Total ventas del día:</span><span style="color:#3aaa6a">'+fmt(c.totalVentas)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo:</span><span>'+fmt(c.totalEfectivo)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Nequi/Daviplata:</span><span>'+fmt(c.totalNequi)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Tarjeta:</span><span>'+fmt(c.totalTarjeta)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Transferencia:</span><span>'+fmt(c.totalTransferencia)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Total gastos:</span><span style="color:#e94560">'+fmt(c.totalGastos)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Fondo inicial total:</span><span>'+fmt(c.fondoTotal)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo esperado:</span><span>'+fmt(c.esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo contado:</span><span>'+fmt(c.contado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px"><span>Diferencia:</span><span style="color:'+(c.diferencia>=0?'#3aaa6a':'#e94560')+'">'+(c.diferencia>=0?'+':'')+fmt(c.diferencia)+'</span></div>' +
+    '<div style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';border-radius:8px;padding:8px;text-align:center;font-weight:700;color:'+estColor+'">' +
+    (est==='correcto'?'✅ DÍA CORRECTO':est==='sobrante'?'🟡 SOBRANTE':'🔴 FALTANTE')+'</div>' +
+    (c.observaciones?'<div style="margin-top:8px"><b>Observaciones:</b> '+c.observaciones+'</div>':'')+
+    '</div>';
+  openM('detalle-cg');
+}
+
+function imprimirCierreGeneral(){ if(_cgActivo) imprimirCGById(_cgActivo.id); }
+
+function imprimirCGById(id){
+  cierresGeneral = LS.g('cierresGeneral')||[];
+  var c = cierresGeneral.find(function(x){return x.id===id;});
+  if(!c) return;
+  var html = '<html><head><title>Cierre General '+c.fecha+'</title>' +
+    '<style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h2{text-align:center}table{width:100%;border-collapse:collapse}td{padding:5px 0}hr{margin:10px 0}</style></head><body>' +
+    '<h2>🍦 Heladería ViDa — Cierre General del Día</h2>' +
+    '<p style="text-align:center"><b>Fecha:</b> '+c.fecha+' | <b>Hora:</b> '+c.hora+' | <b>Admin:</b> '+c.admin+'</p><hr>' +
+    '<table>' +
+    '<tr><td>Ventas Turno 1</td><td align="right">'+fmt(c.ventasT1)+'</td></tr>' +
+    '<tr><td>Ventas Turno 2</td><td align="right">'+fmt(c.ventasT2)+'</td></tr>' +
+    '<tr><td><b>Total ventas del día</b></td><td align="right"><b>'+fmt(c.totalVentas)+'</b></td></tr>' +
+    '<tr><td>Efectivo</td><td align="right">'+fmt(c.totalEfectivo)+'</td></tr>' +
+    '<tr><td>Nequi/Daviplata</td><td align="right">'+fmt(c.totalNequi)+'</td></tr>' +
+    '<tr><td>Tarjeta</td><td align="right">'+fmt(c.totalTarjeta)+'</td></tr>' +
+    '<tr><td>Transferencia</td><td align="right">'+fmt(c.totalTransferencia)+'</td></tr>' +
+    '<tr><td>Total gastos</td><td align="right">'+fmt(c.totalGastos)+'</td></tr>' +
+    '<tr><td>Efectivo esperado</td><td align="right">'+fmt(c.esperado)+'</td></tr>' +
+    '<tr><td>Efectivo contado</td><td align="right">'+fmt(c.contado)+'</td></tr>' +
+    '<tr><td><b>Diferencia</b></td><td align="right"><b>'+(c.diferencia>=0?'+':'')+fmt(c.diferencia)+'</b></td></tr>' +
+    '</table><hr>' +
+    '<p style="text-align:center;font-size:16px;font-weight:bold">Estado: '+(c.estado||'').toUpperCase()+'</p>' +
+    (c.observaciones?'<p><b>Observaciones:</b> '+c.observaciones+'</p>':'')+
+    '<p style="text-align:center;color:#999;font-size:11px">Generado: '+new Date().toLocaleString('es-CO')+'</p></body></html>';
+  var w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
 }
 
 function renderCierres(){
