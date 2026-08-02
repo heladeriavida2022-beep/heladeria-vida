@@ -1054,44 +1054,6 @@ const PRECIO_CATALOGO = {
 };
 
 
-// Imágenes genéricas por nombre de producto
-const IMG_GENERICAS = {
-  'PALETAS PARA PERROS':'🦴','PALETA ALOHA EN AGUA':'🍹','PALETA ALOHA MIX':'🍡',
-  'ALOHA RASPADO':'🧊','PALETA POLET':'🍦','PALETAS JET':'🍫','PALETAS MANGO BICHE':'🥭',
-  'PALETAS DE SALPICON':'🍉','PALETA DE COLORES':'🌈','PALETAS GOL':'⚽','ALOHA TAJIN':'🌶️',
-  'CHOCOCONOS':'🍦','CHOCOCONO CRISPY':'🍫','CHOCOCONO FLOW':'🍧','ARTESANAL':'🏺',
-  'HELADOS CASEROS':'🍨','HELADOS CUADRADOS':'🟫','HELADOS POLARES':'❄️',
-  'PLATILLO':'🍽️','PLATILLO JUMBO':'🍽️','BOCATTO':'🍪','MEDIO LITRO DE HELADO':'🥛',
-  'CUARTOS DE HELADO':'🍨','VASITO':'🥤','CHOCOLISTO':'🍫','CHOCOLISTOS':'🍫',
-  'BOLA DE HELADO':'🍦','CHICLE AMARILLO':'🟡','OKA LOKA':'🍬','OKA LOKA FUSION':'🍬',
-  'ROLIN ROLLON':'🍭','MECHAS LOKAS':'🍭','CAPRI':'🧃','TAKIS FUEGO':'🌶️',
-  'GALLETA CAPRI':'🍪','BOTELLA CON AGUA GRANDE':'💧','BOTELLA CON AGUA PEQUEÑA':'💧',
-  'CERVEZA':'🍺','BOTELLA DE TAMARINDO':'🟤','JUGO HIT':'🧃','BROWNIE':'🍫',
-  'QUESO':'🧀','CREMA DE LECHE':'🥛','CUCURUCHO':'🍦','CONO SENCILLO':'🍦',
-  'CONO DOBLE':'🍦','CANASTA TRIPLE':'🧺','CANASTILLA SENCILLA':'🧺','CANASTILLA DOBLE':'🧺',
-  'OBLEA':'🥠','OBLEA ESPECIAL':'🥠','BATIDO PROTEINA X6':'💪','BATIDO DE PROTEINA EN VASO':'💪',
-  'DETOX X 6':'🥬','MIX DIGES X6':'🌿','BATIDO DETOX VASO':'🥬','BATIDO MIX DIGES VASO':'🌿',
-  'FRUTAS SIN HELADO':'🍓','CONO VASO 7 ONZA':'🍦','VASO 14 OZ':'🥤',
-  'CONTENEDOR 16 OZ':'📦','SOBRE COPA DOMO':'🔵','CONO':'🍦','CANASTA':'🧺',
-  'VASO PEQUEÑO':'🥤','VASO 7 ONZAS':'🥤','CONTENEDOR 24 OZ':'📦',
-  'PALETAS PARA PERROS PALETA':'🦴',
-};
-
-function getImgProd(p){
-  if(p.img) return p.img;
-  var emoji = IMG_GENERICAS[p.name] || '🍦';
-  var colors = {
-    'PREPARADOS':'#fff3e0','EMPAQUETADOS':'#e3f2fd','DULCERIA':'#fce4ec',
-    'NEVERA':'#e8f5e9','ADICIONAL':'#f3e5f5','DESECHABLES':'#f5f5f5','PARA LLEVAR':'#fff8e1'
-  };
-  var bg = (colors[p.cat]||'#fff3e0').replace('#','%23');
-  return 'data:image/svg+xml;charset=utf-8,' +
-    '%3Csvg xmlns%3D%22http%3A//www.w3.org/2000/svg%22 width%3D%22200%22 height%3D%22200%22 viewBox%3D%220 0 200 200%22%3E' +
-    '%3Crect width%3D%22200%22 height%3D%22200%22 fill%3D%22' + bg + '%22 rx%3D%2212%22/%3E' +
-    '%3Ctext x%3D%22100%22 y%3D%22115%22 font-size%3D%2280%22 text-anchor%3D%22middle%22%3E' + encodeURIComponent(emoji) + '%3C/text%3E' +
-    '%3C/svg%3E';
-}
-
 // Aplicar precios correctos a todos los productos al iniciar
 function aplicarPreciosCatalogo(){
   if(typeof prods === 'undefined') return;
@@ -1560,7 +1522,7 @@ function renderCarta(){
     if(!ps.length)return;
     html+=`<div class="cat-section"><div class="cat-hdr" style="color:${CC[cat]}">${CE[cat]} ${cat} <span style="font-size:9px;color:var(--text3)">(${ps.length})</span></div>
     <div class="prod-grid">${ps.map(p=>{const s=stockSt(p);return`<div class="pc">
-      ${(typeof IMG_GENERICAS!=="undefined"&&IMG_GENERICAS[p.name])?"<div style='width:100%;height:65px;display:flex;align-items:center;justify-content:center;font-size:44px;border-radius:7px;margin-bottom:4px;background:var(--bg3)'>"+IMG_GENERICAS[p.name]+"</div>":p.img?"<div style='width:100%;height:65px;overflow:hidden;border-radius:7px;margin-bottom:4px'><img src='"+p.img+"' style='width:100%;height:100%;object-fit:cover' loading='lazy'></div>":"<div class='pc-em'>"+p.emoji+"</div>"}<div class="pc-nm">${p.name}</div>
+      ${p.img?"<div style='width:100%;height:70px;overflow:hidden;border-radius:7px;margin-bottom:4px'><img src='"+p.img+"' style='width:100%;height:100%;object-fit:cover' loading='lazy'></div>":"<div class='pc-em'>"+p.emoji+"</div>"}<div class="pc-nm">${p.name}</div>
       <div class="pc-pr">${p.price>0?fmt(p.price):'Sin precio'}</div>
       <div style="display:flex;align-items:center;justify-content:center;gap:4px;margin-top:3px">
         <span class="badge ${s.cls}" style="font-size:8px">${s.lbl}</span>
@@ -1649,7 +1611,7 @@ function renderPOS(){
   const menu=document.getElementById('pos-menu');if(!menu)return;
   menu.innerHTML=Object.entries(byCat).map(([cat,pps])=>`<div class="cat-section"><div class="cat-hdr" style="color:${CC[cat]}">${CE[cat]} ${cat}</div>
   <div class="prod-grid">${pps.map(p=>{const out=p.descuenta&&p.stock<=0;return`<div class="pc${out?' toggled':''}" onclick="${out?'':('addToCart('+p.id+')')}" style="${out?'opacity:.3;cursor:not-allowed':''}">
-    ${(typeof IMG_GENERICAS!=="undefined"&&IMG_GENERICAS[p.name])?"<div style='width:100%;height:65px;display:flex;align-items:center;justify-content:center;font-size:44px;border-radius:7px;margin-bottom:4px;background:var(--bg3)'>"+IMG_GENERICAS[p.name]+"</div>":p.img?"<div style='width:100%;height:65px;overflow:hidden;border-radius:7px;margin-bottom:4px'><img src='"+p.img+"' style='width:100%;height:100%;object-fit:cover' loading='lazy'></div>":"<div class='pc-em'>"+p.emoji+"</div>"}<div class="pc-nm">${p.name}</div>
+    ${p.img?"<div style='width:100%;height:70px;overflow:hidden;border-radius:7px;margin-bottom:4px'><img src='"+p.img+"' style='width:100%;height:100%;object-fit:cover' loading='lazy'></div>":"<div class='pc-em'>"+p.emoji+"</div>"}<div class="pc-nm">${p.name}</div>
     <div class="pc-pr">${p.price>0?fmt(p.price):'—'}</div>
     ${p.descuenta?`<div class="pc-st" style="color:${p.stock<=p.min?'var(--acc2)':'var(--text3)'}">${out?'Agotado':p.stock<=p.min?'⚠ '+p.stock:p.stock}</div>`:''}
   </div>`;}).join('')}</div></div>`).join('')||'<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Sin productos</div>';
