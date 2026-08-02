@@ -533,7 +533,7 @@ try{
         <div class="page-bar" style="padding:8px 14px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
             <div style="position:relative"><i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:26px;width:160px;font-size:12px;padding-top:6px;padding-bottom:6px"></div>
-            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="PARA LLEVAR">🥡 Para Llevar</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
+            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="CHOLADOS">🍧 Cholados</option><option value="RASPADOS">🧊 Raspados</option><option value="PARA LLEVAR">🥡 Para Llevar</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-acc btn-sm" id="mode-mostrador" onclick="setPOSMode('mostrador')"><i class="ti ti-building-store"></i> Mostrador</button>
@@ -805,7 +805,7 @@ try{
           <!-- PRODUCTOS GESTIÓN -->
           <div class="adm-view" id="adv-productos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('producto')"><i class="ti ti-plus"></i> Nuevo producto</button></div>
-            <div class="tabs" id="prod-tabs"><div class="tab active" onclick="setProdCat('ALL',this)">Todos</div><div class="tab" onclick="setProdCat('PREPARADOS',this)">🍧</div><div class="tab" onclick="setProdCat('EMPAQUETADOS',this)">📦</div><div class="tab" onclick="setProdCat('DULCERIA',this)">🍬</div><div class="tab" onclick="setProdCat('NEVERA',this)">❄️</div><div class="tab" onclick="setProdCat('ADICIONAL',this)">✨</div><div class="tab" onclick="setProdCat('DESECHABLES',this)">🧴</div></div>
+            <div class="tabs" id="prod-tabs"><div class="tab active" onclick="setProdCat('ALL',this)">Todos</div><div class="tab" onclick="setProdCat('PREPARADOS',this)">🍧</div><div class="tab" onclick="setProdCat('CHOLADOS',this)">🍧 Cholados</div><div class="tab" onclick="setProdCat('RASPADOS',this)">🧊 Raspados</div><div class="tab" onclick="setProdCat('EMPAQUETADOS',this)">📦</div><div class="tab" onclick="setProdCat('DULCERIA',this)">🍬</div><div class="tab" onclick="setProdCat('NEVERA',this)">❄️</div><div class="tab" onclick="setProdCat('ADICIONAL',this)">✨</div><div class="tab" onclick="setProdCat('DESECHABLES',this)">🧴</div></div>
             <div style="position:relative;margin-bottom:11px"><i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="prod-search" placeholder="Buscar..." oninput="renderProdTable()" style="padding-left:28px;font-size:12px"></div>
             <div class="card"><div class="tw"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="prod-tbl"></tbody></table></div></div>
           </div>
@@ -1279,6 +1279,10 @@ const PRECIO_CATALOGO = {
   'BOTELLA CON AGUA GRANDE':2000,'BOTELLA CON AGUA PEQUEÑA':1000,'CERVEZA':4500,
   'BOTELLA DE TAMARINDO':4000,'JUGO HIT':2500,
   'BROWNIE':4000,'QUESO':4000,
+  // CHOLADOS
+  'CHOLAO PEQUEÑO':10000,'CHOLAO MEDIANO':12000,'CHOLAO GRANDE':14000,'MEGACHOLAO VALLUNO':16000,
+  // RASPADOS
+  'RASPADO CON LECHERA':5000,'RASPADO CON HELADO':7000,
 };
 
 
@@ -1296,8 +1300,8 @@ function aplicarPreciosCatalogo(){
   });
 }
 
-const CC={PREPARADOS:'var(--cp)',EMPAQUETADOS:'var(--ce)',DULCERIA:'var(--cd)',NEVERA:'var(--cn)',ADICIONAL:'var(--ca)',DESECHABLES:'var(--cdes)','PARA LLEVAR':'#e67e22'};
-const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',ADICIONAL:'✨',DESECHABLES:'🧴','PARA LLEVAR':'🥡'};
+const CC={PREPARADOS:'var(--cp)',EMPAQUETADOS:'var(--ce)',DULCERIA:'var(--cd)',NEVERA:'var(--cn)',ADICIONAL:'var(--ca)',DESECHABLES:'var(--cdes)','PARA LLEVAR':'#e67e22',CHOLADOS:'#e91e8c',RASPADOS:'#00bcd4'};
+const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',ADICIONAL:'✨',DESECHABLES:'🧴','PARA LLEVAR':'🥡',CHOLADOS:'🍧',RASPADOS:'🧊'};
 
 let prods=[
   ...[
@@ -1379,6 +1383,12 @@ let prods=[
     .map((n,i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:0,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
   ...[{n:"VASO 14 OZ",s:200,p:0},{n:"CONTENEDOR 16 OZ",s:53,p:0},{n:"SOBRE COPA DOMO",s:13,p:0},{n:"TAPA BONYURT",s:200,p:0},{n:"EMPAQUE BANANA SPLIT",s:200,p:0},{n:"CONO",s:28,p:0},{n:"CANASTA",s:24,p:0},{n:"VASO PEQUEÑO",s:34,p:0},{n:"VASO 7 ONZAS",s:41,p:0},{n:"CONTENEDOR 24 OZ",s:35,p:0}]
     .map(({n,s,p},i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:p,stock:s,min:10,unit:'unidades',descuenta:true,active:true})),
+  // CHOLADOS
+  ...[{n:"CHOLAO PEQUEÑO",p:10000},{n:"CHOLAO MEDIANO",p:12000},{n:"CHOLAO GRANDE",p:14000},{n:"MEGACHOLAO VALLUNO",p:16000}]
+    .map(({n,p},i)=>({id:600+i,name:n,cat:'CHOLADOS',emoji:'🍧',price:p,stock:999,min:0,unit:'porción',descuenta:false,active:true,ins:null})),
+  // RASPADOS
+  ...[{n:"RASPADO CON LECHERA",p:5000},{n:"RASPADO CON HELADO",p:7000}]
+    .map(({n,p},i)=>({id:620+i,name:n,cat:'RASPADOS',emoji:'🧊',price:p,stock:999,min:0,unit:'porción',descuenta:false,active:true,ins:null})),
 ];
 
 // ══════════════════════════════════════════════
