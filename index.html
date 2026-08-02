@@ -335,24 +335,8 @@ tr:last-child td{border-bottom:none}
 <!-- LIMPIEZA INICIAL -->
 <script>
 try{
-  var _d=localStorage.getItem('heladeria_v2');
-  if(_d){
-    var _obj=JSON.parse(_d);
-    if(_obj){
-      _obj.sales=[];
-      _obj.purchases=[];
-      _obj.gastos=[];
-      _obj.movCaja=[];
-      _obj.cierresTurno=[];
-      _obj.deudas=[];
-      _obj.orders=[];
-      _obj.trazLog=[];
-      _obj.orderCounter=100;
-      // Forzar recarga de productos del código
-      delete _obj.products;
-      localStorage.setItem('heladeria_v2',JSON.stringify(_obj));
-    }
-  }
+  // Borrar TODO el localStorage para forzar recarga desde código
+  localStorage.removeItem('heladeria_v2');
 }catch(e){}
 </script>
 </head>
