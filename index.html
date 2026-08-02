@@ -1025,7 +1025,7 @@ const CE={PREPARADOS:'🍧',EMPAQUETADOS:'📦',DULCERIA:'🍬',NEVERA:'❄️',
 
 let prods=[
   ...[
-    {n:"SALPICON",p:8000,ins:'VASO 14 OZ'},{n:"CONO SENCILLO EN VASO",p:4500,ins:'CONO'},{n:"FRESAS CON CREMA",p:14000,ins:'SOBRE COPA DOMO'},
+    {n:"SALPICON",p:8000,ins:'VASO 14 OZ'},{n:"CONO SENCILLO EN VASO",p:4500,ins:'VASO PEQUEÑO'},{n:"FRESAS CON CREMA",p:14000,ins:'SOBRE COPA DOMO'},
     {n:"TAMARINDO MICHELADO",p:5000,ins:'VASO 14 OZ'},{n:"ENSALADA DE FRUTAS PEQUEÑA",p:16000,ins:'SOBRE COPA DOMO'},{n:"ENSALADA GRANDE PARA LLEVAR",p:20000,ins:'CONTENEDOR 16 OZ'},
     {n:"ENSALADA DE FRUTAS GRANDE",p:20000,ins:null},{n:"BANANA SPLIT",p:16000,ins:'EMPAQUE BANANA SPLIT'},{n:"SUNDAE DE DURAZNO O FRESA",p:12000,ins:'SOBRE COPA DOMO'},
     {n:"COPA FANTASY",p:15000,ins:null},{n:"MALTEADA",p:14000,ins:'VASO 14 OZ'},{n:"FUSION DE OREO",p:15000,ins:null},
@@ -1101,7 +1101,7 @@ let prods=[
     .map((n,i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:0,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
   ...["BROWNIE","QUESO"]
     .map((n,i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:0,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
-  ...[{n:"VASO 14 OZ",s:200,p:0},{n:"CONTENEDOR 16 OZ",s:200,p:0},{n:"SOBRE COPA DOMO",s:200,p:0},{n:"TAPA BONYURT",s:200,p:0},{n:"EMPAQUE BANANA SPLIT",s:200,p:0},{n:"CONO",s:28,p:0},{n:"CANASTA",s:24,p:0}]
+  ...[{n:"VASO 14 OZ",s:200,p:0},{n:"CONTENEDOR 16 OZ",s:200,p:0},{n:"SOBRE COPA DOMO",s:200,p:0},{n:"TAPA BONYURT",s:200,p:0},{n:"EMPAQUE BANANA SPLIT",s:200,p:0},{n:"CONO",s:28,p:0},{n:"CANASTA",s:24,p:0},{n:"VASO PEQUEÑO",s:34,p:0},{n:"VASO 7 ONZAS",s:41,p:0}]
     .map(({n,s,p},i)=>({id:500+i,name:n,cat:'DESECHABLES',emoji:'🧴',price:p,stock:s,min:10,unit:'unidades',descuenta:true,active:true})),
 ];
 
