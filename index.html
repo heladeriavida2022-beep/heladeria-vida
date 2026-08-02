@@ -348,6 +348,8 @@ try{
       _obj.orders=[];
       _obj.trazLog=[];
       _obj.orderCounter=100;
+      // Forzar recarga de productos del código
+      delete _obj.products;
       localStorage.setItem('heladeria_v2',JSON.stringify(_obj));
     }
   }
