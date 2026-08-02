@@ -435,6 +435,8 @@ try{
         <div class="sg">
           <div class="slbl">Finanzas</div>
           <button class="sni" id="sni-ventas" onclick="adminNav('ventas',this)"><i class="ti ti-shopping-cart"></i>Ventas</button>
+          <button class="sni" id="sni-caja" onclick="adminNav('caja',this)"><i class="ti ti-cash-register"></i>Caja</button>
+          <button class="sni" id="sni-cierres" onclick="adminNav('cierres',this)"><i class="ti ti-lock"></i>Cierres de Caja</button>
           <button class="sni" id="sni-gastos" onclick="adminNav('gastos',this)"><i class="ti ti-receipt"></i>Gastos</button>
           <button class="sni" id="sni-costos" onclick="adminNav('costos',this)"><i class="ti ti-calculator"></i>Costos</button>
           <button class="sni" id="sni-deudas" onclick="adminNav('deudas',this)"><i class="ti ti-credit-card"></i>Deudas<span class="snb">2</span></button>
@@ -611,6 +613,67 @@ try{
           </div>
 
           <!-- VENTAS -->
+          <!-- CAJA -->
+          <div class="adm-view" id="adv-caja" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div class="qa">
+              <button class="btn btn-acc" onclick="openM('ingreso-caja')"><i class="ti ti-plus"></i> Ingreso</button>
+              <button class="btn btn-ghost" onclick="openM('egreso-caja')"><i class="ti ti-minus"></i> Egreso</button>
+              <button class="btn btn-acc" style="background:#e94560;border-color:#e94560" onclick="abrirCierreTurno()"><i class="ti ti-lock"></i> Cierre de turno</button>
+            </div>
+            <div class="g4" id="caja-stats" style="margin-bottom:14px"></div>
+            <div class="g2">
+              <div class="card">
+                <div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Movimientos del turno</div>
+                <select class="finput" id="caja-filter-pago" onchange="renderCaja()" style="font-size:11px;padding:5px 8px;width:auto;margin-bottom:8px">
+                  <option value="ALL">Todos</option>
+                  <option value="Efectivo">Efectivo</option>
+                  <option value="Nequi/Daviplata">Nequi</option>
+                  <option value="Tarjeta">Tarjeta</option>
+                  <option value="Transferencia">Trans.</option>
+                </select>
+                <div class="tw"><table><thead><tr><th>Hora</th><th>Tipo</th><th>Descripción</th><th>Empleado</th><th>Pago</th><th>Monto</th></tr></thead><tbody id="caja-tbl"></tbody></table></div>
+              </div>
+              <div class="card">
+                <div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Por método de pago</div>
+                <div id="caja-donut"></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- CIERRES DE CAJA -->
+          <div class="adm-view" id="adv-cierres" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div style="font-size:14px;font-weight:700;margin-bottom:16px;font-family:var(--font-head)">🔒 Cierres de Caja por Turno</div>
+            <!-- Filtros -->
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
+              <input class="finput" type="date" id="cf-desde" style="width:140px;font-size:11px" onchange="renderCierres()">
+              <input class="finput" type="date" id="cf-hasta" style="width:140px;font-size:11px" onchange="renderCierres()">
+              <select class="finput" id="cf-turno" style="width:120px;font-size:11px" onchange="renderCierres()">
+                <option value="ALL">Todos los turnos</option>
+                <option value="1">Turno 1 (Mañana)</option>
+                <option value="2">Turno 2 (Tarde)</option>
+              </select>
+              <select class="finput" id="cf-usuario" style="width:140px;font-size:11px" onchange="renderCierres()">
+                <option value="ALL">Todos los usuarios</option>
+              </select>
+              <select class="finput" id="cf-estado" style="width:130px;font-size:11px" onchange="renderCierres()">
+                <option value="ALL">Todos los estados</option>
+                <option value="correcto">✅ Correcto</option>
+                <option value="sobrante">🟡 Sobrante</option>
+                <option value="faltante">🔴 Faltante</option>
+              </select>
+              <button class="btn btn-ghost btn-sm" onclick="exportarCierresPDF()"><i class="ti ti-file-export"></i> Exportar PDF</button>
+            </div>
+            <!-- Resumen -->
+            <div class="g4" id="cierres-resumen" style="margin-bottom:14px"></div>
+            <!-- Tabla -->
+            <div class="card">
+              <div class="tw"><table id="cierres-tabla">
+                <thead><tr><th>Fecha</th><th>Turno</th><th>Usuario</th><th>Fondo</th><th>Ventas</th><th>Gastos</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th>Estado</th><th>Detalle</th></tr></thead>
+                <tbody id="cierres-tbl-admin"></tbody>
+              </table></div>
+            </div>
+          </div>
+
           <div class="adm-view" id="adv-ventas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
@@ -943,6 +1006,78 @@ try{
 </div></div>
 
 <!-- Deuda -->
+<!-- INGRESO CAJA -->
+<div class="ov" id="ov-ingreso-caja"><div class="modal">
+  <button class="mx" onclick="closeM('ingreso-caja')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-plus" style="color:#3aaa6a"></i>Registrar ingreso</div>
+  <div class="fg"><label class="fgrp-label">Descripción</label><input class="finput" id="icaja-desc" placeholder="Concepto del ingreso"></div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="icaja-monto" placeholder="0"></div>
+    <div class="fg"><label class="fgrp-label">Método</label><select class="finput" id="icaja-pago"><option>Efectivo</option><option>Nequi/Daviplata</option><option>Transferencia</option></select></div>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <button class="btn btn-acc" style="flex:1;background:#3aaa6a;border-color:#3aaa6a" onclick="guardarMovCaja('ingreso')"><i class="ti ti-check"></i> Registrar</button>
+    <button class="btn btn-ghost" onclick="closeM('ingreso-caja')">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- EGRESO CAJA -->
+<div class="ov" id="ov-egreso-caja"><div class="modal">
+  <button class="mx" onclick="closeM('egreso-caja')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-minus" style="color:#e94560"></i>Registrar egreso</div>
+  <div class="fg"><label class="fgrp-label">Descripción</label><input class="finput" id="ecaja-desc" placeholder="Concepto del egreso"></div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Monto ($)</label><input class="finput" type="number" id="ecaja-monto" placeholder="0"></div>
+    <div class="fg"><label class="fgrp-label">Método</label><select class="finput" id="ecaja-pago"><option>Efectivo</option><option>Nequi/Daviplata</option><option>Transferencia</option></select></div>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <button class="btn btn-acc" style="flex:1;background:#e94560;border-color:#e94560" onclick="guardarMovCaja('egreso')"><i class="ti ti-check"></i> Registrar</button>
+    <button class="btn btn-ghost" onclick="closeM('egreso-caja')">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- CIERRE DE TURNO PROFESIONAL -->
+<div class="ov" id="ov-cierre-turno"><div class="modal" style="max-width:560px">
+  <button class="mx" onclick="closeM('cierre-turno')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-lock" style="color:#e94560"></i>Cierre de Turno</div>
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Turno</label>
+      <select class="finput" id="ct-turno">
+        <option value="1">Turno 1 - Mañana</option>
+        <option value="2">Turno 2 - Tarde</option>
+      </select>
+    </div>
+    <div class="fg"><label class="fgrp-label">Fondo inicial ($)</label>
+      <input class="finput" type="number" id="ct-fondo" placeholder="0" oninput="calcCierre()">
+    </div>
+  </div>
+  <!-- Resumen automático -->
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0" id="ct-resumen"></div>
+  <!-- Dinero contado -->
+  <div class="fg"><label class="fgrp-label">💵 Efectivo contado físicamente ($)</label>
+    <input class="finput" type="number" id="ct-contado" placeholder="0" oninput="calcCierre()">
+  </div>
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0" id="ct-diferencia"></div>
+  <div class="fg"><label class="fgrp-label">Observaciones</label>
+    <input class="finput" id="ct-obs" placeholder="Novedades del turno (opcional)">
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px">
+    <button class="btn btn-acc" style="flex:1;background:#e94560;border-color:#e94560" onclick="confirmarCierreTurno()"><i class="ti ti-lock"></i> Confirmar cierre</button>
+    <button class="btn btn-ghost" onclick="closeM('cierre-turno')">Cancelar</button>
+  </div>
+</div></div>
+
+<!-- DETALLE CIERRE -->
+<div class="ov" id="ov-detalle-cierre"><div class="modal" style="max-width:560px">
+  <button class="mx" onclick="closeM('detalle-cierre')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-file-description"></i>Detalle del Cierre</div>
+  <div id="detalle-cierre-content"></div>
+  <div style="display:flex;gap:7px;margin-top:12px">
+    <button class="btn btn-acc" onclick="imprimirCierre()"><i class="ti ti-printer"></i> Imprimir</button>
+    <button class="btn btn-ghost" onclick="closeM('detalle-cierre')">Cerrar</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-deuda"><div class="modal">
   <button class="mx" onclick="closeM('deuda')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-credit-card" style="color:var(--acc2)"></i>Registrar deuda manual</div>
@@ -1339,6 +1474,8 @@ function renderAdminView(id){
   if(id==='usuarios')renderUsers();
   if(id==='ventas')renderSalesTable();
   if(id==='compras')renderComprasTable();
+  if(id==='caja'){renderCaja();}
+  if(id==='cierres'){renderCierres();}
   if(id==='gastos'){renderGastos();}
   if(id==='deudas')renderDeudas();
   if(id==='trazabilidad')renderTrazabilidad();
@@ -2397,6 +2534,271 @@ function selectPago(m,btn){
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});sales.forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
+// ══════════════════════════════════════════════
+// CAJA Y CIERRES DE TURNO
+// ══════════════════════════════════════════════
+
+var _cierreActivo = null; // cierre en proceso para mostrar detalle
+
+function abrirCierreTurno(){
+  // Calcular totales del turno
+  var t = getPagoTotals();
+  var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
+  var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
+  var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
+  var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
+  var totalVentas = efe + nequi + tarjeta + trans;
+  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
+
+  // Precalcular en el modal
+  var res = document.getElementById('ct-resumen');
+  if(res) res.innerHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
+    '<div><span style="color:var(--text2)">Ventas efectivo:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b style="color:#9b72cf">'+fmt(nequi)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Tarjeta:</span> <b style="color:#3b82f6">'+fmt(tarjeta)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Transferencia:</span> <b style="color:#f0a500">'+fmt(trans)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Total ventas:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Gastos turno:</span> <b style="color:#e94560">'+fmt(gastosTurno)+'</b></div>' +
+    '</div>' +
+    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:13px">' +
+    '<span>Total pedidos: '+sales.length+'</span>' +
+    '<span style="color:#3aaa6a">'+fmt(totalVentas)+'</span></div>';
+
+  // Detectar turno según usuario
+  var turnoDefault = currentUser && currentUser.turno && currentUser.turno.includes('Mañana') ? '1' : '2';
+  var sel = document.getElementById('ct-turno');
+  if(sel) sel.value = turnoDefault;
+
+  document.getElementById('ct-fondo').value = '';
+  document.getElementById('ct-contado').value = '';
+  document.getElementById('ct-obs').value = '';
+  var dif = document.getElementById('ct-diferencia');
+  if(dif) dif.innerHTML = '';
+
+  openM('cierre-turno');
+}
+
+function calcCierre(){
+  var t = getPagoTotals();
+  var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
+  var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
+  var contado = parseFloat(document.getElementById('ct-contado').value)||0;
+  var esperado = fondo + efe;
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+  var color = estado==='correcto' ? '#3aaa6a' : estado==='sobrante' ? '#f0a500' : '#e94560';
+  var icon = estado==='correcto' ? '✅' : estado==='sobrante' ? '🟡' : '🔴';
+  var dif = document.getElementById('ct-diferencia');
+  if(dif && contado > 0) dif.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Fondo inicial:</span><span>'+fmt(fondo)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">' +
+    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>';
+}
+
+function confirmarCierreTurno(){
+  var turno = document.getElementById('ct-turno').value;
+  var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
+  var contado = parseFloat(document.getElementById('ct-contado').value)||0;
+  var obs = document.getElementById('ct-obs').value.trim();
+
+  if(contado <= 0){toast('Ingresa el efectivo contado','var(--acc)');return;}
+  if(!confirm('¿Confirmas el cierre del Turno '+turno+'? Esta acción no se puede deshacer.')) return;
+
+  var t = getPagoTotals();
+  var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
+  var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
+  var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
+  var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
+  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
+  var totalVentas = efe + nequi + tarjeta + trans;
+  var esperado = fondo + efe;
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+
+  var now = new Date();
+  var cierre = {
+    id: 'ct'+Date.now(),
+    fecha: now.toLocaleDateString('es-CO'),
+    horaApertura: '',
+    horaCierre: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    turno: turno,
+    usuario: currentUser ? currentUser.name : '—',
+    usuarioId: currentUser ? currentUser.id : '',
+    fondo: fondo,
+    ventasEfectivo: efe,
+    ventasNequi: nequi,
+    ventasTarjeta: tarjeta,
+    ventasTransferencia: trans,
+    totalVentas: totalVentas,
+    gastos: gastosTurno,
+    esperado: esperado,
+    contado: contado,
+    diferencia: diferencia,
+    estado: estado,
+    observaciones: obs,
+    numPedidos: sales.length,
+    timestamp: now.toISOString()
+  };
+
+  cierresTurno.unshift(cierre);
+  LS.set('cierresTurno', cierresTurno);
+
+  closeM('cierre-turno');
+  toast('✅ Cierre de Turno '+turno+' registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
+  renderCaja();
+}
+
+function renderCierres(){
+  cierresTurno = LS.g('cierresTurno')||[];
+  var desde = document.getElementById('cf-desde')?.value||'';
+  var hasta = document.getElementById('cf-hasta')?.value||'';
+  var turnoF = document.getElementById('cf-turno')?.value||'ALL';
+  var usuF = document.getElementById('cf-usuario')?.value||'ALL';
+  var estF = document.getElementById('cf-estado')?.value||'ALL';
+
+  // Poblar usuarios
+  var selU = document.getElementById('cf-usuario');
+  if(selU && selU.options.length <= 1){
+    var usrs = [...new Set(cierresTurno.map(c=>c.usuario))];
+    usrs.forEach(function(u){
+      var o = document.createElement('option');
+      o.value = u; o.textContent = u;
+      selU.appendChild(o);
+    });
+  }
+
+  var filtrados = cierresTurno.filter(function(c){
+    var ok = true;
+    if(turnoF !== 'ALL' && c.turno !== turnoF) ok = false;
+    if(usuF !== 'ALL' && c.usuario !== usuF) ok = false;
+    if(estF !== 'ALL' && c.estado !== estF) ok = false;
+    if(desde && c.timestamp && c.timestamp < desde) ok = false;
+    if(hasta && c.timestamp && c.timestamp > hasta+'T23:59:59') ok = false;
+    return ok;
+  });
+
+  // Resumen
+  var totVentas = filtrados.reduce(function(s,c){return s+c.totalVentas;},0);
+  var totGastos = filtrados.reduce(function(s,c){return s+c.gastos;},0);
+  var totDif = filtrados.reduce(function(s,c){return s+c.diferencia;},0);
+  var res = document.getElementById('cierres-resumen');
+  if(res) res.innerHTML =
+    '<div class="stat"><div class="slb">Total cierres</div><div class="sval">'+filtrados.length+'</div></div>' +
+    '<div class="stat"><div class="slb">Total ventas</div><div class="sval" style="color:#3aaa6a">'+fmt(totVentas)+'</div></div>' +
+    '<div class="stat"><div class="slb">Total gastos</div><div class="sval" style="color:#e94560">'+fmt(totGastos)+'</div></div>' +
+    '<div class="stat"><div class="slb">Diferencia total</div><div class="sval" style="color:'+(totDif>=0?'#3aaa6a':'#e94560')+'">'+fmt(totDif)+'</div></div>';
+
+  var tbl = document.getElementById('cierres-tbl-admin');
+  if(!tbl) return;
+
+  if(!filtrados.length){
+    tbl.innerHTML='<tr><td colspan="11" style="text-align:center;color:var(--text3);padding:20px">Sin cierres registrados</td></tr>';
+    return;
+  }
+
+  tbl.innerHTML = filtrados.map(function(c){
+    var est = c.estado||'correcto';
+    var estColor = est==='correcto'?'#3aaa6a':est==='sobrante'?'#f0a500':'#e94560';
+    var estIcon = est==='correcto'?'✅':est==='sobrante'?'🟡':'🔴';
+    var dif = c.diferencia||0;
+    return '<tr>' +
+      '<td style="font-size:11px">'+c.fecha+'<br><span style="color:var(--text3)">'+c.horaCierre+'</span></td>' +
+      '<td><span style="background:var(--bg3);padding:2px 8px;border-radius:10px;font-size:10px">T'+c.turno+'</span></td>' +
+      '<td style="font-size:11.5px">'+c.usuario+'</td>' +
+      '<td style="font-size:11px">'+fmt(c.fondo||0)+'</td>' +
+      '<td style="color:#3aaa6a;font-weight:700">'+fmt(c.totalVentas)+'</td>' +
+      '<td style="color:#e94560;font-weight:700">'+fmt(c.gastos)+'</td>' +
+      '<td style="font-size:11px">'+fmt(c.esperado||0)+'</td>' +
+      '<td style="font-size:11px">'+fmt(c.contado||0)+'</td>' +
+      '<td style="color:'+(dif>=0?'#3aaa6a':'#e94560')+';font-weight:700">'+(dif>=0?'+':'')+fmt(dif)+'</td>' +
+      '<td><span style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';color:'+estColor+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">'+estIcon+' '+est.charAt(0).toUpperCase()+est.slice(1)+'</span></td>' +
+      '<td><button onclick="verDetalleCierre(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px">Ver</button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function verDetalleCierre(id){
+  cierresTurno = LS.g('cierresTurno')||[];
+  var c = cierresTurno.find(function(x){return x.id===id;});
+  if(!c) return;
+  _cierreActivo = c;
+  var est = c.estado||'correcto';
+  var estColor = est==='correcto'?'#3aaa6a':est==='sobrante'?'#f0a500':'#e94560';
+  var html =
+    '<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">' +
+    '<div><b>Fecha:</b> '+c.fecha+'</div>' +
+    '<div><b>Hora cierre:</b> '+c.horaCierre+'</div>' +
+    '<div><b>Turno:</b> Turno '+c.turno+'</div>' +
+    '<div><b>Usuario:</b> '+c.usuario+'</div>' +
+    '</div></div>' +
+    '<div style="font-size:12px">' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Fondo inicial:</span><span>'+fmt(c.fondo||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas efectivo:</span><span style="color:#3aaa6a">'+fmt(c.ventasEfectivo||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Nequi/Daviplata:</span><span style="color:#9b72cf">'+fmt(c.ventasNequi||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Tarjeta:</span><span style="color:#3b82f6">'+fmt(c.ventasTarjeta||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Transferencia:</span><span style="color:#f0a500">'+fmt(c.ventasTransferencia||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-weight:700"><span>Total ventas:</span><span style="color:#3aaa6a">'+fmt(c.totalVentas||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Total gastos:</span><span style="color:#e94560">'+fmt(c.gastos||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Número pedidos:</span><span>'+c.numPedidos+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo esperado:</span><span>'+fmt(c.esperado||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo contado:</span><span>'+fmt(c.contado||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px"><span>Diferencia:</span><span style="color:'+(c.diferencia>=0?'#3aaa6a':'#e94560')+'">'+(c.diferencia>=0?'+':'')+fmt(c.diferencia||0)+'</span></div>' +
+    '<div style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';border-radius:8px;padding:8px;text-align:center;font-weight:700;color:'+estColor+'">' +
+    (est==='correcto'?'✅ CIERRE CORRECTO':est==='sobrante'?'🟡 SOBRANTE':'🔴 FALTANTE') + '</div>' +
+    (c.observaciones?'<div style="margin-top:8px;font-size:12px"><b>Observaciones:</b> '+c.observaciones+'</div>':'') +
+    '</div>';
+
+  document.getElementById('detalle-cierre-content').innerHTML = html;
+  openM('detalle-cierre');
+}
+
+function imprimirCierre(){
+  if(!_cierreActivo) return;
+  var c = _cierreActivo;
+  var html = '<html><head><title>Cierre Turno '+c.turno+' - '+c.fecha+'</title>' +
+    '<style>body{font-family:Arial,sans-serif;padding:20px;font-size:13px}h2{text-align:center}table{width:100%}td{padding:5px 0}b{}</style></head><body>' +
+    '<h2>🍦 Heladería ViDa — Cierre de Turno</h2>' +
+    '<p><b>Fecha:</b> '+c.fecha+' | <b>Hora:</b> '+c.horaCierre+' | <b>Turno:</b> '+c.turno+' | <b>Usuario:</b> '+c.usuario+'</p><hr>' +
+    '<table><tr><td>Fondo inicial</td><td align="right">'+fmt(c.fondo||0)+'</td></tr>' +
+    '<tr><td>Ventas efectivo</td><td align="right">'+fmt(c.ventasEfectivo||0)+'</td></tr>' +
+    '<tr><td>Ventas Nequi/Daviplata</td><td align="right">'+fmt(c.ventasNequi||0)+'</td></tr>' +
+    '<tr><td>Ventas Tarjeta</td><td align="right">'+fmt(c.ventasTarjeta||0)+'</td></tr>' +
+    '<tr><td>Ventas Transferencia</td><td align="right">'+fmt(c.ventasTransferencia||0)+'</td></tr>' +
+    '<tr><td><b>Total ventas</b></td><td align="right"><b>'+fmt(c.totalVentas||0)+'</b></td></tr>' +
+    '<tr><td>Total gastos</td><td align="right">'+fmt(c.gastos||0)+'</td></tr>' +
+    '<tr><td><b>Efectivo esperado</b></td><td align="right"><b>'+fmt(c.esperado||0)+'</b></td></tr>' +
+    '<tr><td><b>Efectivo contado</b></td><td align="right"><b>'+fmt(c.contado||0)+'</b></td></tr>' +
+    '<tr><td><b>Diferencia</b></td><td align="right"><b>'+(c.diferencia>=0?'+':'')+fmt(c.diferencia||0)+'</b></td></tr></table><hr>' +
+    '<p style="text-align:center;font-size:16px;font-weight:bold">Estado: '+(c.estado||'').toUpperCase()+'</p>' +
+    (c.observaciones?'<p><b>Observaciones:</b> '+c.observaciones+'</p>':'') +
+    '<p style="text-align:center;color:#999;font-size:11px">Generado: '+new Date().toLocaleString('es-CO')+'</p></body></html>';
+  var w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
+function exportarCierresPDF(){
+  cierresTurno = LS.g('cierresTurno')||[];
+  if(!cierresTurno.length){toast('No hay cierres para exportar','var(--acc)');return;}
+  var rows = cierresTurno.map(function(c){
+    return '<tr><td>'+c.fecha+' '+c.horaCierre+'</td><td>T'+c.turno+'</td><td>'+c.usuario+'</td><td>'+fmt(c.totalVentas)+'</td><td>'+fmt(c.gastos)+'</td><td>'+fmt(c.esperado||0)+'</td><td>'+fmt(c.contado||0)+'</td><td>'+(c.diferencia>=0?'+':'')+fmt(c.diferencia||0)+'</td><td>'+(c.estado||'').toUpperCase()+'</td></tr>';
+  }).join('');
+  var html = '<html><head><title>Reporte Cierres</title><style>body{font-family:Arial;font-size:11px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #ddd;padding:5px}th{background:#f5f5f5}</style></head><body>' +
+    '<h2 style="text-align:center">🍦 Heladería ViDa — Reporte de Cierres</h2>' +
+    '<p>Generado: '+new Date().toLocaleString('es-CO')+'</p>' +
+    '<table><thead><tr><th>Fecha/Hora</th><th>Turno</th><th>Usuario</th><th>Ventas</th><th>Gastos</th><th>Esperado</th><th>Contado</th><th>Diferencia</th><th>Estado</th></tr></thead><tbody>'+rows+'</tbody></table>' +
+    '</body></html>';
+  var w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+  w.print();
+}
+
 function renderCaja(){movCaja=LS.g('movCaja')||[];cierresTurno=LS.g('cierresTurno')||[];var t=getPagoTotals();var tot=sales.reduce(function(s,v){return s+(v.total||0);},0);var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var st=document.getElementById('caja-stats');if(st)st.innerHTML='<div class="stat"><div class="sico">💰</div><div class="slb">Total caja</div><div class="sval" style="color:#3aaa6a">'+fmt(tot)+'</div></div><div class="stat"><div class="sico">💵</div><div class="slb">Efectivo</div><div class="sval" style="color:#3aaa6a">'+fmt(efe)+'</div></div><div class="stat"><div class="sico">📱</div><div class="slb">Digital</div><div class="sval" style="color:#9b72cf">'+fmt(dig)+'</div></div><div class="stat"><div class="sico">🔒</div><div class="slb">Último cierre</div><div class="sval" style="font-size:13px">'+(cierresTurno.length?cierresTurno[0].hora:'Sin cierres')+'</div></div>';var donut=document.getElementById('caja-donut');if(donut){var total2=tot||1;donut.innerHTML=Object.entries(PAGO_CFG).map(function(e){var k=e[0],cfg=e[1];var m=t[k]?t[k].monto:0;var pct=Math.round(m/total2*100);return'<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #f0f2f5"><span style="font-size:17px">'+cfg.icon+'</span><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12.5px;font-weight:600">'+k+'</span><span style="font-weight:700;color:'+cfg.color+'">'+fmt(m)+'</span></div><div style="height:5px;background:#f0f2f5;border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+cfg.color+';border-radius:3px"></div></div></div></div>';}).join('');}var fp=document.getElementById('caja-filter-pago')?document.getElementById('caja-filter-pago').value:'ALL';var allMov=sales.map(function(s){return{id:s.id,hora:s.time,tipo:'venta',desc:s.name,emp:s.emp,pago:s.pago||'Efectivo',monto:s.total,signo:1};}).concat(movCaja.map(function(m){return{id:m.id,hora:m.hora,tipo:m.tipo,desc:m.desc,emp:m.emp,pago:m.pago,monto:m.monto,signo:m.tipo==='ingreso'?1:-1};})).sort(function(a,b){return(b.id||'').localeCompare(a.id||'');});var filt=fp==='ALL'?allMov:allMov.filter(function(m){return m.pago===fp;});var tbl=document.getElementById('caja-tbl');if(tbl){tbl.innerHTML=!filt.length?'<tr><td colspan="6" style="text-align:center;color:#aab0bb;padding:16px">Sin movimientos</td></tr>':filt.map(function(m){var c2=PAGO_CFG[m.pago]||{icon:'📝',color:'#888'};return'<tr><td style="font-size:11px;color:#7a8494">'+(m.hora||'—')+'</td><td>'+(m.tipo==='venta'?'<span style="background:#edfaf2;color:#3aaa6a;padding:2px 7px;border-radius:10px;font-size:10px">Venta</span>':'<span style="background:#eff6ff;color:#3b82f6;padding:2px 7px;border-radius:10px;font-size:10px">'+m.tipo+'</span>')+'</td><td>'+m.desc+'</td><td style="font-size:11px;color:#7a8494">'+(m.emp||'—')+'</td><td>'+c2.icon+' '+m.pago+'</td><td style="font-weight:700;color:'+(m.signo>0?'#3aaa6a':'#e94560')+'">'+(m.signo>0?'+':'−')+fmt(m.monto)+'</td></tr>';}).join('');}var ct=document.getElementById('cierres-tbl');if(ct){ct.innerHTML=cierresTurno.length?cierresTurno.map(function(c){return'<tr><td>'+c.fecha+' '+c.hora+'</td><td>'+c.emp+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.efectivo)+'</td><td style="color:#9b72cf;font-weight:700">'+fmt(c.digital)+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.total)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#aab0bb;padding:14px">Sin cierres</td></tr>';}}
 function openCierre(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var det=document.getElementById('cierre-detalle');if(det)det.innerHTML='<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;font-weight:700"><span>TOTAL</span><span style="color:#3aaa6a">'+fmt(efe+dig)+'</span></div>';}
 function calcDiferencia(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var real=parseFloat(document.getElementById('cierre-efectivo-real').value)||0;var diff=real-efe;var el=document.getElementById('cierre-diferencia');if(el)el.innerHTML='<b>Diferencia: '+(diff>=0?'+':'')+fmt(diff)+'</b>';}
