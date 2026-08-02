@@ -2,6 +2,9 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0">
 <title>🍦 Heladería — Acceso</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -334,17 +337,37 @@ tr:last-child td{border-bottom:none}
 </style>
 <!-- LIMPIEZA INICIAL -->
 <script>
-try{
-  var _d=localStorage.getItem('heladeria_v2');
-  if(_d){
-    var _obj=JSON.parse(_d);
-    if(_obj){
-      // Mantener solo stocks y datos de transacciones - NO productos
-      delete _obj.products;
+(function(){
+  try{
+    // Borrar completamente el localStorage en cada carga
+    // Los precios siempre vienen del código
+    var KEY = 'heladeria_v2';
+    var saved = localStorage.getItem(KEY);
+    if(saved){
+      var obj = JSON.parse(saved);
+      // Conservar solo datos de transacciones y stocks
+      var nuevo = {
+        users: obj.users || null,
+        sales: obj.sales || [],
+        purchases: obj.purchases || [],
+        gastos: obj.gastos || [],
+        movCaja: obj.movCaja || [],
+        cierresTurno: obj.cierresTurno || [],
+        deudas: obj.deudas || [],
+        orders: obj.orders || [],
+        trazLog: obj.trazLog || [],
+        orderCounter: obj.orderCounter || 100,
+        suppliers: obj.suppliers || null,
+        stocks: obj.stocks || {},
+        // NUNCA guardar products - siempre del código
+        products: null
+      };
+      localStorage.setItem(KEY, JSON.stringify(nuevo));
     }
-    localStorage.setItem('heladeria_v2', JSON.stringify(_obj||{}));
+  }catch(e){
+    try{ localStorage.removeItem('heladeria_v2'); }catch(e2){}
   }
-}catch(e){ try{localStorage.removeItem('heladeria_v2');}catch(e2){} }
+})();
 </script>
 </head>
 <body>
