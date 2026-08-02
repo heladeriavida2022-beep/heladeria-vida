@@ -1043,11 +1043,11 @@ let prods=[
     {n:"CANASTA TRIPLE",p:14000,ins:'CANASTA'},{n:"MICHELADA",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA CEREZADA",p:12000,ins:'VASO 14 OZ'},
     {n:"JUGO EN LECHE",p:8000,ins:'VASO 14 OZ'},{n:"LIMONADA DE COCO",p:12000,ins:'VASO 14 OZ'},{n:"JUGO EN AGUA",p:6000,ins:'VASO 14 OZ'},
     {n:"CANASTILLA SENCILLA",p:4500,ins:'CANASTA'},{n:"CANASTILLA DOBLE",p:9000,ins:'CANASTA'},{n:"OBLEA",p:3500,ins:null},
-    {n:"OBLEA ESPECIAL",p:0,ins:null},{n:"BATIDO PROTEINA X6",p:21000,ins:null},{n:"BATIDO DE PROTEINA EN VASO",p:6000,ins:'VASO 14 OZ'},
+    {n:"OBLEA ESPECIAL",p:6000,ins:null},{n:"BATIDO PROTEINA X6",p:21000,ins:null},{n:"BATIDO DE PROTEINA EN VASO",p:6000,ins:'VASO 14 OZ'},
     {n:"DETOX X 6",p:6000,ins:null},{n:"MIX DIGES X6",p:6000,ins:null},{n:"BATIDO DETOX VASO",p:6000,ins:'VASO 14 OZ'},
-    {n:"BATIDO MIX DIGES VASO",p:6000,ins:'VASO 14 OZ'},{n:"SALPICON SIN HELADO",p:6000,ins:'VASO 14 OZ'},{n:"CUCURUCHO",p:0,ins:null},
-    {n:"CONO VASO 7 ONZA",p:0,ins:'VASO 14 OZ'},{n:"BOLA DE HELADO",p:0,ins:null},
-    {n:"CREMA DE LECHE",p:0,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:['CONTENEDOR 16 OZ','SOBRE COPA DOMO']},{n:"FRUTAS SIN HELADO",p:0,ins:'CONTENEDOR 16 OZ'},
+    {n:"BATIDO MIX DIGES VASO",p:6000,ins:'VASO 14 OZ'},{n:"SALPICON SIN HELADO",p:6000,ins:'VASO 14 OZ'},{n:"CUCURUCHO",p:500,ins:null},
+    {n:"CONO VASO 7 ONZA",p:9000,ins:'VASO 14 OZ'},{n:"BOLA DE HELADO",p:4500,ins:null},
+    {n:"CREMA DE LECHE",p:3000,ins:null},{n:"ENSALADA PEQUEÑA PARA LLEVAR",p:16000,ins:['CONTENEDOR 16 OZ','SOBRE COPA DOMO']},{n:"FRUTAS SIN HELADO",p:8000,ins:'CONTENEDOR 16 OZ'},
     {n:"BANANA PARA LLEVAR",p:16000,ins:'EMPAQUE BANANA SPLIT'}
   ].map((x,i)=>({id:i+1,name:x.n,cat:'PREPARADOS',emoji:'🍧',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
 
@@ -1076,30 +1076,30 @@ let prods=[
     {n:"JUGO EN AGUA PARA LLEVAR",p:6000,ins:'CONTENEDOR 24 OZ'}
   ].map((x,i)=>({id:700+i,name:x.n,cat:'PARA LLEVAR',emoji:'🥡',price:x.p,stock:999,min:0,unit:'porción',descuenta:false,active:true,insumo:x.ins})),
   ...[
-    {n:"PALETAS PARA PERROS",s:18},
-    {n:"PALETA ALOHA EN AGUA",s:14},
+    {n:"PALETAS PARA PERROS",s:18,p:5000},
+    {n:"PALETA ALOHA EN AGUA",s:14,p:2200},
     {n:"CHOCOCONOS",s:29,p:3500},
-    {n:"CHOCOCONO CRISPY",s:23},
+    {n:"CHOCOCONO CRISPY",s:23,p:4500},
     {n:"ARTESANAL",s:8,p:3500},
-    {n:"HELADOS CASEROS",s:9},
-    {n:"PALETA POLET",s:6},
-    {n:"PALETAS JET",s:2},
+    {n:"HELADOS CASEROS",s:9,p:2500},
+    {n:"PALETA POLET",s:6,p:7000},
+    {n:"PALETAS JET",s:2,p:5000},
     {n:"PLATILLO",s:1,p:3500},
-    {n:"ALOHA RASPADO",s:2},
-    {n:"PALETA ALOHA MIX",s:14},
-    {n:"BOCATTO",s:2},
-    {n:"HELADOS CUADRADOS",s:5},
-    {n:"PALETAS MANGO BICHE",s:5},
+    {n:"ALOHA RASPADO",s:2,p:5000},
+    {n:"PALETA ALOHA MIX",s:14,p:3500},
+    {n:"BOCATTO",s:2,p:6000},
+    {n:"HELADOS CUADRADOS",s:5,p:3500},
+    {n:"PALETAS MANGO BICHE",s:5,p:2500},
     {n:"PALETAS DE SALPICON",s:0,p:2500},
-    {n:"PALETA DE COLORES",s:1},
-    {n:"MEDIO LITRO DE HELADO",s:12},
-    {n:"CUARTOS DE HELADO",s:7},
+    {n:"PALETA DE COLORES",s:1,p:2000},
+    {n:"MEDIO LITRO DE HELADO",s:12,p:7000},
+    {n:"CUARTOS DE HELADO",s:7,p:4500},
     {n:"VASITO",s:0,p:2200},
-    {n:"HELADOS POLARES",s:12},{n:"CHOCOCONO FLOW",s:12,p:4500},{n:"PLATILLO JUMBO",s:2,p:5000},{n:"ALOHA TAJIN",s:14,p:3500}
+    {n:"HELADOS POLARES",s:12,p:2500},{n:"CHOCOCONO FLOW",s:12,p:4500},{n:"PLATILLO JUMBO",s:2,p:5000},{n:"ALOHA TAJIN",s:14,p:3500}
   ].map(({n,s},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:0,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
   ...["CHICLE AMARILLO","OKA LOKA","ROLIN ROLLON","MECHAS LOKAS","BOLA DE CHICLE","CAPRI","TAKIS FUEGO","OKA LOKA FUSION","GALLETA CAPRI"]
     .map((n,i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:0,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
-  ...[{n:"BOTELLA CON AGUA GRANDE",p:2000},{n:"BOTELLA CON AGUA PEQUEÑA",p:1000},{n:"CERVEZA",p:4500},{n:"BOTELLA DE TAMARINDO",p:0},{n:"JUGO HIT",p:0}]
+  ...[{n:"BOTELLA CON AGUA GRANDE",p:2000},{n:"BOTELLA CON AGUA PEQUEÑA",p:1000},{n:"CERVEZA",p:4500},{n:"BOTELLA DE TAMARINDO",p:4000},{n:"JUGO HIT",p:2500}]
     .map(({n,p},i)=>({id:300+i,name:n,cat:'NEVERA',emoji:'❄️',price:p,stock:24,min:6,unit:'unidades',descuenta:true,active:true})),
   ...["BROWNIE","QUESO"]
     .map((n,i)=>({id:400+i,name:n,cat:'ADICIONAL',emoji:'✨',price:0,stock:999,min:0,unit:'porción',descuenta:false,active:true})),
