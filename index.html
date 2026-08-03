@@ -783,6 +783,8 @@ try{
             <div class="qa" id="inv-qa-btns">
               <button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Registrar compra</button>
               <button class="btn btn-ghost" onclick="exportarInventarioExcel()" style="border-color:#1d6f42;color:#1d6f42"><i class="ti ti-file-spreadsheet"></i> 📥 Descargar inventario Excel</button>
+              <button class="btn btn-ghost" onclick="document.getElementById('input-excel-inv').click()" style="border-color:#1d6f42;color:#1d6f42"><i class="ti ti-upload"></i> 📤 Cargar inventario desde Excel</button>
+              <input type="file" id="input-excel-inv" accept=".xlsx,.xls" style="display:none" onchange="cargarExcelInventario(this)">
             </div>
             <div id="inv-alerts2"></div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="inv-pills">
@@ -961,6 +963,26 @@ try{
 </div></div>
 
 <!-- Ingreso stock -->
+<!-- MODAL CARGA INVENTARIO EXCEL -->
+<div class="ov" id="ov-carga-inv"><div class="modal" style="max-width:700px">
+  <button class="mx" onclick="cancelarCargaInventario()"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-upload" style="color:#1d6f42"></i>Cargar inventario desde Excel</div>
+  <div id="carga-inv-estado" style="margin-bottom:12px"></div>
+  <div id="carga-inv-preview" style="display:none">
+    <div style="font-size:12px;font-weight:700;margin-bottom:8px">Vista previa de cambios:</div>
+    <div class="tw" style="max-height:350px;overflow-y:auto">
+      <table><thead><tr><th>Producto</th><th>Categoría</th><th>Cantidad actual</th><th>Nueva cantidad</th><th>Diferencia</th></tr></thead>
+      <tbody id="carga-inv-tbl"></tbody></table>
+    </div>
+    <div id="carga-inv-resumen" style="font-size:12px;margin-top:10px;padding:8px;background:var(--bg3);border-radius:8px"></div>
+    <div id="carga-inv-warn" style="display:none;background:#fff8e1;border:1px solid #f0a500;border-radius:8px;padding:10px;margin-top:8px;font-size:12px"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-acc" style="flex:1;background:#1d6f42;border-color:#1d6f42" onclick="confirmarCargaInventario()"><i class="ti ti-check"></i> Confirmar actualización</button>
+      <button class="btn btn-ghost" onclick="cancelarCargaInventario()">Cancelar</button>
+    </div>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-ingreso"><div class="modal" style="max-width:520px;width:95%">
   <button class="mx" onclick="closeM('ingreso')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-truck" style="color:var(--acc2)"></i>Registrar compra</div>
@@ -2049,8 +2071,273 @@ function setInvCat(cat){
   renderInv();
 }
 // ══════════════════════════════════════════════
-// EXPORTAR INVENTARIO A EXCEL
+// CARGAR INVENTARIO DESDE EXCEL
 // ══════════════════════════════════════════════
+
+var _cargaInvPendiente = []; // cambios pendientes de confirmar
+var _cargaInvSnapshot = {};  // stock al momento de previsualizar
+
+function cargarExcelInventario(input){
+  var file = input.files[0];
+  input.value = ''; // limpiar para permitir cargar mismo archivo
+  if(!file){ return; }
+
+  // Validar extensión
+  if(!file.name.match(/\.(xlsx|xls)$/i)){
+    toast('El archivo debe ser .xlsx o .xls','#e94560');
+    return;
+  }
+
+  // Cargar SheetJS si no está disponible
+  if(typeof XLSX === 'undefined'){
+    toast('Cargando librería...','#1d6f42');
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = function(){ _leerExcelInventario(file); };
+    script.onerror = function(){ toast('Error cargando librería','#e94560'); };
+    document.head.appendChild(script);
+  } else {
+    _leerExcelInventario(file);
+  }
+}
+
+function _leerExcelInventario(file){
+  var reader = new FileReader();
+  reader.onload = function(e){
+    try{
+      var wb = XLSX.read(e.target.result, {type:'array'});
+      var ws = wb.Sheets[wb.SheetNames[0]];
+      var data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      _procesarExcelInventario(data, file.name);
+    }catch(err){
+      _mostrarErrorCarga('El archivo no es un Excel válido: ' + err.message);
+    }
+  };
+  reader.onerror = function(){ _mostrarErrorCarga('Error leyendo el archivo'); };
+  reader.readAsArrayBuffer(file);
+}
+
+function _mostrarErrorCarga(msg){
+  var el = document.getElementById('carga-inv-estado');
+  if(el) el.innerHTML = '<div style="background:#fff5f5;border:1px solid #e94560;border-radius:8px;padding:10px;color:#e94560;font-size:12px">❌ '+msg+'</div>';
+  var prev = document.getElementById('carga-inv-preview');
+  if(prev) prev.style.display='none';
+  openM('carga-inv');
+}
+
+function _procesarExcelInventario(data, nombreArchivo){
+  var errores = [];
+  var cambios = [];
+  var idsVistos = {};
+
+  // Buscar fila de encabezados (contiene 'ID' y 'Producto')
+  var filaHeader = -1;
+  for(var i=0;i<data.length;i++){
+    var fila = data[i];
+    if(fila[0]==='ID' && fila[1]==='Producto'){
+      filaHeader = i;
+      break;
+    }
+  }
+
+  if(filaHeader < 0){
+    _mostrarErrorCarga('No se encontraron los encabezados esperados (ID, Producto). ¿Es el archivo correcto?');
+    return;
+  }
+
+  // Stocks actuales
+  var stocks = LS.g('stocks') || {};
+
+  // Procesar filas de datos
+  for(var r = filaHeader+1; r < data.length; r++){
+    var fila = data[r];
+    if(!fila || !fila[0]) continue; // fila vacía
+
+    var id = parseInt(fila[0]);
+    var nombreExcel = String(fila[1]||'').trim();
+    var cantidadNueva = fila[3]; // columna D: Cantidad actual
+
+    // Validar ID
+    if(isNaN(id)||id<=0){
+      errores.push('Fila '+(r+1)+': ID inválido ('+fila[0]+')');
+      continue;
+    }
+
+    // Validar duplicado
+    if(idsVistos[id]){
+      errores.push('Fila '+(r+1)+': Producto duplicado (ID '+id+')');
+      continue;
+    }
+    idsVistos[id] = true;
+
+    // Verificar que el producto existe
+    var p = prods.find(function(x){ return x.id===id; });
+    if(!p){
+      errores.push('Fila '+(r+1)+': ID '+id+' no existe en el sistema ('+nombreExcel+')');
+      continue;
+    }
+
+    // Si no tiene control de inventario, saltar
+    if(!p.descuenta) continue;
+
+    // Validar cantidad
+    if(cantidadNueva===''||cantidadNueva===null||cantidadNueva===undefined||cantidadNueva==='—') continue;
+    var cant = parseInt(cantidadNueva);
+    if(isNaN(cant)){
+      errores.push('Fila '+(r+1)+': Cantidad inválida para '+p.name+' ('+cantidadNueva+')');
+      continue;
+    }
+    if(cant < 0){
+      errores.push('Fila '+(r+1)+': Cantidad negativa para '+p.name+' ('+cant+')');
+      continue;
+    }
+
+    // Stock actual
+    var stockActual = (stocks[String(id)]&&stocks[String(id)].stock!==undefined)
+      ? stocks[String(id)].stock : p.stock;
+
+    // Solo incluir si cambió
+    if(cant !== stockActual){
+      cambios.push({
+        id: id,
+        nombre: p.name,
+        cat: p.cat,
+        stockAnterior: stockActual,
+        stockNuevo: cant,
+        dif: cant - stockActual
+      });
+    }
+  }
+
+  // Mostrar errores si los hay
+  var estadoEl = document.getElementById('carga-inv-estado');
+  if(errores.length > 0){
+    var errHTML = '<div style="background:#fff5f5;border:1px solid #e94560;border-radius:8px;padding:10px;font-size:11px;color:#e94560;margin-bottom:8px">';
+    errHTML += '<b>❌ Se encontraron '+errores.length+' error(es):</b><ul style="margin:6px 0 0 16px">';
+    errores.forEach(function(e){ errHTML += '<li>'+e+'</li>'; });
+    errHTML += '</ul><br>Corrige el archivo y vuelve a cargarlo.</div>';
+    if(estadoEl) estadoEl.innerHTML = errHTML;
+    document.getElementById('carga-inv-preview').style.display='none';
+    openM('carga-inv');
+    return;
+  }
+
+  if(cambios.length === 0){
+    if(estadoEl) estadoEl.innerHTML = '<div style="background:#edfaf2;border:1px solid #3aaa6a;border-radius:8px;padding:10px;font-size:12px;color:#3aaa6a">✅ El archivo no tiene cambios respecto al inventario actual.</div>';
+    document.getElementById('carga-inv-preview').style.display='none';
+    openM('carga-inv');
+    return;
+  }
+
+  // Guardar snapshot para control de concurrencia
+  _cargaInvPendiente = cambios;
+  _cargaInvSnapshot = {};
+  cambios.forEach(function(c){ _cargaInvSnapshot[c.id] = c.stockAnterior; });
+
+  // Mostrar vista previa
+  if(estadoEl) estadoEl.innerHTML = '<div style="font-size:11px;color:var(--text2)">Archivo: <b>'+nombreArchivo+'</b></div>';
+
+  var tbl = document.getElementById('carga-inv-tbl');
+  if(tbl){
+    tbl.innerHTML = cambios.map(function(c){
+      var difColor = c.dif>0?'#3aaa6a':c.dif<0?'#e94560':'var(--text2)';
+      var difStr = c.dif>0?'+'+c.dif:String(c.dif);
+      return '<tr>' +
+        '<td style="font-size:12px;font-weight:600">'+c.nombre+'</td>' +
+        '<td style="font-size:11px">'+c.cat+'</td>' +
+        '<td style="text-align:center">'+c.stockAnterior+'</td>' +
+        '<td style="text-align:center;font-weight:700">'+c.stockNuevo+'</td>' +
+        '<td style="text-align:center;font-weight:700;color:'+difColor+'">'+difStr+'</td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  var resumen = document.getElementById('carga-inv-resumen');
+  if(resumen) resumen.innerHTML =
+    '⚠️ Se actualizarán <b>'+cambios.length+'</b> producto(s) en el inventario. ' +
+    'Esta acción guardará los cambios en Firebase y se sincronizará con todos los dispositivos.';
+
+  document.getElementById('carga-inv-preview').style.display='block';
+  document.getElementById('carga-inv-warn').style.display='none';
+  openM('carga-inv');
+}
+
+async function confirmarCargaInventario(){
+  if(!_cargaInvPendiente.length){ cancelarCargaInventario(); return; }
+
+  // Control de concurrencia: verificar que no haya cambiado mientras preparaba
+  var stocks = LS.g('stocks') || {};
+  var conflictos = [];
+  _cargaInvPendiente.forEach(function(c){
+    var stockActualAhora = (stocks[String(c.id)]&&stocks[String(c.id)].stock!==undefined)
+      ? stocks[String(c.id)].stock
+      : (prods.find(function(x){return x.id===c.id;})||{}).stock;
+    if(stockActualAhora !== _cargaInvSnapshot[c.id]){
+      conflictos.push({nombre:c.nombre, anterior:_cargaInvSnapshot[c.id], actual:stockActualAhora, nuevo:c.stockNuevo});
+    }
+  });
+
+  if(conflictos.length > 0){
+    var warnEl = document.getElementById('carga-inv-warn');
+    var warnHTML = '<b>⚠️ El inventario cambió mientras preparabas la actualización:</b><ul style="margin:6px 0 0 16px;font-size:11px">';
+    conflictos.forEach(function(c){
+      warnHTML += '<li><b>'+c.nombre+'</b>: al cargar='+c.anterior+', ahora en sistema='+c.actual+', Excel='+c.nuevo+'</li>';
+    });
+    warnHTML += '</ul><br>¿Deseas continuar igualmente y sobrescribir con los valores del Excel?';
+    if(warnEl){ warnEl.innerHTML = warnHTML; warnEl.style.display='block'; }
+
+    if(!confirm('El inventario de '+conflictos.length+' producto(s) cambió mientras preparabas la actualización.\n\n¿Confirmas que deseas sobrescribir con los valores del Excel?')){
+      return;
+    }
+  }
+
+  // Actualizar Firebase y local
+  var btn = document.querySelector('#ov-carga-inv .btn-acc');
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Guardando...'; }
+
+  var errores = [];
+  for(var i=0; i<_cargaInvPendiente.length; i++){
+    var c = _cargaInvPendiente[i];
+    try{
+      // Actualizar local
+      var p = prods.find(function(x){return x.id===c.id;});
+      if(p) p.stock = c.stockNuevo;
+      LS.updProd(c.id, {stock:c.stockNuevo});
+      // Actualizar Firebase
+      if(typeof window.FB!=='undefined'&&window.FB.saveStock){
+        window.FB.saveStock(c.id, c.stockNuevo);
+      }
+      // Registrar en log
+      logAction('inventario', 'Ajuste Excel: '+c.nombre, 'Anterior:'+c.stockAnterior+' → Nuevo:'+c.stockNuevo);
+    }catch(err){
+      errores.push(c.nombre+': '+err.message);
+    }
+  }
+
+  cancelarCargaInventario();
+
+  if(errores.length>0){
+    toast('⚠️ '+errores.length+' errores al guardar. Revisa la consola.','#e94560');
+  } else {
+    toast('✅ Inventario actualizado — '+_cargaInvPendiente.length+' productos sincronizados en Firebase','#1d6f42');
+  }
+
+  _cargaInvPendiente = [];
+  _cargaInvSnapshot = {};
+  try{ renderInv(); }catch(e){}
+}
+
+function cancelarCargaInventario(){
+  closeM('carga-inv');
+  _cargaInvPendiente = [];
+  _cargaInvSnapshot = {};
+  var el = document.getElementById('carga-inv-estado');
+  if(el) el.innerHTML='';
+  var prev = document.getElementById('carga-inv-preview');
+  if(prev) prev.style.display='none';
+  var btn = document.querySelector('#ov-carga-inv .btn-acc');
+  if(btn){ btn.disabled=false; btn.textContent='✅ Confirmar actualización'; }
+}
 function exportarInventarioExcel(){
   // Cargar SheetJS desde CDN si no está disponible
   if(typeof XLSX === 'undefined'){
