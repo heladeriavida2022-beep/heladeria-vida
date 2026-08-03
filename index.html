@@ -340,11 +340,11 @@ tr:last-child td{border-bottom:none}
 </style>
 <!-- FORZAR PRECIOS -->
 <script>
-// Forzar usuarios correctos SIEMPRE - ignorar localStorage
+// Forzar precios del código - conservar usuarios editados
 try{ 
   var d = JSON.parse(localStorage.getItem('heladeria_v2')||'{}');
-  delete d.products;
-  delete d.users;
+  delete d.products; // precios siempre del código
+  // NO borrar d.users — los permisos editados se conservan
   localStorage.setItem('heladeria_v2', JSON.stringify(d));
 }catch(e){ localStorage.removeItem('heladeria_v2'); }
 </script>
@@ -1417,7 +1417,13 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  var _su=LS.g('users');if(_su&&_su.length>0)systemUsers=_su;else{systemUsers=LS._def().users;LS.set('users',systemUsers);}
+  // Usar systemUsers ya cargado (puede venir de Firebase con permisos actualizados)
+  // Solo releer localStorage si systemUsers está vacío
+  if(!systemUsers||systemUsers.length===0){
+    var _su=LS.g('users');
+    if(_su&&_su.length>0) systemUsers=_su;
+    else{systemUsers=LS._def().users;LS.set('users',systemUsers);}
+  }
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
   const errEl=document.getElementById('loginError');const errMsg=document.getElementById('loginErrorMsg');
