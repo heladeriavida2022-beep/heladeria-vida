@@ -1703,11 +1703,20 @@ function guardarEditUser(){
   if(newPass)u.pass=newPass;
   u.perms=u.role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-edit');
   u.initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
-  // GUARDAR EN LOCALSTORAGE Y FIREBASE
+  // GUARDAR EN LOCALSTORAGE Y FIREBASE (esperar confirmación)
   LS.set('users', systemUsers);
-  if(typeof window.FB!=='undefined'&&window.FB.saveUser) window.FB.saveUser(u);
+  if(typeof window.FB!=='undefined'&&window.FB.saveUser){
+    window.FB.saveUser(u);
+    // También actualizar localStorage con los permisos nuevos
+    LS.set('users', systemUsers);
+  }
   logAction('admin',`Editó usuario ${u.name}`);
   closeM('edituser');renderUsers();renderUserPills();
+  // Actualizar currentUser si es el mismo usuario logueado
+  if(typeof currentUser!=='undefined'&&currentUser&&currentUser.id===u.id){
+    currentUser=u;
+    try{applyPermissions();}catch(e){}
+  }
   toast('Usuario actualizado ✓');
 }
 
@@ -3705,6 +3714,15 @@ async function fbCargarTodo(){
       for(var u of systemUsers) await fbSet('usuarios', u.id, u);
     }
     LS.set('users', systemUsers);
+    // Si hay usuario logueado, actualizar sus permisos con los de Firebase
+    if(typeof currentUser !== 'undefined' && currentUser){
+      var userActualizado = systemUsers.find(function(u){ return u.id === currentUser.id; });
+      if(userActualizado){
+        currentUser = userActualizado;
+        try{ applyPermissions(); }catch(e){}
+        try{ renderDashboard(); }catch(e){}
+      }
+    }
 
     // 2. Proveedores
     var fbSuppliers = await fbGetAll('suppliers');
@@ -3823,6 +3841,11 @@ onSnapshot(collection(db,'usuarios'), snap => {
   });
   systemUsers = arr;
   LS.set('users', arr);
+  // Actualizar currentUser si está logueado
+  if(typeof currentUser !== 'undefined' && currentUser){
+    var cu = arr.find(function(u){ return u.id === currentUser.id; });
+    if(cu){ currentUser = cu; try{applyPermissions();}catch(e){} }
+  }
   try{ renderUsers(); }catch(e){}
   try{ renderUserPills(); }catch(e){}
 }, err => console.warn('usuarios listener', err));
