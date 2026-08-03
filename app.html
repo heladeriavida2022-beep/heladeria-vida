@@ -535,16 +535,32 @@ try{
 
       <!-- POS -->
       <div class="page" id="pg-pos" style="overflow:hidden">
-        <div class="page-bar" style="padding:8px 14px;flex-wrap:wrap;gap:8px">
-          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
-            <div style="position:relative"><i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:26px;width:160px;font-size:12px;padding-top:6px;padding-bottom:6px"></div>
-            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="CHOLADOS">🍧 Cholados</option><option value="RASPADOS">🧊 Raspados</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option><option value="PARA LLEVAR">🥡 Para Llevar</option></select>
+        <!-- BARRA DE CONTROLES DEL POS -->
+        <div style="padding:8px 14px;border-bottom:1px solid var(--border);background:var(--bg2);display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+          <!-- Buscador -->
+          <div style="position:relative;flex-shrink:0">
+            <i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i>
+            <input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:26px;width:150px;font-size:12px;padding-top:6px;padding-bottom:6px">
           </div>
-          <div style="display:flex;gap:4px">
-            <button class="btn btn-acc btn-sm" id="mode-mostrador" onclick="setPOSMode('mostrador')"><i class="ti ti-building-store"></i> Mostrador</button>
-            <button class="btn btn-ghost btn-sm" id="mode-domicilio" onclick="setPOSMode('domicilio')"><i class="ti ti-motorbike"></i> Domicilio</button>
-            <button class="btn btn-ghost btn-sm" id="mode-mesa" onclick="setPOSMode('mesa')"><i class="ti ti-armchair"></i> Mesa</button>
-          </div>
+          <!-- Filtro categorías -->
+          <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px;flex-shrink:0">
+            <option value="ALL">Todas</option>
+            <option value="PREPARADOS">🍧 Preparados</option>
+            <option value="CHOLADOS">🍧 Cholados</option>
+            <option value="RASPADOS">🧊 Raspados</option>
+            <option value="EMPAQUETADOS">📦 Empaquetados</option>
+            <option value="DULCERIA">🍬 Dulcería</option>
+            <option value="NEVERA">❄️ Nevera</option>
+            <option value="ADICIONAL">✨ Adicional</option>
+            <option value="DESECHABLES">🧴 Desechables</option>
+            <option value="PARA LLEVAR">🥡 Para Llevar</option>
+          </select>
+          <!-- Separador -->
+          <div style="width:1px;height:24px;background:var(--border);flex-shrink:0"></div>
+          <!-- Modos -->
+          <button class="btn btn-acc btn-sm" id="mode-mostrador" onclick="setPOSMode('mostrador')" style="flex-shrink:0"><i class="ti ti-building-store"></i> Mostrador</button>
+          <button class="btn btn-ghost btn-sm" id="mode-domicilio" onclick="setPOSMode('domicilio')" style="flex-shrink:0"><i class="ti ti-motorbike"></i> Domicilio</button>
+          <button class="btn btn-ghost btn-sm" id="mode-mesa" onclick="setPOSMode('mesa')" style="flex-shrink:0"><i class="ti ti-armchair"></i> Mesa</button>
         </div>
         <div id="dom-fields" style="display:none;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg2)"><div class="fr3"><input class="finput" id="dom-nombre" placeholder="Nombre cliente" style="font-size:12px;padding:6px 9px"><input class="finput" id="dom-tel" placeholder="Teléfono" style="font-size:12px;padding:6px 9px"><input class="finput" id="dom-dir" placeholder="Dirección" style="font-size:12px;padding:6px 9px"></div></div>
         <div id="mesa-fields" style="display:none;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg2)"><select class="finput" id="pos-mesa-sel" style="width:130px;padding:6px 9px;font-size:12px"><option>Mesa 1</option><option>Mesa 2</option><option>Mesa 3</option><option>Mesa 4</option><option>Mesa 5</option><option>Mesa 6</option></select></div>
