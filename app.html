@@ -1273,12 +1273,67 @@ try{
 </div></div>
 
 <!-- Proveedor -->
-<div class="ov" id="ov-proveedor"><div class="modal">
+<div class="ov" id="ov-proveedor"><div class="modal" style="max-width:500px">
   <button class="mx" onclick="closeM('proveedor')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-truck" style="color:var(--acc2)"></i>Nuevo proveedor</div>
-  <div class="fr"><div class="fg"><label class="fgrp-label">Nombre</label><input class="finput" id="pv-nm" placeholder="Nombre empresa"></div><div class="fg"><label class="fgrp-label">Teléfono</label><input class="finput" id="pv-tel"></div></div>
-  <div class="fr"><div class="fg"><label class="fgrp-label">Días crédito</label><input class="finput" type="number" id="pv-cr" placeholder="0=contado"></div><div class="fg"><label class="fgrp-label">Productos</label><input class="finput" id="pv-pr"></div></div>
-  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1" onclick="guardarProveedor()"><i class="ti ti-check"></i> Guardar</button><button class="btn btn-ghost" onclick="closeM('proveedor')">Cancelar</button></div>
+
+  <div class="fr">
+    <div class="fg"><label class="fgrp-label">Nombre comercial *</label><input class="finput" id="pv-nm" placeholder="Nombre con que lo conocemos"></div>
+    <div class="fg"><label class="fgrp-label">Teléfono</label><input class="finput" id="pv-tel" placeholder="Teléfono de contacto"></div>
+  </div>
+  <div class="fg"><label class="fgrp-label">Razón social *</label><input class="finput" id="pv-rs" placeholder="Nombre legal o empresarial"></div>
+
+  <div class="fg"><label class="fgrp-label">Forma de pago *</label>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;flex:1;justify-content:center" id="fp-contado-lbl">
+        <input type="radio" name="pv-fp" id="pv-fp-contado" value="contado" onchange="toggleDiasCredito()"> 💵 Contado
+      </label>
+      <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;padding:7px 14px;border:1.5px solid var(--border);border-radius:8px;flex:1;justify-content:center" id="fp-credito-lbl">
+        <input type="radio" name="pv-fp" id="pv-fp-credito" value="credito" onchange="toggleDiasCredito()"> 📋 Crédito
+      </label>
+    </div>
+  </div>
+
+  <div id="pv-dias-wrap" style="display:none">
+    <div class="fg"><label class="fgrp-label">Días de crédito</label><input class="finput" type="number" id="pv-cr" placeholder="Ej: 30" min="1"></div>
+  </div>
+
+  <div class="fg" style="margin-top:8px"><label class="fgrp-label">Categorías que suministra *</label>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px" id="pv-cats">
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-preparados" value="PREPARADOS"> 🍧 Preparados
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-empaquetados" value="EMPAQUETADOS"> 📦 Empaquetados
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-dulceria" value="DULCERIA"> 🍬 Dulcería
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-nevera" value="NEVERA"> ❄️ Nevera
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-adicional" value="ADICIONAL"> ✨ Adicional
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-desechables" value="DESECHABLES"> 🧴 Desechables
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-para-llevar" value="PARA LLEVAR"> 🥡 Para llevar
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-cholados" value="CHOLADOS"> 🍧 Cholados
+      </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
+        <input type="checkbox" id="pvc-raspados" value="RASPADOS"> 🧊 Raspados
+      </label>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:7px;margin-top:12px">
+    <button class="btn btn-acc" style="flex:1" onclick="guardarProveedor()"><i class="ti ti-check"></i> Guardar proveedor</button>
+    <button class="btn btn-ghost" onclick="closeM('proveedor')">Cancelar</button>
+  </div>
 </div></div>
 
 <script>
@@ -3332,29 +3387,106 @@ function renderGastos(){
 // ══════════════════════════════════════════════
 function renderSuppliers(){
   const el=document.getElementById('sup-list');if(!el)return;
-  el.innerHTML=suppliers.map(s=>`<div class="sup-card">
-    <div><div style="font-size:13px;font-weight:600">${s.name}</div>
-    <div style="font-size:10px;color:var(--text2);margin-top:2px"><i class="ti ti-phone" style="font-size:11px"></i> ${s.phone} · ${s.products} · ${s.credit===0?'Contado':s.credit+' días'}</div>
-    ${s.owed>0?`<div style="font-size:10px;color:var(--acc);margin-top:2px">Deuda: ${fmt(s.owed)}</div>`:''}</div>
-    <div style="display:flex;gap:5px"><button class="btn btn-ghost btn-sm"><i class="ti ti-edit"></i></button><button class="btn btn-acc btn-sm">Pedido</button></div>
-  </div>`).join('');
+  if(!suppliers.length){
+    el.innerHTML='<div style="text-align:center;color:var(--text3);padding:30px;font-size:13px">Sin proveedores registrados.<br>Crea tu primer proveedor.</div>';
+    return;
+  }
+  el.innerHTML=suppliers.map(function(s){
+    var fp = s.formaPago==='credito'
+      ? '<span style="background:#fff8e1;color:#d48a00;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">📋 Crédito '+(s.diasCredito||s.credit||0)+' días</span>'
+      : '<span style="background:#edfaf2;color:#3aaa6a;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">💵 Contado</span>';
+    var cats = (s.categorias||[]).map(function(c){
+      return '<span style="background:var(--bg3);color:var(--text2);padding:2px 7px;border-radius:8px;font-size:10px">'+c+'</span>';
+    }).join(' ');
+    return '<div class="sup-card">' +
+      '<div style="flex:1">' +
+      '<div style="font-size:13px;font-weight:700">'+s.name+'</div>' +
+      (s.razonSocial?'<div style="font-size:11px;color:var(--text2);margin-top:1px">'+s.razonSocial+'</div>':'') +
+      (s.phone?'<div style="font-size:11px;color:var(--text2);margin-top:2px"><i class="ti ti-phone" style="font-size:11px"></i> '+s.phone+'</div>':'') +
+      '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+fp+'</div>' +
+      (cats?'<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">'+cats+'</div>':'') +
+      (s.owed>0?'<div style="font-size:11px;color:var(--acc);margin-top:4px;font-weight:600">Deuda: '+fmt(s.owed)+'</div>':'') +
+      '</div>' +
+      '<div style="display:flex;gap:5px;flex-shrink:0">' +
+      '<button class="btn btn-ghost btn-sm" title="Registrar compra" onclick="abrirCompraProveedor(\''+s.id+'\')"><i class="ti ti-shopping-cart"></i></button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
 }
+function abrirCompraProveedor(supId){
+  // Ir al módulo de compras y preseleccionar el proveedor
+  adminNav('compras', document.getElementById('sni-compras'));
+  setTimeout(function(){
+    openM('ingreso');
+    setTimeout(function(){
+      var sel = document.getElementById('ing-prov');
+      if(sel && supId){
+        var sup = suppliers.find(function(s){ return s.id===supId; });
+        if(sup){
+          for(var i=0;i<sel.options.length;i++){
+            if(sel.options[i].text===sup.name){ sel.selectedIndex=i; break; }
+          }
+        }
+      }
+    },100);
+  },100);
+}
+
+function toggleDiasCredito(){
+  var credito = document.getElementById('pv-fp-credito');
+  var wrap = document.getElementById('pv-dias-wrap');
+  if(wrap) wrap.style.display = credito && credito.checked ? 'block' : 'none';
+}
+
 function guardarProveedor(){
-  const nm=document.getElementById('pv-nm').value.trim();if(!nm){toast('Ingresa el nombre','var(--acc)');return;}
-  const s={
-    id:'sup'+Date.now(),
-    name:nm,
-    phone:document.getElementById('pv-tel').value,
-    products:document.getElementById('pv-pr').value,
-    credit:parseInt(document.getElementById('pv-cr').value)||0,
-    owed:0
+  var nm = document.getElementById('pv-nm').value.trim();
+  var rs = document.getElementById('pv-rs').value.trim();
+  var fpContado = document.getElementById('pv-fp-contado');
+  var fpCredito = document.getElementById('pv-fp-credito');
+  var formaPago = fpContado&&fpContado.checked?'contado':fpCredito&&fpCredito.checked?'credito':'';
+
+  // Validaciones
+  if(!nm){ toast('Ingresa el nombre comercial','var(--acc)'); return; }
+  if(!rs){ toast('Ingresa la razón social','var(--acc)'); return; }
+  if(!formaPago){ toast('Selecciona la forma de pago','var(--acc)'); return; }
+
+  // Categorías seleccionadas
+  var cats = [];
+  document.querySelectorAll('#pv-cats input[type=checkbox]:checked').forEach(function(cb){ cats.push(cb.value); });
+  if(!cats.length){ toast('Selecciona al menos una categoría','var(--acc)'); return; }
+
+  var s = {
+    id: 'sup'+Date.now(),
+    name: nm,
+    razonSocial: rs,
+    phone: document.getElementById('pv-tel').value.trim(),
+    formaPago: formaPago,
+    diasCredito: formaPago==='credito' ? (parseInt(document.getElementById('pv-cr').value)||30) : 0,
+    categorias: cats,
+    products: cats.join(', '), // compatibilidad con fillIngProv
+    credit: formaPago==='credito' ? (parseInt(document.getElementById('pv-cr').value)||30) : 0,
+    owed: 0
   };
+
   suppliers.push(s);
-  LS.set('suppliers',suppliers);
+  LS.set('suppliers', suppliers);
   if(typeof window.FB!=='undefined'&&window.FB.saveSupplier) window.FB.saveSupplier(s);
-  closeM('proveedor');renderSuppliers();
+
+  // Limpiar formulario
+  document.getElementById('pv-nm').value='';
+  document.getElementById('pv-rs').value='';
+  document.getElementById('pv-tel').value='';
+  document.getElementById('pv-cr').value='';
+  if(fpContado) fpContado.checked=false;
+  if(fpCredito) fpCredito.checked=false;
+  document.querySelectorAll('#pv-cats input[type=checkbox]').forEach(function(cb){ cb.checked=false; });
+  var wrap=document.getElementById('pv-dias-wrap');if(wrap)wrap.style.display='none';
+
+  closeM('proveedor');
+  renderSuppliers();
   fillIngProv();
-  toast('Proveedor agregado ✓');
+  toast('✅ Proveedor "'+nm+'" creado y guardado en Firebase','#3aaa6a');
+  logAction('admin','Creó proveedor: '+nm, rs+' — '+formaPago);
 }
 
 // ══════════════════════════════════════════════
