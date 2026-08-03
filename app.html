@@ -1681,7 +1681,7 @@ function guardarUsuario(){
 
 function editUser(idx){
   const u=systemUsers[idx];if(!u)return;
-  document.getElementById('edit-user-idx').value=idx;
+  document.getElementById('edit-user-idx').value=u.id; // Guardar ID, no índice
   document.getElementById('eu-nm').value=u.name;
   document.getElementById('eu-rol').value=u.role;
   document.getElementById('eu-turno').value=u.turno;
@@ -1692,8 +1692,9 @@ function editUser(idx){
 }
 
 function guardarEditUser(){
-  const idx=parseInt(document.getElementById('edit-user-idx').value);
-  const u=systemUsers[idx];if(!u)return;
+  const userId=document.getElementById('edit-user-idx').value;
+  const u=systemUsers.find(function(x){ return String(x.id)===String(userId); });
+  if(!u)return;
   u.name=document.getElementById('eu-nm').value.trim()||u.name;
   u.role=document.getElementById('eu-rol').value;
   u.turno=document.getElementById('eu-turno').value;
