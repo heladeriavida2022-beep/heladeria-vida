@@ -251,6 +251,11 @@ tr:last-child td{border-bottom:none}
 .btn-cambio{padding:7px 4px;border:1.5px solid #3aaa6a;background:#fff;border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;color:#3aaa6a;font-family:var(--font-body);transition:all .12s}
 .btn-cambio:hover{background:#3aaa6a;color:#fff}
 .btn-cambio.sel{background:#3aaa6a;color:#fff}
+/* PEDIDOS PENDIENTES */
+.pend-card{background:#fff;border:2px solid #e94560;border-radius:12px;padding:12px;cursor:pointer;transition:all .15s;position:relative}
+.pend-card:hover{box-shadow:0 4px 16px rgba(233,69,96,.2);transform:translateY(-1px)}
+.pend-badge{display:inline-block;background:#e94560;color:#fff;font-size:9px;font-weight:700;padding:2px 7px;border-radius:10px;text-transform:uppercase;letter-spacing:.5px}
+.pend-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;margin-top:10px}
 
 /* PRODUCT CARDS */
 .prod-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(145px,1fr));gap:9px}
@@ -544,6 +549,14 @@ try{
         <div id="dom-fields" style="display:none;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg2)"><div class="fr3"><input class="finput" id="dom-nombre" placeholder="Nombre cliente" style="font-size:12px;padding:6px 9px"><input class="finput" id="dom-tel" placeholder="Teléfono" style="font-size:12px;padding:6px 9px"><input class="finput" id="dom-dir" placeholder="Dirección" style="font-size:12px;padding:6px 9px"></div></div>
         <div id="mesa-fields" style="display:none;padding:7px 14px;border-bottom:1px solid var(--border);background:var(--bg2)"><select class="finput" id="pos-mesa-sel" style="width:130px;padding:6px 9px;font-size:12px"><option>Mesa 1</option><option>Mesa 2</option><option>Mesa 3</option><option>Mesa 4</option><option>Mesa 5</option><option>Mesa 6</option></select></div>
         <div class="pos-wrap">
+          <!-- PANEL PEDIDOS PENDIENTES -->
+          <div id="panel-pendientes" style="display:none;padding:10px 14px;border-bottom:2px solid #e94560;background:#fff5f5">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+              <div style="font-size:12px;font-weight:700;color:#e94560">🔴 Pedidos pendientes de pago</div>
+              <button onclick="togglePanelPendientes()" style="background:none;border:none;font-size:11px;color:#e94560;cursor:pointer;text-decoration:underline">Ocultar</button>
+            </div>
+            <div class="pend-grid" id="pend-grid"></div>
+          </div>
           <div class="pos-menu" id="pos-menu" style="background:var(--bg)"></div>
           <div class="pos-cart">
             <div class="cart-hdr"><span>🧾 Pedido</span><button class="btn btn-ghost btn-sm" onclick="clearCart()"><i class="ti ti-trash"></i></button></div>
@@ -581,6 +594,7 @@ try{
 
               <input class="finput" id="cart-obs" placeholder="📝 Observaciones del pedido (opcional)" style="font-size:11px;padding:6px 9px;margin-bottom:6px;width:100%">
               <button id="btn-confirmar-venta" class="btn btn-acc" style="width:100%;padding:10px" onclick="confirmarVenta()"><i class="ti ti-check"></i> Confirmar venta</button>
+              <button class="btn btn-ghost" style="width:100%;padding:8px;margin-top:5px;border-color:#f0a500;color:#f0a500" onclick="dejarPendiente()"><i class="ti ti-clock"></i> 🟠 Dejar pendiente de pago</button>
             </div>
           </div>
         </div>
@@ -963,7 +977,46 @@ try{
 </div></div>
 
 <!-- Ingreso stock -->
-<!-- MODAL CARGA INVENTARIO EXCEL -->
+<!-- MODAL PEDIDO PENDIENTE - DETALLE Y COBRO -->
+<div class="ov" id="ov-pedido-pend"><div class="modal" style="max-width:500px">
+  <button class="mx" onclick="closeM('pedido-pend')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-clock" style="color:#e94560"></i>Pedido pendiente</div>
+  <div id="pend-detalle-header" style="background:#fff5f5;border:1.5px solid #e94560;border-radius:10px;padding:10px;margin-bottom:12px"></div>
+  <div id="pend-detalle-items" style="margin-bottom:12px"></div>
+  <!-- Agregar más productos -->
+  <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Agregar más productos:</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap" id="pend-add-btns">
+      <button class="btn btn-ghost btn-sm" onclick="abrirCarritoParaPendiente()"><i class="ti ti-plus"></i> Ir al mostrador y agregar</button>
+    </div>
+  </div>
+  <!-- Cobrar -->
+  <div style="border-top:2px solid var(--border);padding-top:10px">
+    <div style="font-size:14px;font-weight:800;display:flex;justify-content:space-between;margin-bottom:10px">
+      <span>Total a cobrar:</span><span id="pend-cobrar-total" style="color:#3aaa6a"></span>
+    </div>
+    <div id="pend-metodos-pago" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <input type="hidden" id="pend-pago-sel" value="Efectivo">
+    <!-- Calculadora cambio efectivo -->
+    <div id="pend-cambio-wrap" style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:10px;padding:10px;margin-bottom:8px">
+      <div style="font-size:10px;font-weight:700;color:#3aaa6a;margin-bottom:6px">💵 Dinero recibido</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px">
+        <button onclick="setPendRecibido(10000)" class="btn-cambio">$10.000</button>
+        <button onclick="setPendRecibido(20000)" class="btn-cambio">$20.000</button>
+        <button onclick="setPendRecibido(50000)" class="btn-cambio">$50.000</button>
+        <button onclick="setPendRecibido(100000)" class="btn-cambio">$100.000</button>
+      </div>
+      <input id="pend-efectivo-recibido" type="number" placeholder="Otro valor..." oninput="calcCambioPend()" style="width:100%;padding:6px 9px;border:1.5px solid #3aaa6a;border-radius:7px;font-size:13px;font-weight:700;background:#fff;box-sizing:border-box;margin-bottom:7px">
+      <div id="pend-cambio-resultado" style="font-size:13px;font-weight:700;text-align:center;padding:6px;border-radius:7px;background:#fff;border:1.5px solid var(--border)">Ingresa el valor recibido</div>
+    </div>
+    <div style="display:flex;gap:7px">
+      <button class="btn btn-acc" style="flex:1;background:#3aaa6a;border-color:#3aaa6a" onclick="cobrarPendiente()"><i class="ti ti-cash"></i> Cobrar y cerrar pedido</button>
+      <button class="btn btn-ghost" style="color:#e94560;border-color:#e94560" onclick="cancelarPedidoPendiente()"><i class="ti ti-trash"></i></button>
+    </div>
+  </div>
+</div></div>
+
+<!-- MODAL PEDIDO PENDIENTE - DETALLE Y COBRO -->
 <div class="ov" id="ov-carga-inv"><div class="modal" style="max-width:700px">
   <button class="mx" onclick="cancelarCargaInventario()"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-upload" style="color:#1d6f42"></i>Cargar inventario desde Excel</div>
@@ -1480,6 +1533,8 @@ function showApp(){
   // Mostrar reinicio solo para admin
   var zr=document.getElementById('zona-reinicio');
   if(zr) zr.style.display=(currentUser&&currentUser.role==='admin')?'block':'none';
+  // Cargar pedidos pendientes
+  setTimeout(function(){ try{ renderPendientes(); }catch(e){} }, 500);
 }
 
 function logout(){
@@ -2070,6 +2125,198 @@ function setInvCat(cat){
   });
   renderInv();
 }
+// ══════════════════════════════════════════════
+// PEDIDOS PENDIENTES DE PAGO
+// ══════════════════════════════════════════════
+
+var pedidosPendientes = LS.g('pedidosPendientes') || [];
+var _pendActivoId = null;
+
+function savePedidosPendientes(){
+  LS.set('pedidosPendientes', pedidosPendientes);
+  if(typeof window.FB !== 'undefined' && window.FB.set){
+    pedidosPendientes.forEach(function(p){
+      try{ window.FB.set('pedidosPendientes', p.id, p); }catch(e){}
+    });
+  }
+  renderPendientes();
+}
+
+function renderPendientes(){
+  var grid = document.getElementById('pend-grid');
+  var panel = document.getElementById('panel-pendientes');
+  if(!grid || !panel) return;
+  var activos = pedidosPendientes.filter(function(p){ return p.status==='pendiente'; });
+  panel.style.display = activos.length > 0 ? 'block' : 'none';
+  grid.innerHTML = activos.map(function(p){
+    return '<div class="pend-card" onclick="abrirPedidoPendiente(\''+p.id+'\')">' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">' +
+      '<span class="pend-badge">🔴 Pendiente</span>' +
+      '<span style="font-size:12px;font-weight:700">'+p.mesa+'</span></div>' +
+      '<div style="font-size:11px;color:var(--text2);margin-bottom:4px">'+p.items.length+' producto(s)</div>' +
+      '<div style="font-size:14px;font-weight:800;color:#e94560">'+fmt(p.total)+'</div>' +
+      '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+p.creadoEn+' · '+p.creadoPor+'</div>' +
+    '</div>';
+  }).join('') || '<div style="font-size:12px;color:#e94560">Sin pendientes</div>';
+}
+
+function togglePanelPendientes(){
+  var panel = document.getElementById('panel-pendientes');
+  if(panel) panel.style.display='none';
+}
+
+function dejarPendiente(){
+  if(!cartItems.length){ toast('Agrega productos primero','var(--acc)'); return; }
+  var mesaSel = document.getElementById('pos-mesa-sel');
+  var canal = posMode==='mostrador'?'Mostrador':posMode==='mesa'?(mesaSel?mesaSel.value:'Mesa'):'Domicilio';
+  var obsEl = document.getElementById('cart-obs');
+  var obs = obsEl ? obsEl.value.trim() : '';
+  var tot = cartItems.reduce(function(s,i){ return s+(i.price*i.qty); },0);
+
+  // Verificar pedido existente para esta mesa
+  var existente = pedidosPendientes.find(function(p){ return p.status==='pendiente'&&p.mesa===canal; });
+  if(existente){
+    if(!confirm('⚠️ "'+canal+'" ya tiene un pedido pendiente.\n\n¿Deseas AGREGAR estos productos al pedido existente?')) return;
+    cartItems.forEach(function(ci){
+      var ix = existente.items.find(function(x){ return x.id===ci.id; });
+      if(ix){ ix.qty+=ci.qty; } else { existente.items.push({id:ci.id,name:ci.name,qty:ci.qty,price:ci.price,emoji:ci.emoji||''}); }
+    });
+    existente.total = existente.items.reduce(function(s,i){ return s+(i.price*i.qty); },0);
+    existente.updatedAt = new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+    _descontarInventarioPendiente(cartItems);
+    savePedidosPendientes();
+    clearCart();
+    toast('✅ Productos agregados al pedido de '+canal,'#f0a500');
+    return;
+  }
+
+  var now = new Date();
+  var pedido = {
+    id: 'PP-'+Date.now(),
+    mesa: canal, tipo: posMode,
+    items: cartItems.map(function(i){ return {id:i.id,name:i.name,qty:i.qty,price:i.price,emoji:i.emoji||''}; }),
+    total: tot, status: 'pendiente', inventarioDescontado: true,
+    obs: obs,
+    creadoPor: currentUser?currentUser.name:'—',
+    creadoEn: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    timestamp: now.toISOString()
+  };
+  _descontarInventarioPendiente(cartItems);
+  pedidosPendientes.unshift(pedido);
+  savePedidosPendientes();
+  clearCart();
+  toast('🟠 Pedido de '+canal+' dejado pendiente','#f0a500');
+  logAction('venta','Pedido pendiente: '+canal,fmt(tot));
+}
+
+function _descontarInventarioPendiente(items){
+  items.forEach(function(ci){
+    var p=gP(ci.id);if(!p)return;
+    if(p.descuenta){p.stock=Math.max(0,p.stock-ci.qty);LS.updProd(p.id,{stock:p.stock});}
+    if(p.insumo){
+      var ins=Array.isArray(p.insumo)?p.insumo:[p.insumo];
+      ins.forEach(function(n){ var x=prods.find(function(y){return y.name===n&&y.descuenta;});
+        if(x){x.stock=Math.max(0,x.stock-ci.qty);LS.updProd(x.id,{stock:x.stock});}});
+    }
+  });
+}
+
+function abrirPedidoPendiente(id){
+  var p = pedidosPendientes.find(function(x){ return x.id===id; });
+  if(!p) return;
+  _pendActivoId = id;
+  var hdr=document.getElementById('pend-detalle-header');
+  if(hdr) hdr.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><div><span class="pend-badge">🔴 Pendiente</span> <b style="font-size:13px;margin-left:6px">'+p.mesa+'</b></div><div style="font-size:10px;color:var(--text2)">'+p.creadoEn+' · '+p.creadoPor+'</div></div>';
+  var ie=document.getElementById('pend-detalle-items');
+  if(ie) ie.innerHTML='<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Productos:</div>'+
+    p.items.map(function(i){ return '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-size:12px"><span>'+(i.emoji||'')+' '+i.qty+'× '+i.name+'</span><span style="font-weight:700">'+fmt(i.price*i.qty)+'</span></div>'; }).join('')+
+    (p.obs?'<div style="font-size:11px;color:var(--text2);margin-top:6px">📝 '+p.obs+'</div>':'');
+  var te=document.getElementById('pend-cobrar-total');if(te)te.textContent=fmt(p.total);
+  var mp=document.getElementById('pend-metodos-pago');
+  if(mp) mp.innerHTML=Object.keys(PAGO_CFG).map(function(m){
+    var c=PAGO_CFG[m];
+    return '<button class="pago-btn" style="flex:1;min-width:70px;padding:7px 6px;border:1.5px solid #eaeef2;border-radius:8px;background:#f7f8fa;color:var(--text2);cursor:pointer;font-size:11px;font-weight:600" onclick="selectPendPago(\''+m+'\',this)">'+c.icon+' '+m+'</button>';
+  }).join('');
+  document.getElementById('pend-efectivo-recibido').value='';
+  document.getElementById('pend-cambio-resultado').innerHTML='Ingresa el valor recibido';
+  document.getElementById('pend-cambio-wrap').style.display='block';
+  document.getElementById('pend-pago-sel').value='Efectivo';
+  openM('pedido-pend');
+}
+
+function abrirCarritoParaPendiente(){
+  closeM('pedido-pend');
+  var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});
+  if(p&&p.tipo) setPOSMode(p.tipo);
+  toast('Agrega productos y usa "Dejar pendiente" para agregarlos al pedido de '+((p&&p.mesa)||''),'#f0a500');
+}
+
+function selectPendPago(m,btn){
+  document.getElementById('pend-pago-sel').value=m;
+  document.querySelectorAll('#pend-metodos-pago .pago-btn').forEach(function(b){b.style.borderColor='#eaeef2';b.style.background='#f7f8fa';b.style.color='var(--text2)';});
+  var cfg=PAGO_CFG[m];
+  if(btn&&cfg){btn.style.borderColor=cfg.color;btn.style.color=cfg.color;btn.style.background='rgba(0,0,0,.05)';}
+  var cw=document.getElementById('pend-cambio-wrap');
+  if(cw) cw.style.display=m==='Efectivo'?'block':'none';
+}
+
+function setPendRecibido(v){
+  document.getElementById('pend-efectivo-recibido').value=v;calcCambioPend();
+  document.querySelectorAll('#ov-pedido-pend .btn-cambio').forEach(function(b){b.classList.remove('sel');if(b.textContent.replace(/\./g,'').replace('$','')===String(v))b.classList.add('sel');});
+}
+
+function calcCambioPend(){
+  var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});if(!p)return;
+  var rec=parseFloat(document.getElementById('pend-efectivo-recibido').value)||0;
+  var cr=document.getElementById('pend-cambio-resultado');if(!cr)return;
+  if(!rec){cr.innerHTML='Ingresa el valor recibido';cr.style.background='#fff';cr.style.color='var(--text)';cr.style.borderColor='var(--border)';return;}
+  var cambio=rec-p.total;
+  if(cambio<0){cr.innerHTML='❌ Falta: <b>'+fmt(Math.abs(cambio))+'</b>';cr.style.background='#fff5f5';cr.style.color='#e94560';cr.style.borderColor='#e94560';}
+  else if(cambio===0){cr.innerHTML='✅ Pago exacto — Cambio: <b>$0</b>';cr.style.background='#edfaf2';cr.style.color='#3aaa6a';cr.style.borderColor='#3aaa6a';}
+  else{cr.innerHTML='💵 Cambio: <b style="font-size:18px">'+fmt(cambio)+'</b>';cr.style.background='#edfaf2';cr.style.color='#3aaa6a';cr.style.borderColor='#3aaa6a';}
+}
+
+function cobrarPendiente(){
+  var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});if(!p)return;
+  var pago=document.getElementById('pend-pago-sel').value||'Efectivo';
+  if(pago==='Efectivo'){
+    var rec=parseFloat(document.getElementById('pend-efectivo-recibido').value)||0;
+    if(rec>0&&rec<p.total){toast('❌ Dinero insuficiente — Falta '+fmt(p.total-rec),'#e94560');return;}
+  }
+  var now=new Date();
+  var items=p.items.map(function(i){return i.qty+'x '+i.name;}).join(', ');
+  var sale={
+    id:'v'+now.getTime()+'_pend',
+    time:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    fecha:now.toISOString().split('T')[0],timestamp:now.toISOString(),
+    name:items,cat:'VARIOS',
+    qty:p.items.reduce(function(s,i){return s+i.qty;},0),
+    price:p.total,total:p.total,canal:p.mesa,pago:pago,obs:p.obs,
+    emp:currentUser?currentUser.name:'—',empId:currentUser?currentUser.id:'',
+    detalle:p.items.map(function(i){return {name:i.name,qty:i.qty,price:i.price,total:i.price*i.qty};}),
+    origenPendiente:p.id
+  };
+  sales.unshift(sale);LS.set('sales',sales);
+  if(typeof window.FB!=='undefined'&&window.FB.saveSale)window.FB.saveSale(sale);
+  p.status='pagado';p.pagadoEn=now.toISOString();
+  p.pagadoPor=currentUser?currentUser.name:'—';p.metodoPago=pago;
+  savePedidosPendientes();
+  closeM('pedido-pend');updateBadges();
+  try{renderDashboard();}catch(e){}
+  toast('✅ Cobrado: '+p.mesa+' — '+fmt(p.total),'#3aaa6a');
+  logAction('venta','Cobró pedido pendiente: '+p.mesa,fmt(p.total)+' — '+pago);
+}
+
+function cancelarPedidoPendiente(){
+  var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});if(!p)return;
+  if(!confirm('¿Cancelar el pedido de '+p.mesa+'?\n\nTotal: '+fmt(p.total)+'\n\nEsta acción no se puede deshacer.'))return;
+  p.status='cancelado';p.canceladoEn=new Date().toISOString();
+  p.canceladoPor=currentUser?currentUser.name:'—';
+  savePedidosPendientes();closeM('pedido-pend');
+  toast('Pedido de '+p.mesa+' cancelado','#e94560');
+  logAction('venta','Canceló pedido pendiente: '+p.mesa,fmt(p.total));
+}
+
 // ══════════════════════════════════════════════
 // CARGAR INVENTARIO DESDE EXCEL
 // ══════════════════════════════════════════════
@@ -4210,6 +4457,21 @@ onSnapshot(collection(db,'pedidos'), snap => {
   try{ renderPedidos(); }catch(e){}
   try{ updateBadges(); }catch(e){}
 }, err => console.warn('pedidos listener', err));
+
+// Pedidos pendientes en tiempo real
+onSnapshot(collection(db,'pedidosPendientes'), snap => {
+  if(snap.empty) return;
+  var arr = [];
+  snap.forEach(d => { var o=d.data(); delete o._ts; arr.push(o); });
+  // Merge con locales — Firebase es fuente de verdad
+  arr.forEach(function(fbP){
+    var idx = pedidosPendientes.findIndex(function(x){ return x.id===fbP.id; });
+    if(idx>=0){ pedidosPendientes[idx]=fbP; }
+    else { pedidosPendientes.unshift(fbP); }
+  });
+  LS.set('pedidosPendientes', pedidosPendientes);
+  try{ renderPendientes(); }catch(e){}
+}, err => console.warn('pedidosPendientes listener', err));
 
 // Ventas en tiempo real (sincronización entre dispositivos)
 onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200)), snap => {
