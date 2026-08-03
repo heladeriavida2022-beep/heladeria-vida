@@ -533,7 +533,7 @@ try{
         <div class="page-bar" style="padding:8px 14px;flex-wrap:wrap;gap:8px">
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex:1">
             <div style="position:relative"><i class="ti ti-search" style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="pos-s" placeholder="Buscar..." oninput="renderPOS()" style="padding-left:26px;width:160px;font-size:12px;padding-top:6px;padding-bottom:6px"></div>
-            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="CHOLADOS">🍧 Cholados</option><option value="RASPADOS">🧊 Raspados</option><option value="PARA LLEVAR">🥡 Para Llevar</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option></select>
+            <select class="finput" id="pos-cat" onchange="renderPOS()" style="width:140px;padding:6px 9px;font-size:11px"><option value="ALL">Todas</option><option value="PREPARADOS">🍧 Preparados</option><option value="CHOLADOS">🍧 Cholados</option><option value="RASPADOS">🧊 Raspados</option><option value="EMPAQUETADOS">📦 Empaquetados</option><option value="DULCERIA">🍬 Dulcería</option><option value="NEVERA">❄️ Nevera</option><option value="ADICIONAL">✨ Adicional</option><option value="DESECHABLES">🧴 Desechables</option><option value="PARA LLEVAR">🥡 Para Llevar</option></select>
           </div>
           <div style="display:flex;gap:4px">
             <button class="btn btn-acc btn-sm" id="mode-mostrador" onclick="setPOSMode('mostrador')"><i class="ti ti-building-store"></i> Mostrador</button>
@@ -805,7 +805,7 @@ try{
           <!-- PRODUCTOS GESTIÓN -->
           <div class="adm-view" id="adv-productos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('producto')"><i class="ti ti-plus"></i> Nuevo producto</button></div>
-            <div class="tabs" id="prod-tabs"><div class="tab active" onclick="setProdCat('ALL',this)">Todos</div><div class="tab" onclick="setProdCat('PREPARADOS',this)">🍧</div><div class="tab" onclick="setProdCat('CHOLADOS',this)">🍧 Cholados</div><div class="tab" onclick="setProdCat('RASPADOS',this)">🧊 Raspados</div><div class="tab" onclick="setProdCat('EMPAQUETADOS',this)">📦</div><div class="tab" onclick="setProdCat('DULCERIA',this)">🍬</div><div class="tab" onclick="setProdCat('NEVERA',this)">❄️</div><div class="tab" onclick="setProdCat('ADICIONAL',this)">✨</div><div class="tab" onclick="setProdCat('DESECHABLES',this)">🧴</div></div>
+            <div class="tabs" id="prod-tabs"><div class="tab active" onclick="setProdCat('ALL',this)">Todos</div><div class="tab" onclick="setProdCat('PREPARADOS',this)">🍧 Prep.</div><div class="tab" onclick="setProdCat('CHOLADOS',this)">🍧 Cholados</div><div class="tab" onclick="setProdCat('RASPADOS',this)">🧊 Raspados</div><div class="tab" onclick="setProdCat('EMPAQUETADOS',this)">📦</div><div class="tab" onclick="setProdCat('DULCERIA',this)">🍬</div><div class="tab" onclick="setProdCat('NEVERA',this)">❄️</div><div class="tab" onclick="setProdCat('ADICIONAL',this)">✨</div><div class="tab" onclick="setProdCat('DESECHABLES',this)">🧴</div><div class="tab" onclick="setProdCat('PARA LLEVAR',this)">🥡</div></div>
             <div style="position:relative;margin-bottom:11px"><i class="ti ti-search" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:12px;color:var(--text3)"></i><input class="finput" id="prod-search" placeholder="Buscar..." oninput="renderProdTable()" style="padding-left:28px;font-size:12px"></div>
             <div class="card"><div class="tw"><table><thead><tr><th>Producto</th><th>Categoría</th><th>Precio</th><th>Stock</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="prod-tbl"></tbody></table></div></div>
           </div>
@@ -1847,18 +1847,27 @@ function setPOSMode(m){
   document.getElementById('dom-fields').style.display=m==='domicilio'?'block':'none';
   document.getElementById('mesa-fields').style.display=m==='mesa'?'block':'none';
 }
+var CAT_ORDEN = ['PREPARADOS','CHOLADOS','RASPADOS','EMPAQUETADOS','DULCERIA','NEVERA','ADICIONAL','DESECHABLES','PARA LLEVAR'];
+
 function renderPOS(){
   const q=(document.getElementById('pos-s')?.value||'').toUpperCase();
   const cf=document.getElementById('pos-cat')?.value||'ALL';
   const ps=prods.filter(p=>p.active&&(cf==='ALL'||p.cat===cf)&&(!q||p.name.includes(q)));
   const byCat={};ps.forEach(p=>{if(!byCat[p.cat])byCat[p.cat]=[];byCat[p.cat].push(p);});
+  // Ordenar categorías según CAT_ORDEN — PARA LLEVAR siempre al final
+  const catsOrdenadas = Object.keys(byCat).sort((a,b)=>{
+    const ia = CAT_ORDEN.indexOf(a); const ib = CAT_ORDEN.indexOf(b);
+    if(ia===-1&&ib===-1) return a.localeCompare(b);
+    if(ia===-1) return 1; if(ib===-1) return -1;
+    return ia-ib;
+  });
   const menu=document.getElementById('pos-menu');if(!menu)return;
-  menu.innerHTML=Object.entries(byCat).map(([cat,pps])=>`<div class="cat-section"><div class="cat-hdr" style="color:${CC[cat]}">${CE[cat]} ${cat}</div>
+  menu.innerHTML=catsOrdenadas.map(cat=>{const pps=byCat[cat];return`<div class="cat-section"><div class="cat-hdr" style="color:${CC[cat]||'var(--text2)'}">${CE[cat]||'📦'} ${cat}</div>
   <div class="prod-grid">${pps.map(p=>{const out=p.descuenta&&p.stock<=0;return`<div class="pc${out?' toggled':''}" onclick="${out?'':('addToCart('+p.id+')')}" style="${out?'opacity:.3;cursor:not-allowed':''}">
     ${p.img?"<div style='width:100%;height:70px;overflow:hidden;border-radius:7px;margin-bottom:4px'><img src='"+p.img+"' style='width:100%;height:100%;object-fit:cover' loading='lazy'></div>":"<div class='pc-em'>"+p.emoji+"</div>"}<div class="pc-nm">${p.name}</div>
     <div class="pc-pr">${p.price>0?fmt(p.price):'—'}</div>
     ${p.descuenta?`<div class="pc-st" style="color:${p.stock<=p.min?'var(--acc2)':'var(--text3)'}">${out?'Agotado':p.stock<=p.min?'⚠ '+p.stock:p.stock}</div>`:''}
-  </div>`;}).join('')}</div></div>`).join('')||'<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Sin productos</div>';
+  </div>`;}).join('')}</div></div>`;}).join('')||'<div style="text-align:center;color:var(--text3);padding:30px;font-size:12px">Sin productos</div>';
 }
 function addToCart(id){
   const p=gP(id);if(!p)return;
