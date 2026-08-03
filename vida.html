@@ -1417,12 +1417,13 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  // Usar systemUsers ya cargado (puede venir de Firebase con permisos actualizados)
-  // Solo releer localStorage si systemUsers está vacío
-  if(!systemUsers||systemUsers.length===0){
-    var _su=LS.g('users');
-    if(_su&&_su.length>0) systemUsers=_su;
-    else{systemUsers=LS._def().users;LS.set('users',systemUsers);}
+  // Siempre leer usuarios de localStorage (donde se guardan los permisos editados)
+  var _su = LS.g('users');
+  if(_su && _su.length > 0){
+    systemUsers = _su;
+  } else {
+    systemUsers = LS._def().users;
+    LS.set('users', systemUsers);
   }
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
@@ -3809,12 +3810,21 @@ onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200
   try{ renderDashboard(); }catch(e){}
 }, err => console.warn('ventas listener', err));
 
-// Usuarios en tiempo real — SIEMPRE del código, no de Firebase
+// Usuarios en tiempo real — actualizar permisos desde Firebase
 onSnapshot(collection(db,'usuarios'), snap => {
-  // No sobreescribir systemUsers desde Firebase — los usuarios vienen del código
-  // Solo sincronizar si hay cambios de permisos hechos desde admin
   if(snap.empty) return;
-  // Ignorar — usuarios siempre del código
+  var arr = [];
+  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  // Aplicar contraseñas y usernames del código (seguridad)
+  var usuariosCodigo = LS._def().users;
+  arr.forEach(function(fbU){
+    var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
+    if(uCodigo){ fbU.pass = uCodigo.pass; fbU.user = uCodigo.user; }
+  });
+  systemUsers = arr;
+  LS.set('users', arr);
+  try{ renderUsers(); }catch(e){}
+  try{ renderUserPills(); }catch(e){}
 }, err => console.warn('usuarios listener', err));
 
 // Proveedores en tiempo real
