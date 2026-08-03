@@ -780,7 +780,10 @@ try{
 
           <!-- INVENTARIO -->
           <div class="adm-view" id="adv-inventario" style="flex:1;overflow-y:auto;padding:16px 18px">
-            <div class="qa" id="inv-qa-btns"><button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Registrar compra</button></div>
+            <div class="qa" id="inv-qa-btns">
+              <button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Registrar compra</button>
+              <button class="btn btn-ghost" onclick="exportarInventarioExcel()" style="border-color:#1d6f42;color:#1d6f42"><i class="ti ti-file-spreadsheet"></i> 📥 Descargar inventario Excel</button>
+            </div>
             <div id="inv-alerts2"></div>
             <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px" id="inv-pills">
               <button class="inv-cat-btn active" data-cat="ALL" onclick="setInvCat('ALL',this)" style="display:flex;align-items:center;gap:4px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--acc);background:var(--acc);color:#fff;font-size:11.5px;font-weight:600;cursor:pointer;font-family:var(--font-body);transition:all .15s">🛒 Todos</button>
@@ -2045,6 +2048,116 @@ function setInvCat(cat){
   });
   renderInv();
 }
+// ══════════════════════════════════════════════
+// EXPORTAR INVENTARIO A EXCEL
+// ══════════════════════════════════════════════
+function exportarInventarioExcel(){
+  // Cargar SheetJS desde CDN si no está disponible
+  if(typeof XLSX === 'undefined'){
+    var script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    script.onload = function(){ _generarExcelInventario(); };
+    script.onerror = function(){ toast('Error cargando librería Excel','#e94560'); };
+    document.head.appendChild(script);
+    toast('Preparando Excel...','#1d6f42');
+  } else {
+    _generarExcelInventario();
+  }
+}
+
+function _generarExcelInventario(){
+  var CAT_ORDEN = ['PREPARADOS','CHOLADOS','RASPADOS','EMPAQUETADOS','DULCERIA','NEVERA','ADICIONAL','DESECHABLES','PARA LLEVAR'];
+  var ahora = new Date();
+  var fechaStr = ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+
+  // Obtener stocks actuales del localStorage
+  var stocks = LS.g('stocks') || {};
+
+  // Ordenar productos por categoría
+  var prodOrdenados = [];
+  var catsUsadas = [...new Set(prods.map(p=>p.cat))];
+  var catsOrdenadas = CAT_ORDEN.filter(c=>catsUsadas.includes(c));
+  catsUsadas.forEach(function(c){ if(!CAT_ORDEN.includes(c)) catsOrdenadas.push(c); });
+
+  catsOrdenadas.forEach(function(cat){
+    var prodsCat = prods.filter(function(p){ return p.cat===cat && p.active; });
+    prodsCat.forEach(function(p){
+      // Stock: usar el del localStorage (más actualizado) o el del código
+      var stockActual = (stocks[String(p.id)] && stocks[String(p.id)].stock !== undefined)
+        ? stocks[String(p.id)].stock
+        : p.stock;
+      var estado = !p.descuenta ? 'Sin control' :
+                   stockActual <= 0 ? 'Agotado' :
+                   stockActual <= p.min ? 'Stock bajo' : 'Disponible';
+      prodOrdenados.push({
+        'ID': p.id,
+        'Producto': p.name,
+        'Categoría': p.cat,
+        'Cantidad actual': p.descuenta ? stockActual : '—',
+        'Unidad': p.unit || 'unidades',
+        'Stock mínimo': p.descuenta ? (p.min || 0) : '—',
+        'Precio ($)': p.price > 0 ? p.price : 0,
+        'Estado': estado,
+        'Control inventario': p.descuenta ? 'Sí' : 'No'
+      });
+    });
+  });
+
+  // Crear workbook
+  var wb = XLSX.utils.book_new();
+
+  // Hoja principal
+  var ws_data = [
+    ['INVENTARIO HELADERÍA VIDA'],
+    ['Fecha de descarga: ' + fechaStr],
+    ['Total productos: ' + prodOrdenados.length],
+    [],
+    ['ID','Producto','Categoría','Cantidad actual','Unidad','Stock mínimo','Precio ($)','Estado','Control inventario']
+  ];
+
+  prodOrdenados.forEach(function(row){
+    ws_data.push([
+      row['ID'],
+      row['Producto'],
+      row['Categoría'],
+      row['Cantidad actual'],
+      row['Unidad'],
+      row['Stock mínimo'],
+      row['Precio ($)'],
+      row['Estado'],
+      row['Control inventario']
+    ]);
+  });
+
+  var ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Estilo de anchos de columna
+  ws['!cols'] = [
+    {wch:8},   // ID
+    {wch:30},  // Producto
+    {wch:15},  // Categoría
+    {wch:16},  // Cantidad
+    {wch:12},  // Unidad
+    {wch:14},  // Stock mínimo
+    {wch:14},  // Precio
+    {wch:14},  // Estado
+    {wch:18},  // Control
+  ];
+
+  // Congelar filas de encabezado (fila 5 = índice 4)
+  ws['!freeze'] = {xSplit:0, ySplit:5};
+
+  // Autofilter desde la fila de encabezados
+  ws['!autofilter'] = {ref:'A5:I5'};
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Inventario');
+
+  // Descargar
+  var nombreArchivo = 'Inventario_Heladeria_ViDa_' + ahora.toISOString().split('T')[0] + '.xlsx';
+  XLSX.writeFile(wb, nombreArchivo);
+  toast('✅ Inventario descargado: ' + nombreArchivo,'#1d6f42');
+}
+
 function renderInv(){
   const q=(document.getElementById('inv-search')?document.getElementById('inv-search').value:'').toUpperCase();
   const list=document.getElementById('inv-list');if(!list)return;
