@@ -1567,27 +1567,43 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  // Usar siempre usuarios del código para las credenciales
-  // Los permisos editados se aplican después desde localStorage/Firebase
+  // SIEMPRE usar usuarios del código — más seguro y simple
   var usuariosCodigo = LS._def().users;
+  // Aplicar permisos editados si existen en localStorage, pero credenciales del código
   var _su = LS.g('users');
   if(_su && _su.length > 0){
-    // Mezclar: credenciales del código + permisos de localStorage
     systemUsers = usuariosCodigo.map(function(uCodigo){
       var uLocal = _su.find(function(x){ return x.id === uCodigo.id; });
-      return uLocal ? Object.assign({}, uLocal, {pass: uCodigo.pass, user: uCodigo.user}) : uCodigo;
+      if(uLocal){
+        // Tomar permisos de localStorage pero credenciales y active del código
+        return Object.assign({}, uLocal, {
+          pass: uCodigo.pass,
+          user: uCodigo.user,
+          active: true  // siempre activo según código
+        });
+      }
+      return uCodigo;
     });
   } else {
     systemUsers = usuariosCodigo;
-    LS.set('users', systemUsers);
   }
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
-  const errEl=document.getElementById('loginError');const errMsg=document.getElementById('loginErrorMsg');
+  const errEl=document.getElementById('loginError');
+  const errMsg=document.getElementById('loginErrorMsg');
   errEl.classList.remove('show');
-  const found=systemUsers.find(u=>u.user.toLowerCase()===user&&u.pass===pass&&u.active!==false);
-  if(!found){errMsg.textContent=systemUsers.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';errEl.classList.add('show');document.getElementById('loginPass').value='';return;}
-  currentUser=found;logAction('login','Ingresó al sistema');showApp();
+  // Buscar usuario con credenciales del código
+  const found=usuariosCodigo.find(u=>u.user.toLowerCase()===user&&u.pass===pass);
+  if(!found){
+    errMsg.textContent=usuariosCodigo.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';
+    errEl.classList.add('show');
+    document.getElementById('loginPass').value='';
+    return;
+  }
+  // Usar el usuario mezclado (con permisos actualizados si existen)
+  currentUser = systemUsers.find(function(u){ return u.id === found.id; }) || found;
+  logAction('login','Ingresó al sistema');
+  showApp();
 }
 
 function showApp(){
