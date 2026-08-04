@@ -4673,8 +4673,27 @@ async function fbCargarTodo(){
   try {
     // 0. Cargar imágenes de productos desde Storage
     await window.FB.cargarImagenesProductos();
-    // 1. Usuarios — SIEMPRE del código (Firebase NO es fuente de verdad)
-    systemUsers = LS._def().users;
+    // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
+    var fbUsuarios = await fbGetAll('usuarios');
+    if(fbUsuarios && fbUsuarios.length > 0){
+      var usuariosCodigo = LS._def().users;
+      fbUsuarios.forEach(function(fbU){
+        var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
+        if(uCodigo){
+          fbU.pass = uCodigo.pass;
+          fbU.user = uCodigo.user;
+          if(!fbU.perms || !Array.isArray(fbU.perms) || fbU.perms.length === 0){
+            fbU.perms = uCodigo.perms;
+          }
+        }
+        fbU.active = fbU.active === false ? false : true;
+      });
+      systemUsers = fbUsuarios;
+    } else {
+      var usuariosDelCodigo = LS._def().users;
+      systemUsers = usuariosDelCodigo;
+      for(var u of systemUsers) await fbSet('usuarios', u.id, u);
+    }
     LS.set('users', systemUsers);
 
     // 2. Proveedores
@@ -4800,11 +4819,23 @@ onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(500
 
 // Usuarios en tiempo real — actualizar permisos desde Firebase
 onSnapshot(collection(db,'usuarios'), snap => {
-  // USUARIOS SIEMPRE DEL CÓDIGO — Firebase no sobreescribe permisos
-  // Esto garantiza que Leidy, Angel y demás siempre tengan sus permisos correctos
   if(snap.empty) return;
-  // Ignorar datos de Firebase para usuarios — el código es la fuente de verdad
-  return;
+  var arr = [];
+  snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
+  // Aplicar contraseñas y usernames del código (seguridad)
+  var usuariosCodigo = LS._def().users;
+  arr.forEach(function(fbU){
+    var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
+    if(uCodigo){
+      fbU.pass = uCodigo.pass;
+      fbU.user = uCodigo.user;
+      // Si Firebase no tiene permisos, usar los del código
+      if(!fbU.perms || !Array.isArray(fbU.perms) || fbU.perms.length === 0){
+        fbU.perms = uCodigo.perms;
+      }
+    }
+    fbU.active = fbU.active === false ? false : true;
+  });
   systemUsers = arr;
   LS.set('users', arr);
   // Actualizar currentUser si está logueado
@@ -4815,7 +4846,6 @@ onSnapshot(collection(db,'usuarios'), snap => {
   try{ renderUsers(); }catch(e){}
   try{ renderUserPills(); }catch(e){}
 }, err => console.warn('usuarios listener', err));
-
 // Proveedores en tiempo real
 onSnapshot(collection(db,'suppliers'), snap => {
   if(snap.empty) return;
