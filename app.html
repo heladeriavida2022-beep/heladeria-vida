@@ -4788,7 +4788,7 @@ onSnapshot(collection(db,'pedidosPendientes'), snap => {
 }, err => console.warn('pedidosPendientes listener', err));
 
 // Ventas en tiempo real (sincronización entre dispositivos)
-onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200)), snap => {
+onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(500)), snap => {
   snap.docChanges().forEach(ch => {
     if(ch.type === 'removed') return;
     var d = ch.doc.data(); delete d._ts;
@@ -4796,13 +4796,15 @@ onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200
     if(idx >= 0){ Object.assign(sales[idx], d); }
     else { sales.unshift(d); }
   });
-  // Ordenar por timestamp
+  // Ordenar por timestamp descendente
   sales.sort((a,b) => (b.timestamp||'') > (a.timestamp||'') ? 1 : -1);
   LS.set('sales', sales);
-  try{ renderVentas(); }catch(e){}
+  // Refrescar vistas — todas filtran por fecha de hoy internamente
+  try{ renderSalesTable(); }catch(e){}
   try{ updateBadges(); }catch(e){}
   try{ renderDashboard(); }catch(e){}
-}, err => console.warn('ventas listener', err));
+  try{ renderCaja(); }catch(e){}
+}, err => console.warn('ventas listener', err));n('ventas listener', err));
 
 // Usuarios en tiempo real — actualizar permisos desde Firebase
 onSnapshot(collection(db,'usuarios'), snap => {
