@@ -1390,6 +1390,7 @@ let posMode='mostrador',invCatF='ALL',prodCatF='ALL',cartaCatF='ALL',clienteCatF
 var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
 let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];let cierresGeneral=LS.g('cierresGeneral')||[];
+const BASE_CAJA = 100000; // Base fija de caja - NO editable
 
 
 // MAPA DE PRECIOS - siempre correcto, nunca del localStorage
@@ -3750,98 +3751,126 @@ function getPagoTotalsTurno(){
 
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
+function getVentasTurnoActual(){
+  var ultimoCierre = cierresTurno.length > 0 ? cierresTurno[0] : null;
+  var corteTs = ultimoCierre ? ultimoCierre.timestamp : null;
+  return sales.filter(function(s){
+    if(!corteTs) return true;
+    return s.timestamp && s.timestamp > corteTs;
+  });
+}
+
+function getPagoTotalsturno(){
+  var ventasTurno = getVentasTurnoActual();
+  var totals = {};
+  ventasTurno.forEach(function(s){
+    var pago = s.pago||'Efectivo';
+    if(!totals[pago]) totals[pago]={monto:0,count:0};
+    totals[pago].monto += (s.total||0);
+    totals[pago].count++;
+  });
+  return totals;
+}
+
+function getEgresosTurnoActual(){
+  var ultimoCierre = cierresTurno.length > 0 ? cierresTurno[0] : null;
+  var corteTs = ultimoCierre ? ultimoCierre.timestamp : null;
+  return movCaja.filter(function(m){
+    if(m.tipo!=='egreso') return false;
+    if(!corteTs) return true;
+    return m.timestamp && m.timestamp > corteTs;
+  });
+}
+
 function abrirCierreTurno(){
-  var t = getPagoTotalsTurno(); // Solo ventas de ESTE turno
+  var t = getPagoTotalsturno();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
   var totalVentas = efe + nequi + tarjeta + trans;
-  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
-  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
+  var egresosArr = getEgresosTurnoActual();
+  var egresosEfectivo = egresosArr.reduce(function(s,m){return s+(m.monto||0);},0);
   var esperado = BASE_CAJA + efe - egresosEfectivo;
   var aRetirar = Math.max(0, esperado - BASE_CAJA);
+  var ventasTurno = getVentasTurnoActual();
 
   var res = document.getElementById('ct-resumen');
   if(res) res.innerHTML =
+    '<div style="background:#edfaf2;border:1px solid #3aaa6a;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700">' +
+    '<span>💵 Base fija de caja:</span><span style="color:#3aaa6a">'+fmt(BASE_CAJA)+'</span></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
-    '<div><span style="color:var(--text2)">Base inicial:</span> <b style="color:#f0a500">'+fmt(BASE_CAJA)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Ventas efectivo:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Ventas efectivo turno:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
     '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b style="color:#9b72cf">'+fmt(nequi)+'</b></div>' +
     '<div><span style="color:var(--text2)">Tarjeta:</span> <b style="color:#3b82f6">'+fmt(tarjeta)+'</b></div>' +
     '<div><span style="color:var(--text2)">Transferencia:</span> <b style="color:#f0a500">'+fmt(trans)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Total ventas:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
-    (egresosEfectivo>0?'<div style="grid-column:span 2"><span style="color:var(--text2)">Egresos en efectivo:</span> <b style="color:#e94560">-'+fmt(egresosEfectivo)+'</b></div>':'') +
+    '<div><span style="color:var(--text2)">Total ventas turno:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Egresos en efectivo:</span> <b style="color:#e94560">-'+fmt(egresosEfectivo)+'</b></div>' +
     '</div>' +
-    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">' +
-    '<div><span style="color:var(--text2)">Efectivo esperado:</span> <b>'+fmt(esperado)+'</b></div>' +
-    '<div><span style="color:var(--text2)">💵 A retirar:</span> <b style="color:#e94560">'+fmt(aRetirar)+'</b></div>' +
-    '<div style="grid-column:span 2"><span style="color:var(--text2)">🏦 Base que queda:</span> <b style="color:#f0a500">'+fmt(BASE_CAJA)+'</b></div>' +
-    '</div>';
+    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
+    '<div style="font-weight:700">Efectivo esperado: <span style="color:#3aaa6a">'+fmt(esperado)+'</span></div>' +
+    '<div style="font-weight:700;color:#e94560">💰 A retirar: '+fmt(aRetirar)+'</div>' +
+    '</div>' +
+    '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+ventasTurno.length+' ventas en este turno</div>';
 
-  var turnoDefault = currentUser && currentUser.turno && currentUser.turno.includes('Mañana') ? '1' : '2';
+  var turnoDefault = currentUser&&currentUser.turno&&currentUser.turno.includes('Mañana')?'1':'2';
   var sel = document.getElementById('ct-turno');
   if(sel) sel.value = turnoDefault;
 
-  // Prefill automático del fondo con BASE_CAJA
   var fondoEl = document.getElementById('ct-fondo');
-  if(fondoEl) fondoEl.value = BASE_CAJA;
+  if(fondoEl){fondoEl.value=BASE_CAJA;fondoEl.readOnly=true;fondoEl.style.background='var(--bg3)';}
 
-  document.getElementById('ct-contado').value = '';
-  document.getElementById('ct-obs').value = '';
-  var dif = document.getElementById('ct-diferencia');
-  if(dif) dif.innerHTML = '';
+  document.getElementById('ct-contado').value='';
+  document.getElementById('ct-obs').value='';
+  var dif=document.getElementById('ct-diferencia');
+  if(dif) dif.innerHTML='';
 
-  // Recalcular al abrir
-  calcCierre();
   openM('cierre-turno');
 }
-
 function calcCierre(){
-  var t = getPagoTotalsTurno(); // Solo este turno
+  var t = getPagoTotalsturno();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
+  var egresosEfectivo = getEgresosTurnoActual().reduce(function(s,m){return s+(m.monto||0);},0);
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
-  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
   var esperado = BASE_CAJA + efe - egresosEfectivo;
   var aRetirar = Math.max(0, esperado - BASE_CAJA);
   var diferencia = contado - esperado;
-  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
-  var color = estado==='correcto' ? '#3aaa6a' : estado==='sobrante' ? '#f0a500' : '#e94560';
-  var icon = estado==='correcto' ? '✅' : estado==='sobrante' ? '🟡' : '🔴';
+  var estado = Math.abs(diferencia)<100?'correcto':diferencia>0?'sobrante':'faltante';
+  var color = estado==='correcto'?'#3aaa6a':estado==='sobrante'?'#f0a500':'#e94560';
+  var icon = estado==='correcto'?'✅':estado==='sobrante'?'🟡':'🔴';
   var dif = document.getElementById('ct-diferencia');
   if(dif && contado > 0) dif.innerHTML =
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>🏦 Base fija de caja:</span><span style="color:#f0a500;font-weight:700">'+fmt(BASE_CAJA)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Ventas en efectivo:</span><span style="color:#3aaa6a">+'+fmt(efe)+'</span></div>' +
-    (egresosEfectivo>0?'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Egresos en efectivo:</span><span style="color:#e94560">-'+fmt(egresosEfectivo)+'</span></div>':'') +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;font-weight:700;border-top:1px solid var(--border);padding-top:4px"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Base fija de caja:</span><span style="color:#3aaa6a"><b>'+fmt(BASE_CAJA)+'</b></span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Ventas en efectivo (turno):</span><span>'+fmt(efe)+'</span></div>' +
+    (egresosEfectivo>0?'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Egresos en efectivo:</span><span style="color:#e94560">-'+fmt(egresosEfectivo)+'</span></div>':'')+
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;font-weight:700"><span>Efectivo esperado en caja:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>💰 Dinero a retirar:</span><span style="color:#e94560;font-weight:700">'+fmt(aRetirar)+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px"><span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>' +
-    '<div style="background:#fff8e1;border:1px solid #f0a500;border-radius:8px;padding:8px;margin-top:8px;font-size:12px">' +
-    '💵 <b>Dinero a retirar:</b> <span style="font-size:15px;font-weight:800;color:#e94560">'+fmt(aRetirar)+'</span><br>' +
-    '🏦 <b>Base que queda en caja:</b> <span style="font-size:14px;font-weight:800;color:#f0a500">'+fmt(BASE_CAJA)+'</span></div>';
+    '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">' +
+    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>' +
+    '<div style="background:#edfaf2;border-radius:8px;padding:8px;margin-top:8px;text-align:center;font-size:12px;font-weight:700;color:#3aaa6a">Base que queda en caja: '+fmt(BASE_CAJA)+'</div>';
 }
-
 function confirmarCierreTurno(){
   var turno = document.getElementById('ct-turno').value;
-  var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
   var obs = document.getElementById('ct-obs').value.trim();
 
   if(contado <= 0){toast('Ingresa el efectivo contado','var(--acc)');return;}
   if(!confirm('¿Confirmas el cierre del Turno '+turno+'? Esta acción no se puede deshacer.')) return;
 
-  var t = getPagoTotalsTurno(); // Solo ventas de ESTE turno
+  var t = getPagoTotalsturno();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
-  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
-  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
+  var egresosEfectivo = getEgresosTurnoActual().reduce(function(s,m){return s+(m.monto||0);},0);
   var totalVentas = efe + nequi + tarjeta + trans;
   var esperado = BASE_CAJA + efe - egresosEfectivo;
   var aRetirar = Math.max(0, esperado - BASE_CAJA);
   var diferencia = contado - esperado;
-  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+  var estado = Math.abs(diferencia)<100?'correcto':diferencia>0?'sobrante':'faltante';
+  var ventasTurno = getVentasTurnoActual();
+  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
 
   var now = new Date();
   var cierre = {
@@ -3852,9 +3881,8 @@ function confirmarCierreTurno(){
     turno: turno,
     usuario: currentUser ? currentUser.name : '—',
     usuarioId: currentUser ? currentUser.id : '',
-    fondo: BASE_CAJA,
     baseCaja: BASE_CAJA,
-    aRetirar: aRetirar,
+    fondo: BASE_CAJA,
     ventasEfectivo: efe,
     ventasNequi: nequi,
     ventasTarjeta: tarjeta,
@@ -3863,21 +3891,26 @@ function confirmarCierreTurno(){
     gastos: gastosTurno,
     egresosEfectivo: egresosEfectivo,
     esperado: esperado,
+    aRetirar: aRetirar,
     contado: contado,
     diferencia: diferencia,
     estado: estado,
     observaciones: obs,
-    numPedidos: sales.length,
-    timestamp: now.toISOString()
+    numPedidos: ventasTurno.length,
+    timestamp: now.toISOString(),
+    // IDs de ventas incluidas (para evitar duplicados en siguiente turno)
+    ventasIds: ventasTurno.map(function(s){return s.id;})
   };
 
   cierresTurno.unshift(cierre);
   LS.set('cierresTurno', cierresTurno);
+  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('cierresTurno',cierre.id,cierre);
 
   closeM('cierre-turno');
-  toast('✅ Cierre de Turno '+turno+' registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
+  toast('✅ Cierre Turno '+turno+' — A retirar: '+fmt(aRetirar)+' — Base queda: '+fmt(BASE_CAJA),'#3aaa6a');
   renderCaja();
 }
+
 
 // ══════════════════════════════════════════════
 // CIERRE GENERAL DEL DÍA
