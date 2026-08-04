@@ -3291,8 +3291,8 @@ function guardarVentaM(){
 }
 function renderSalesTable(){
   const tbl=document.getElementById('sales-tbl');if(!tbl)return;
-  var hoy = new Date().toISOString().split('T')[0];
-  var salesHoy = sales.filter(function(s){ return (s.fecha||'').startsWith(hoy)||(s.timestamp||'').startsWith(hoy); });
+  var hoy = getFechaHoy();
+  var salesHoy = sales.filter(function(s){ var f=s.fecha||(s.timestamp||'').split('T')[0]; return f===hoy; });
   const tot=salesHoy.reduce((s,v)=>s+v.total,0);
   const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
@@ -3677,8 +3677,8 @@ function confirmarReinicio(){
 }
 
 function renderDashboard(){
-  var hoy = new Date().toISOString().split('T')[0];
-  var salesHoy = sales.filter(function(s){ return (s.fecha||'').startsWith(hoy)||(s.timestamp||'').startsWith(hoy); });
+  var hoy = getFechaHoy();
+  var salesHoy = sales.filter(function(s){ var f=s.fecha||(s.timestamp||'').split('T')[0]; return f===hoy; });
   const tot=salesHoy.reduce((s,v)=>s+v.total,0);
   const low=prods.filter(p=>p.active&&p.descuenta&&p.stock>0&&p.stock<=p.min);
   const out=prods.filter(p=>p.active&&p.descuenta&&p.stock<=0);
@@ -3754,11 +3754,13 @@ function calcCambio(){
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getPagoTotals(){
-  var hoy = new Date().toISOString().split('T')[0];
+  var hoy = getFechaHoy();
   var t={};
   Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});
-  sales.filter(function(s){ return (s.fecha||'').startsWith(hoy) || (s.timestamp||'').startsWith(hoy); })
-    .forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});
+  sales.filter(function(s){
+    var f = s.fecha || (s.timestamp||'').split('T')[0];
+    return f === hoy;
+  }).forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});
   return t;
 }
 
@@ -3792,15 +3794,32 @@ function getPagoTotalsTurno(){
 
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
+function getFechaHoy(){
+  // Fecha local Colombia YYYY-MM-DD
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = String(now.getMonth()+1).padStart(2,'0');
+  var d = String(now.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+d;
+}
+
 function getVentasTurnoActual(){
-  var hoy = new Date().toISOString().split('T')[0];
-  var ultimoCierre = cierresTurno.filter(function(c){ return c.fecha === new Date().toLocaleDateString('es-CO'); })[0] || null;
-  var corteTs = ultimoCierre ? ultimoCierre.timestamp : null;
+  var hoy = getFechaHoy();
+  // Usar el timestamp del cierre más reciente de HOY como corte
+  var ultimoCierreHoy = null;
+  cierresTurno.forEach(function(c){
+    if(!c.timestamp) return;
+    var fechaCierre = c.timestamp.split('T')[0];
+    if(fechaCierre === hoy){
+      if(!ultimoCierreHoy || c.timestamp > ultimoCierreHoy.timestamp){
+        ultimoCierreHoy = c;
+      }
+    }
+  });
+  var corteTs = ultimoCierreHoy ? ultimoCierreHoy.timestamp : null;
   return sales.filter(function(s){
-    // Solo ventas de hoy
     var fechaVenta = s.fecha || (s.timestamp||'').split('T')[0];
     if(fechaVenta !== hoy) return false;
-    // Si hay cierre anterior hoy, solo ventas posteriores
     if(corteTs) return s.timestamp && s.timestamp > corteTs;
     return true;
   });
@@ -4392,10 +4411,9 @@ function exportarCierresPDF(){
 function renderCaja(){
   movCaja=LS.g('movCaja')||[];
   cierresTurno=LS.g('cierresTurno')||[];
-  var hoy = new Date().toISOString().split('T')[0];
-  var hoyLocal = new Date().toLocaleDateString('es-CO');
+  var hoy = getFechaHoy();
   var t=getPagoTotals(); // ya filtra por hoy
-  var salesHoy = sales.filter(function(s){ return (s.fecha||'').startsWith(hoy)||(s.timestamp||'').startsWith(hoy); });
+  var salesHoy = sales.filter(function(s){ var f=s.fecha||(s.timestamp||'').split('T')[0]; return f===hoy; });
   var tot=salesHoy.reduce(function(s,v){return s+(v.total||0);},0);
   var efe=t['Efectivo']?t['Efectivo'].monto:0;
   var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);
