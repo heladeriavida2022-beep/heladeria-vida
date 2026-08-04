@@ -1238,9 +1238,18 @@ try{
   </div>
   <!-- Resumen automático -->
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0" id="ct-resumen"></div>
+  <!-- Instrucción clara -->
+  <div style="background:#fff8e1;border:1.5px solid #f0a500;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
+    <div style="font-weight:700;color:#d48a00;margin-bottom:5px">📋 ¿Cómo contar el efectivo?</div>
+    <div style="color:#7a5c00;line-height:1.6">
+      Cuente <b>TODO</b> el dinero que hay físicamente en la caja:<br>
+      💵 La <b>base inicial ($100.000)</b> + el dinero de las ventas.<br>
+      <span style="font-size:11px;color:#a07020">Ejemplo: Si vendió $300.000 en efectivo → cuente $400.000 en total.</span>
+    </div>
+  </div>
   <!-- Dinero contado -->
-  <div class="fg"><label class="fgrp-label">💵 Efectivo contado físicamente ($)</label>
-    <input class="finput" type="number" id="ct-contado" placeholder="0" oninput="calcCierre()">
+  <div class="fg"><label class="fgrp-label">💵 Efectivo total contado en caja (base + ventas)</label>
+    <input class="finput" type="number" id="ct-contado" placeholder="Ingrese el total de billetes contados..." oninput="calcCierre()" style="font-size:14px;font-weight:700">
   </div>
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0" id="ct-diferencia"></div>
   <div class="fg"><label class="fgrp-label">Observaciones</label>
