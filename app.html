@@ -3743,7 +3743,6 @@ const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon
 function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});sales.forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
 
 // BASE FIJA DE CAJA
-const BASE_CAJA = 100000;
 
 // Totales de ventas filtradas por turno (desde el último cierre)
 function getPagoTotalsTurno(){
