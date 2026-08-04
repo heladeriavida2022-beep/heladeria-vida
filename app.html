@@ -1567,12 +1567,18 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  // Siempre leer usuarios de localStorage (donde se guardan los permisos editados)
+  // Usar siempre usuarios del código para las credenciales
+  // Los permisos editados se aplican después desde localStorage/Firebase
+  var usuariosCodigo = LS._def().users;
   var _su = LS.g('users');
   if(_su && _su.length > 0){
-    systemUsers = _su;
+    // Mezclar: credenciales del código + permisos de localStorage
+    systemUsers = usuariosCodigo.map(function(uCodigo){
+      var uLocal = _su.find(function(x){ return x.id === uCodigo.id; });
+      return uLocal ? Object.assign({}, uLocal, {pass: uCodigo.pass, user: uCodigo.user}) : uCodigo;
+    });
   } else {
-    systemUsers = LS._def().users;
+    systemUsers = usuariosCodigo;
     LS.set('users', systemUsers);
   }
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
