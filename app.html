@@ -438,7 +438,7 @@ try{
         <div class="sg">
           <div class="slbl">Principal</div>
           <button class="sni active" onclick="adminNav('dashboard',this)"><i class="ti ti-dashboard"></i>Dashboard</button>
-          <button class="sni" onclick="adminNav('estadisticas',this)"><i class="ti ti-chart-line"></i>Estadísticas</button>
+          <button class="sni" onclick="adminNav('estadisticas',this)" id="sni-estadisticas"><i class="ti ti-chart-line"></i>Estadísticas</button>
           <button class="sni" onclick="adminNav('trazabilidad',this)"><i class="ti ti-timeline"></i>Trazabilidad</button>
         </div>
         <div class="sg">
@@ -1676,6 +1676,9 @@ function applyPermissions(){
     const permMap={ventas:'ventas',gastos:'gastos',costos:'costos',deudas:'deudas',inventario:'inventario',compras:'ingresos',productos:'productos',proveedores:'proveedores',usuarios:'usuarios'};
     el.classList.toggle('locked',!hasPerm(permMap[k]));
   });
+  // Ocultar estadísticas si no tiene permiso
+  var sniEst = document.getElementById('sni-estadisticas');
+  if(sniEst) sniEst.style.display = (currentUser.role==='admin'||hasPerm('estadisticas')) ? '' : 'none';
   // Btn nuevo producto
   const bnp=document.getElementById('btn-new-prod');
   if(bnp)bnp.style.display=hasPerm('productos')?'':'none';
