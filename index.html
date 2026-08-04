@@ -3008,9 +3008,37 @@ function crearProd(){
   const nm=document.getElementById('np-nm').value.trim().toUpperCase();
   if(!nm){toast('Ingresa el nombre','var(--acc)');return;}
   const cat=document.getElementById('np-cat').value;
-  prods.push({id:Date.now(),name:nm,cat,emoji:document.getElementById('np-em').value||CE[cat],price:parseFloat(document.getElementById('np-pr').value)||0,stock:parseInt(document.getElementById('np-st').value)||0,min:parseInt(document.getElementById('np-min').value)||5,unit:document.getElementById('np-un').value,descuenta:document.getElementById('np-desc').value==='1',active:true});
-  logAction('admin',`Creó producto ${nm} (${cat})`);
-  closeM('producto');renderProdTable();renderCarta();renderPOS();updateBadges();toast('Producto "'+nm+'" creado ✓');
+  const nuevoProd={
+    id:Date.now(),
+    name:nm,
+    cat:cat,
+    emoji:document.getElementById('np-em').value||CE[cat]||'🍦',
+    price:parseFloat(document.getElementById('np-pr').value)||0,
+    stock:parseInt(document.getElementById('np-st').value)||0,
+    min:parseInt(document.getElementById('np-min').value)||5,
+    unit:document.getElementById('np-un').value,
+    descuenta:document.getElementById('np-desc').value==='1',
+    active:true,
+    esPersonalizado:true  // marca para distinguirlo de los del código
+  };
+  prods.push(nuevoProd);
+  // Guardar productos personalizados en localStorage
+  var prodsCustom = LS.g('prodsCustom')||[];
+  prodsCustom.push(nuevoProd);
+  LS.set('prodsCustom', prodsCustom);
+  // Guardar en Firebase
+  if(typeof window.FB!=='undefined'&&window.FB.set){
+    window.FB.set('productos', String(nuevoProd.id), nuevoProd);
+  }
+  // Agregar precio al catálogo local
+  if(nuevoProd.price>0) PRECIO_CATALOGO[nm] = nuevoProd.price;
+  logAction('admin','Creó producto '+nm+' ('+cat+')');
+  closeM('producto');
+  renderProdTable();
+  try{renderCarta();}catch(e){}
+  renderPOS();
+  updateBadges();
+  toast('Producto "'+nm+'" creado ✓','#3aaa6a');
 }
 
 // ══════════════════════════════════════════════
@@ -4520,6 +4548,13 @@ async function sendAI(){
   var oc=LS.g('orderCounter');if(oc)orderCounter=oc;
   movCaja=LS.g('movCaja')||[];
   cierresTurno=LS.g('cierresTurno')||[];
+  // Cargar productos personalizados guardados
+  var prodsCustom = LS.g('prodsCustom')||[];
+  prodsCustom.forEach(function(pc){
+    if(!prods.find(function(p){ return p.id===pc.id || p.name===pc.name; })){
+      prods.push(pc);
+    }
+  });
   // Aplicar precios correctos del catálogo (solución definitiva)
   if(typeof aplicarPreciosCatalogo === 'function') aplicarPreciosCatalogo();
 })();
@@ -4673,6 +4708,21 @@ async function fbCargarTodo(){
   try {
     // 0. Cargar imágenes de productos desde Storage
     await window.FB.cargarImagenesProductos();
+
+    // 0b. Cargar productos personalizados desde Firebase
+    try{
+      var fbProds = await fbGetAll('productos');
+      if(fbProds && fbProds.length > 0){
+        fbProds.forEach(function(fp){
+          if(!prods.find(function(p){ return p.id==fp.id || p.name===fp.name; })){
+            prods.push(fp);
+            // Guardar también en localStorage
+            var pc = LS.g('prodsCustom')||[];
+            if(!pc.find(function(p){ return p.id==fp.id; })){ pc.push(fp); LS.set('prodsCustom',pc); }
+          }
+        });
+      }
+    }catch(e){ console.warn('productos Firebase:', e); }
     // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
     var fbUsuarios = await fbGetAll('usuarios');
     if(fbUsuarios && fbUsuarios.length > 0){
