@@ -3725,7 +3725,6 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
 function abrirCierreTurno(){
-  // Calcular totales del turno
   var t = getPagoTotals();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
@@ -3733,8 +3732,9 @@ function abrirCierreTurno(){
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
   var totalVentas = efe + nequi + tarjeta + trans;
   var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
+  // Egresos en efectivo: compras contado + movimientos de egreso de caja
+  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
 
-  // Precalcular en el modal
   var res = document.getElementById('ct-resumen');
   if(res) res.innerHTML =
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
@@ -3744,12 +3744,12 @@ function abrirCierreTurno(){
     '<div><span style="color:var(--text2)">Transferencia:</span> <b style="color:#f0a500">'+fmt(trans)+'</b></div>' +
     '<div><span style="color:var(--text2)">Total ventas:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
     '<div><span style="color:var(--text2)">Gastos turno:</span> <b style="color:#e94560">'+fmt(gastosTurno)+'</b></div>' +
+    (egresosEfectivo>0?'<div style="grid-column:span 2"><span style="color:var(--text2)">Compras/egresos en efectivo:</span> <b style="color:#e94560">-'+fmt(egresosEfectivo)+'</b></div>':'') +
     '</div>' +
     '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:13px">' +
     '<span>Total pedidos: '+sales.length+'</span>' +
     '<span style="color:#3aaa6a">'+fmt(totalVentas)+'</span></div>';
 
-  // Detectar turno según usuario
   var turnoDefault = currentUser && currentUser.turno && currentUser.turno.includes('Mañana') ? '1' : '2';
   var sel = document.getElementById('ct-turno');
   if(sel) sel.value = turnoDefault;
@@ -3768,7 +3768,9 @@ function calcCierre(){
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
-  var esperado = fondo + efe;
+  // Restar egresos en efectivo (compras contado + movimientos de egreso)
+  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
+  var esperado = fondo + efe - egresosEfectivo;
   var diferencia = contado - esperado;
   var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
   var color = estado==='correcto' ? '#3aaa6a' : estado==='sobrante' ? '#f0a500' : '#e94560';
@@ -3776,7 +3778,9 @@ function calcCierre(){
   var dif = document.getElementById('ct-diferencia');
   if(dif && contado > 0) dif.innerHTML =
     '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Fondo inicial:</span><span>'+fmt(fondo)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Ventas en efectivo:</span><span>'+fmt(efe)+'</span></div>' +
+    (egresosEfectivo>0?'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Compras/egresos en efectivo:</span><span style="color:#e94560">-'+fmt(egresosEfectivo)+'</span></div>':'') +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo esperado:</span><span><b>'+fmt(esperado)+'</b></span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">' +
     '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>';
@@ -3797,8 +3801,9 @@ function confirmarCierreTurno(){
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
   var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
+  var egresosEfectivo = movCaja.filter(function(m){ return m.tipo==='egreso'; }).reduce(function(s,m){ return s+(m.monto||0); },0);
   var totalVentas = efe + nequi + tarjeta + trans;
-  var esperado = fondo + efe;
+  var esperado = fondo + efe - egresosEfectivo;
   var diferencia = contado - esperado;
   var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
 
@@ -3818,6 +3823,7 @@ function confirmarCierreTurno(){
     ventasTransferencia: trans,
     totalVentas: totalVentas,
     gastos: gastosTurno,
+    egresosEfectivo: egresosEfectivo,
     esperado: esperado,
     contado: contado,
     diferencia: diferencia,
