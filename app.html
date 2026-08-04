@@ -3671,19 +3671,17 @@ function confirmarReinicio(){
 }
 
 function renderDashboard(){
-  const tot=sales.reduce((s,v)=>s+v.total,0);
+  var hoy = new Date().toISOString().split('T')[0];
+  var salesHoy = sales.filter(function(s){ return (s.fecha||'').startsWith(hoy)||(s.timestamp||'').startsWith(hoy); });
+  const tot=salesHoy.reduce((s,v)=>s+v.total,0);
   const low=prods.filter(p=>p.active&&p.descuenta&&p.stock>0&&p.stock<=p.min);
   const out=prods.filter(p=>p.active&&p.descuenta&&p.stock<=0);
   const st=document.getElementById('dash-stats');if(!st)return;
-  st.innerHTML=`<div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div><div class="schg up">${sales.length} pedidos</div></div><div class="stat"><div class="sico"><i class="ti ti-package"></i></div><div class="slb">Stock crítico</div><div class="sval" style="color:${out.length?'var(--acc)':'var(--acc3)'}">${out.length+low.length}</div></div><div class="stat"><div class="sico"><i class="ti ti-list"></i></div><div class="slb">Pedidos activos</div><div class="sval" style="color:var(--acc5)">${liveOrders.filter(o=>o.status!=='entregado').length}</div></div><div class="stat"><div class="sico"><i class="ti ti-users"></i></div><div class="slb">Empleados activos</div><div class="sval" style="color:var(--acc4)">${systemUsers.filter(u=>u.active).length}</div></div>`;
+  st.innerHTML=`<div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div><div class="schg up">${salesHoy.length} pedidos</div></div><div class="stat"><div class="sico"><i class="ti ti-package"></i></div><div class="slb">Stock crítico</div><div class="sval" style="color:${out.length?'var(--acc)':'var(--acc3)'}">${out.length+low.length}</div></div><div class="stat"><div class="sico"><i class="ti ti-list"></i></div><div class="slb">Pedidos activos</div><div class="sval" style="color:var(--acc5)">${liveOrders.filter(o=>o.status!=='entregado').length}</div></div><div class="stat"><div class="sico"><i class="ti ti-users"></i></div><div class="slb">Empleados activos</div><div class="sval" style="color:var(--acc4)">${systemUsers.filter(u=>u.active).length}</div></div>`;
   const da=document.getElementById('dash-alerts');if(da)da.innerHTML=(out.length?`<div class="alert ae"><i class="ti ti-alert-circle"></i><strong>Agotados (${out.length}):</strong> ${out.map(p=>p.name).join(', ')}</div>`:'')+(low.length?`<div class="alert aw"><i class="ti ti-alert-triangle"></i><strong>Stock bajo (${low.length}):</strong> ${low.map(p=>p.name).join(', ')}</div>`:'');
-  // chart
   const dc=document.getElementById('dash-chart');if(dc){dc.innerHTML='';[[180,240,210,280,320,380,287],[90,120,100,150,160,200,140]].forEach((d,ci)=>d.forEach((v,i)=>{if(!dc.children[i]){const g=document.createElement('div');g.className='bar-g';dc.appendChild(g);}const b=document.createElement('div');b.className='bar';b.style.cssText=`height:${Math.round(v/420*100)}%;background:${ci===0?'var(--acc3)':'var(--acc)'}`;dc.children[i].appendChild(b);if(ci===1){const l=document.createElement('div');l.className='bar-l';l.textContent=['L','M','X','J','V','S','D'][i];dc.children[i].appendChild(l);}}));}
-  // sales by cat
-  const dc2=document.getElementById('dash-cat');if(dc2){const cs={};Object.keys(CC).forEach(c=>{cs[c]={t:0,q:0};});sales.forEach(s=>{if(cs[s.cat]){cs[s.cat].t+=s.total;cs[s.cat].q+=s.qty;}});dc2.innerHTML=`<table><thead><tr><th>Cat.</th><th>Und.</th><th>Total</th></tr></thead><tbody>${Object.keys(CC).map(c=>`<tr><td>${catBadge(c)}</td><td>${cs[c].q}</td><td style="color:var(--acc3)">${cs[c].t>0?fmt(cs[c].t):'—'}</td></tr>`).join('')}</tbody></table>`;}
-  // recent sales
-  const rt=document.getElementById('dash-sales-tbl');if(rt)rt.innerHTML=sales.length?[...sales].reverse().slice(0,5).map(s=>`<tr><td>${s.time}</td><td>${s.name}</td><td style="color:var(--text2);font-size:10px">${s.emp}</td><td style="color:var(--acc3)">${s.total>0?fmt(s.total):'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">Sin ventas</td></tr>';
-  // inv
+  const dc2=document.getElementById('dash-cat');if(dc2){const cs={};Object.keys(CC).forEach(c=>{cs[c]={t:0,q:0};});salesHoy.forEach(s=>{if(cs[s.cat]){cs[s.cat].t+=s.total;cs[s.cat].q+=s.qty;}});dc2.innerHTML=`<table><thead><tr><th>Cat.</th><th>Und.</th><th>Total</th></tr></thead><tbody>${Object.keys(CC).map(c=>`<tr><td>${catBadge(c)}</td><td>${cs[c].q}</td><td style="color:var(--acc3)">${cs[c].t>0?fmt(cs[c].t):'—'}</td></tr>`).join('')}</tbody></table>`;}
+  const rt=document.getElementById('dash-sales-tbl');if(rt)rt.innerHTML=salesHoy.length?[...salesHoy].reverse().slice(0,5).map(s=>`<tr><td>${s.time}</td><td>${s.name}</td><td style="color:var(--text2);font-size:10px">${s.emp}</td><td style="color:var(--acc3)">${s.total>0?fmt(s.total):'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">Sin ventas hoy</td></tr>';
   const di=document.getElementById('dash-inv');if(di)di.innerHTML=(out.length||low.length)?[...out.map(p=>({p,cls:'br',st:'Agotado'})),...low.map(p=>({p,cls:'by',st:'Bajo'}))].slice(0,8).map(({p,cls,st})=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(30,30,56,.7);font-size:12px"><span>${p.emoji} ${p.name}</span><span class="badge ${cls}">${st}${cls==='by'?' ('+p.stock+')':''}</span></div>`).join(''):'<div style="text-align:center;color:var(--acc3);padding:14px;font-size:12px">✓ Todo en orden</div>';
 }
 
@@ -3749,7 +3747,14 @@ function calcCambio(){
   }
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
-function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});sales.forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
+function getPagoTotals(){
+  var hoy = new Date().toISOString().split('T')[0];
+  var t={};
+  Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});
+  sales.filter(function(s){ return (s.fecha||'').startsWith(hoy) || (s.timestamp||'').startsWith(hoy); })
+    .forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});
+  return t;
+}
 
 // BASE FIJA DE CAJA
 
@@ -3782,11 +3787,16 @@ function getPagoTotalsTurno(){
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
 function getVentasTurnoActual(){
-  var ultimoCierre = cierresTurno.length > 0 ? cierresTurno[0] : null;
+  var hoy = new Date().toISOString().split('T')[0];
+  var ultimoCierre = cierresTurno.filter(function(c){ return c.fecha === new Date().toLocaleDateString('es-CO'); })[0] || null;
   var corteTs = ultimoCierre ? ultimoCierre.timestamp : null;
   return sales.filter(function(s){
-    if(!corteTs) return true;
-    return s.timestamp && s.timestamp > corteTs;
+    // Solo ventas de hoy
+    var fechaVenta = s.fecha || (s.timestamp||'').split('T')[0];
+    if(fechaVenta !== hoy) return false;
+    // Si hay cierre anterior hoy, solo ventas posteriores
+    if(corteTs) return s.timestamp && s.timestamp > corteTs;
+    return true;
   });
 }
 
