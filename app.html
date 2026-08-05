@@ -3231,56 +3231,6 @@ function guardarIngreso(){
   var msg=tipoPago==='credito'?'Compra a crédito registrada — deuda creada ✓':'Compra registrada — salida de caja ✓';
   toast(msg,'#3aaa6a');
 }
-  var validos=ingItems.filter(it=>it.pid&&it.qty>0);
-  if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
-
-  var totalCompra=0;
-  var productosNombres=[];
-  validos.forEach(function(it){
-    var p=gP(parseInt(it.pid));if(!p)return;
-    var qty=parseFloat(it.qty)||0;
-    var costo=parseFloat(it.costo)||0;
-    totalCompra+=qty*costo;
-    productosNombres.push(p.name);
-    if(p.descuenta){p.stock+=qty;LS.updProd(p.id,{stock:p.stock});if(typeof window.fbUpdateStock==='function')window.fbUpdateStock(p.id,p.stock);}
-    purchases.push({fecha,name:p.name,cat:p.cat,tipo:'Compra',tipoPago,qty,unit:it.unit||'unidades',costo,total:qty*costo,prov,por:currentUser.name});
-    logAction('ingreso',`Ingresó ${qty} de ${p.name}`,`Proveedor: ${prov} | ${tipoPago}`);
-  });
-  LS.set('purchases',purchases);
-
-  // Si es crédito → crear deuda automáticamente
-  if(tipoPago==='credito'&&totalCompra>0){
-    var deuda={
-      id:'d'+Date.now(),
-      acreedor:prov,
-      concepto:'Compra: '+productosNombres.join(', '),
-      monto:totalCompra,
-      fecha:fecha,
-      vence:vence,
-      pagada:false,
-      origen:'compra'
-    };
-    var deudas=LS.g('deudas')||[];
-    deudas.unshift(deuda);
-    LS.set('deudas',deudas);
-    updateDeudasBadge();
-  }
-
-  // Si es contado → registrar salida de caja
-  if(tipoPago==='contado'&&totalCompra>0){
-    var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Compra a '+prov+' ('+productosNombres.slice(0,2).join(', ')+(productosNombres.length>2?'...':'')+')',monto:totalCompra,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
-    movCaja.unshift(mov);
-    LS.set('movCaja',movCaja);
-    if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
-  }
-
-  ingItems=[];
-  closeM('ingreso');renderInv();renderProdTable();updateBadges();renderComprasTable();
-  if(typeof renderDeudas==='function')renderDeudas();
-  if(typeof renderCaja==='function')renderCaja();
-  var msg=tipoPago==='credito'?'Compra a crédito — deuda registrada ✓':'Compra registrada — salida de caja ✓';
-  toast(msg,'#3aaa6a');
-}
 
 // ══════════════════════════════════════════════
 // DEUDAS
