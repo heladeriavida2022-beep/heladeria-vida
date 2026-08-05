@@ -3389,34 +3389,8 @@ function renderDeudas(){
   var tbl=document.getElementById('deudas-tbl');if(!tbl)return;
   if(!deudas.length){tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
 
-  var iconOrigen={compra:'🛒',fiado:'🧾',manual:'✍️'};
 
-  tbl.innerHTML=deudas.map(d=>{
-    var esFiado=d.tipo==='cobrar'||d.origen==='fiado';
-    var estado='En plazo';var cls='bb';
-    if(d.pagada){estado=esFiado?'Cobrado':'Pagado';cls='bg-success';}
-    else if(esFiado){estado='Por cobrar';cls='by';}
-    else if(d.vence){
-      var v=new Date(d.vence);v.setHours(0,0,0,0);
-      var diff=(v-hoy)/86400000;
-      if(diff<0){estado='Vencida';cls='br';}
-      else if(diff<=7){estado='Urgente';cls='by';}
-    }
-    var colorMonto=d.pagada?'var(--text3)':esFiado?'#3aaa6a':'var(--acc)';
-    return `<tr style="${d.pagada?'opacity:.55':''}">
-      <td><b>${d.acreedor}</b><div style="font-size:10px;color:var(--text3)">${esFiado?'💸 Fiado cliente':(iconOrigen[d.origen]||'✍️')+' '+(d.origen==='compra'?'Compra':'Manual')}</div></td>
-      <td style="font-size:11.5px">${d.concepto}</td>
-      <td style="color:${colorMonto};font-weight:700">${esFiado?'+':'-'}${fmt(d.monto)}</td>
-      <td style="font-size:11.5px;color:var(--text2)">${d.vence||'—'}</td>
-      <td><span class="badge ${cls}">${estado}</span></td>
-      <td>${d.pagada
-        ?`<span style="font-size:10px;color:var(--acc3)">✓ ${d.fechaPago||''}</span>`
-        :`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">${esFiado?'Cobrar':'Pagar'}</button>`
-      }</td>
-    </tr>`;
-  }).join('');
-  updateDeudasBadge();
-}
+
 function guardarAjuste(){
   const id=parseInt(document.getElementById('aj-p').value);const p=gP(id);if(!p||!p.descuenta){toast('No maneja stock','var(--acc)');return;}
   const tipo=document.getElementById('aj-tipo').value;const qty=parseFloat(document.getElementById('aj-q').value)||0;
