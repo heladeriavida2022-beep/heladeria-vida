@@ -3387,10 +3387,40 @@ function renderDeudas(){
   }
 
   var tbl=document.getElementById('deudas-tbl');if(!tbl)return;
-  if(!deudas.length){tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
+  if(!deudas.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
 
-
-
+  tbl.innerHTML=deudas.map(d=>{
+    var esFiado=d.tipo==='cobrar'||d.origen==='fiado';
+    var saldoPendiente=d.monto-(d.montoPagado||0);
+    var estado='Pendiente';var cls='by';
+    if(d.pagada){estado=esFiado?'Cobrado':'Pagada';cls='bg';}
+    else if(esFiado){estado='Por cobrar';cls='by';}
+    else if(d.vence){
+      var v=new Date(d.vence);v.setHours(0,0,0,0);
+      var diff=(v-hoy)/86400000;
+      if(diff<0){estado='Vencida';cls='br';}
+      else if(diff<=7){estado='Urgente';cls='by';}
+    }
+    var origenLabel=esFiado?'💸 Fiado cliente':d.origen==='compra'?'🛒 Compra crédito':'✍️ Manual';
+    return `<tr style="${d.pagada?'opacity:.55':''}">
+      <td><b>${d.acreedor}</b><div style="font-size:10px;color:var(--text3)">${origenLabel}</div></td>
+      <td style="font-size:11.5px;max-width:150px">${d.concepto}</td>
+      <td style="font-weight:700">${fmt(d.monto)}</td>
+      <td style="color:${saldoPendiente>0&&!d.pagada?'var(--acc)':'#3aaa6a'};font-weight:700">${fmt(saldoPendiente)}</td>
+      <td style="font-size:11px;color:var(--text2)">${d.vence||'—'}</td>
+      <td><span class="badge ${cls}">${estado}</span></td>
+      <td>${d.pagada
+        ?`<span style="font-size:10px;color:#3aaa6a">✓ ${d.fechaPago||''}</span>`
+        :esFiado
+          ?`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">Cobrar</button>`
+          :`<div style="display:flex;gap:4px">
+              <button class="btn btn-acc btn-sm" onclick="pagarDeuda('${d.id}')" style="background:#3aaa6a;border-color:#3aaa6a">💵 Pagar</button>
+              <button class="btn btn-ghost btn-sm" onclick="pagarDeudaParcial('${d.id}')">Parcial</button>
+            </div>`
+      }</td>
+    </tr>`;
+  }).join('');
+  updateDeudasBadge();
 function guardarAjuste(){
   const id=parseInt(document.getElementById('aj-p').value);const p=gP(id);if(!p||!p.descuenta){toast('No maneja stock','var(--acc)');return;}
   const tipo=document.getElementById('aj-tipo').value;const qty=parseFloat(document.getElementById('aj-q').value)||0;
