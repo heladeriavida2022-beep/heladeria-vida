@@ -3862,7 +3862,7 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 async function restaurarCierresHistoricos(){
   try{
     // Verificar si ya existe el cierre del 03/08/2026
-    var existentes = await fbGetAll('cierresTurno');
+    var existentes = await window.FB.getAll('cierresTurno');
     var ya03 = existentes.find(function(c){ return c.fecha==='3/8/2026'||c.fecha==='03/08/2026'||c.id==='ct_historico_20260803'; });
     if(!ya03){
       var cierre03 = {
@@ -4468,7 +4468,7 @@ function imprimirCGById(id){
 async function renderCierres(){
   // Cargar desde Firebase como fuente principal
   try{
-    var fbCierres = await fbGetAll('cierresTurno');
+    var fbCierres = await window.FB.getAll('cierresTurno');
     if(fbCierres && fbCierres.length > 0){
       // Mezclar con localStorage sin duplicar — Firebase tiene prioridad
       var localCierres = LS.g('cierresTurno')||[];
@@ -4799,6 +4799,7 @@ window.FB = {
   set:   fbSet,
   del:   fbDel,
   sync:  fbSyncList,
+  getAll: fbGetAll,
   // Atajos por colección
   saveSale:     (s)   => fbSet('ventas',    s.id || Date.now(), s),
   saveCompra:   (c)   => fbSet('compras',   c.id || Date.now(), c),
