@@ -834,7 +834,7 @@ try{
           <!-- COMPRAS -->
           <div class="adm-view" id="adv-compras" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Nueva compra</button></div>
-            <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Total</th><th>Proveedor</th><th>Por</th></tr></thead><tbody id="compras-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr></tbody></table></div></div>
+            <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Productos</th><th>Pago</th><th>Total</th><th>Detalle</th></tr></thead><tbody id="compras-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr></tbody></table></div></div>
           </div>
 
           <!-- PRODUCTOS GESTIÓN -->
@@ -3144,6 +3144,97 @@ function guardarIngreso(){
   if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
 
   var totalCompra=0;
+  var detalle=[];
+  var productosNombres=[];
+
+  validos.forEach(function(it){
+    var p=gP(parseInt(it.pid));if(!p)return;
+    var qty=parseFloat(it.qty)||0;
+    var costo=parseFloat(it.costo)||0;
+    var subtotal=qty*costo;
+    totalCompra+=subtotal;
+    productosNombres.push(p.name);
+    detalle.push({
+      prodId:p.id, name:p.name, cat:p.cat,
+      qty:qty, unit:it.unit||'unidades',
+      costo:costo, subtotal:subtotal
+    });
+    // Actualizar inventario individualmente
+    if(p.descuenta){
+      p.stock+=qty;
+      LS.updProd(p.id,{stock:p.stock});
+      if(typeof window.FB!=='undefined'&&window.FB.saveStock) window.FB.saveStock(p.id,p.stock);
+    }
+  });
+
+  // UNA SOLA COMPRA con detalle
+  var compra={
+    id:'comp'+Date.now(),
+    fecha:fecha,
+    prov:prov,
+    tipoPago:tipoPago,
+    vence:vence,
+    total:totalCompra,
+    detalle:detalle,
+    por:currentUser?currentUser.name:'—',
+    porId:currentUser?currentUser.id:'',
+    timestamp:new Date().toISOString(),
+    numProductos:detalle.length
+  };
+
+  purchases.unshift(compra);
+  LS.set('purchases',purchases);
+  if(typeof window.FB!=='undefined'&&window.FB.saveCompra) window.FB.saveCompra(compra);
+
+  // Si es crédito → crear deuda
+  if(tipoPago==='credito'&&totalCompra>0){
+    var deuda={
+      id:'d'+Date.now(),
+      acreedor:prov,
+      concepto:'Compra: '+productosNombres.join(', '),
+      monto:totalCompra,
+      fecha:fecha,
+      vence:vence,
+      pagada:false,
+      origen:'compra'
+    };
+    var deudas=LS.g('deudas')||[];
+    deudas.unshift(deuda);
+    LS.set('deudas',deudas);
+    if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('deudas',deuda.id,deuda);
+    updateDeudasBadge();
+  }
+
+  // Si es contado → registrar salida de caja
+  if(tipoPago==='contado'&&totalCompra>0){
+    var mov={
+      id:'m'+Date.now(),
+      hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      fecha:fecha,
+      timestamp:new Date().toISOString(),
+      tipo:'egreso',
+      desc:'Compra a '+prov+' ('+productosNombres.slice(0,2).join(', ')+(productosNombres.length>2?' y más...':'')+')',
+      monto:totalCompra,
+      pago:'Efectivo',
+      emp:currentUser?currentUser.name:'—'
+    };
+    movCaja.unshift(mov);
+    LS.set('movCaja',movCaja);
+  }
+
+  logAction('ingreso','Compra a '+prov+' — '+detalle.length+' productos','Total: '+fmt(totalCompra)+' | '+tipoPago);
+  ingItems=[];
+  closeM('ingreso');
+  renderInv();renderProdTable();updateBadges();renderComprasTable();
+  if(typeof renderDeudas==='function')renderDeudas();
+  if(typeof renderCaja==='function')renderCaja();
+  var msg=tipoPago==='credito'?'Compra a crédito registrada — deuda creada ✓':'Compra registrada — salida de caja ✓';
+  toast(msg,'#3aaa6a');
+}
+  var validos=ingItems.filter(it=>it.pid&&it.qty>0);
+  if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
+
+  var totalCompra=0;
   var productosNombres=[];
   validos.forEach(function(it){
     var p=gP(parseInt(it.pid));if(!p)return;
@@ -3300,8 +3391,63 @@ function guardarAjuste(){
 }
 function renderComprasTable(){
   const tbl=document.getElementById('compras-tbl');if(!tbl)return;
-  if(!purchases.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
-  tbl.innerHTML=[...purchases].reverse().map(c=>`<tr><td>${c.fecha}</td><td>${c.name}</td><td><span class="badge ${c.tipo==='Ajuste'?'bp':'bb'}">${c.tipo}</span></td><td style="color:${c.qty>=0?'var(--acc3)':'var(--acc)'}">${c.qty>=0?'+':''}${c.qty} ${c.unit}</td><td style="color:var(--acc2)">${c.total>0?fmt(c.total):'—'}</td><td>${c.prov}</td><td style="color:var(--text2)">${c.por}</td></tr>`).join('');
+  if(!purchases.length){tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin registros de compras</td></tr>';return;}
+  tbl.innerHTML=[...purchases].map(function(c){
+    // Compatibilidad: compras nuevas tienen detalle[], viejas son por producto
+    var esNueva = Array.isArray(c.detalle);
+    var totalMostrar = c.total || 0;
+    var nombreMostrar = esNueva
+      ? (c.detalle.length+' producto(s): '+c.detalle.slice(0,2).map(function(d){return d.name;}).join(', ')+(c.detalle.length>2?'...':''))
+      : (c.name||'—');
+    var badge = c.tipoPago==='credito'
+      ? '<span class="badge" style="background:#fff8e1;color:#d48a00;font-size:10px">📋 Crédito</span>'
+      : '<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Contado</span>';
+    return '<tr>'+
+      '<td style="font-size:12px">'+c.fecha+'</td>'+
+      '<td style="font-weight:700">'+c.prov+'</td>'+
+      '<td style="font-size:11px;color:var(--text2);max-width:200px">'+nombreMostrar+'</td>'+
+      '<td>'+badge+'</td>'+
+      '<td style="font-weight:700;color:#3aaa6a">'+fmt(totalMostrar)+'</td>'+
+      '<td>'+(esNueva?'<button class="btn btn-ghost btn-sm" onclick="verDetalleCompra(\''+c.id+'\')"><i class="ti ti-eye"></i> Ver detalle</button>':'<span style="font-size:11px;color:var(--text3)">'+c.qty+' '+c.unit+'</span>')+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+function verDetalleCompra(id){
+  var c = purchases.find(function(x){ return x.id===id; });
+  if(!c||!c.detalle) return;
+  var html = '<div style="font-size:12px;margin-bottom:12px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg3);padding:10px;border-radius:8px;margin-bottom:10px">'+
+    '<div><b>Proveedor:</b> '+c.prov+'</div>'+
+    '<div><b>Fecha:</b> '+c.fecha+'</div>'+
+    '<div><b>Forma de pago:</b> '+(c.tipoPago==='credito'?'📋 Crédito':'💵 Contado')+'</div>'+
+    '<div><b>Registró:</b> '+c.por+'</div>'+
+    (c.vence?'<div><b>Vence:</b> '+c.vence+'</div>':'')+'</div>'+
+    '<div class="tw"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>P. Unitario</th><th>Subtotal</th></tr></thead><tbody>'+
+    c.detalle.map(function(d){
+      return '<tr><td style="font-size:12px">'+d.name+'</td>'+
+        '<td style="text-align:center">'+d.qty+' '+d.unit+'</td>'+
+        '<td style="text-align:right">'+fmt(d.costo)+'</td>'+
+        '<td style="text-align:right;font-weight:700;color:#3aaa6a">'+fmt(d.subtotal)+'</td></tr>';
+    }).join('')+
+    '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700;padding-top:8px">TOTAL COMPRA:</td>'+
+    '<td style="text-align:right;font-weight:800;color:#3aaa6a;font-size:14px">'+fmt(c.total)+'</td></tr></tfoot></table></div></div>';
+
+  // Mostrar en modal genérico
+  var mo = document.getElementById('ov-detalle-compra');
+  if(!mo){
+    mo = document.createElement('div');
+    mo.className='ov'; mo.id='ov-detalle-compra';
+    mo.innerHTML='<div class="modal" style="max-width:600px">'+
+      '<button class="mx" onclick="closeM(\'detalle-compra\')"><i class="ti ti-x"></i></button>'+
+      '<div class="mt"><i class="ti ti-shopping-cart" style="color:#3aaa6a"></i>Detalle de compra</div>'+
+      '<div id="detalle-compra-content"></div>'+
+      '<div style="margin-top:10px"><button class="btn btn-ghost" onclick="closeM(\'detalle-compra\')">Cerrar</button></div>'+
+    '</div>';
+    document.body.appendChild(mo);
+  }
+  document.getElementById('detalle-compra-content').innerHTML = html;
+  openM('detalle-compra');
 }
 
 // ══════════════════════════════════════════════
