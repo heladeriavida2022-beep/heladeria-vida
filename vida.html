@@ -438,7 +438,7 @@ try{
         <div class="sg">
           <div class="slbl">Principal</div>
           <button class="sni active" onclick="adminNav('dashboard',this)"><i class="ti ti-dashboard"></i>Dashboard</button>
-          <button class="sni" onclick="adminNav('estadisticas',this)" id="sni-estadisticas"><i class="ti ti-chart-line"></i>Estadísticas</button>
+          <button class="sni" onclick="adminNav('estadisticas',this)"><i class="ti ti-chart-line"></i>Estadísticas</button>
           <button class="sni" onclick="adminNav('trazabilidad',this)"><i class="ti ti-timeline"></i>Trazabilidad</button>
         </div>
         <div class="sg">
@@ -1232,24 +1232,15 @@ try{
         <option value="2">Turno 2 - Tarde</option>
       </select>
     </div>
-    <div class="fg"><label class="fgrp-label">🏦 Base fija de caja</label>
-      <input class="finput" type="number" id="ct-fondo" value="100000" readonly style="background:var(--bg3);color:#f0a500;font-weight:700">
+    <div class="fg"><label class="fgrp-label">Fondo inicial ($)</label>
+      <input class="finput" type="number" id="ct-fondo" placeholder="0" oninput="calcCierre()">
     </div>
   </div>
   <!-- Resumen automático -->
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0" id="ct-resumen"></div>
-  <!-- Instrucción clara -->
-  <div style="background:#fff8e1;border:1.5px solid #f0a500;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
-    <div style="font-weight:700;color:#d48a00;margin-bottom:5px">📋 ¿Cómo contar el efectivo?</div>
-    <div style="color:#7a5c00;line-height:1.6">
-      Cuente <b>TODO</b> el dinero que hay físicamente en la caja:<br>
-      💵 La <b>base inicial ($100.000)</b> + el dinero de las ventas.<br>
-      <span style="font-size:11px;color:#a07020">Ejemplo: Si vendió $300.000 en efectivo → cuente $400.000 en total.</span>
-    </div>
-  </div>
   <!-- Dinero contado -->
-  <div class="fg"><label class="fgrp-label">💵 Efectivo total contado en caja (base + ventas)</label>
-    <input class="finput" type="number" id="ct-contado" placeholder="Ingrese el total de billetes contados..." oninput="calcCierre()" style="font-size:14px;font-weight:700">
+  <div class="fg"><label class="fgrp-label">💵 Efectivo contado físicamente ($)</label>
+    <input class="finput" type="number" id="ct-contado" placeholder="0" oninput="calcCierre()">
   </div>
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0" id="ct-diferencia"></div>
   <div class="fg"><label class="fgrp-label">Observaciones</label>
@@ -1346,7 +1337,7 @@ try{
 </div></div>
 
 <script>
-const LS={K:'heladeria_v2',_d:null,_def(){const A=['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'];return{users:[{id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'3147361722',active:true,turno:'Completo',perms:[...A],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'},{id:'u2',name:'Renata',role:'vendedor',user:'renata',pass:'3103482128',active:true,turno:'Mañana',perms:['pos','carta','mesas','pedidos','ventas','inventario','caja'],color:'#3b82f6',initials:'MG'},{id:'u3',name:'Leidy Viviana',role:'vendedor',user:'leidy2025',pass:'3104930091',active:true,turno:'Tarde',perms:['pos','carta','mesas','pedidos','ventas','inventario','caja','gastos','ingresos','productos','proveedores'],color:'#06b6d4',initials:'JP'},{id:'u4',name:'Angel Villareal',role:'vendedor',user:'angel',pass:'3171107947',active:true,turno:'Variable',perms:['pos','carta','pedidos','ventas','inventario','caja','gastos','ingresos','productos','proveedores'],color:'#10b981',initials:'PR'}],sales:[],purchases:[],orders:[],trazLog:[],gastos:[],movCaja:[],cierresTurno:[],deudas:[],products:null,suppliers:[{id:'s1',name:'Lácteos del Valle',phone:'311-456-7890',products:'Leche',credit:30,owed:0},{id:'s2',name:'Sabores Cali',phone:'300-123-4567',products:'Esencias',credit:15,owed:0},{id:'s3',name:'Azúcar y Endulzantes',phone:'302-987-6543',products:'Azúcar',credit:20,owed:0},{id:'s4',name:'Empaques Rápidos',phone:'316-555-0099',products:'Conos',credit:0,owed:0}],orderCounter:100};},init(){try{var r=localStorage.getItem(this.K);this._d=r?JSON.parse(r):null;}catch(e){this._d=null;}if(!this._d)this._d=this._def();var def=this._def();for(var k in def){if(this._d[k]===undefined)this._d[k]=def[k];}this._d.products=null;/* precios siempre del código */var su=this._d.users;if(su&&Array.isArray(su)){var adm=su.find(function(u){return u.id==='u1'||u.role==='admin';});if(adm&&(adm.user==='admin'||adm.name==='Administrador')){adm.name='Viviana Rojas';adm.user='viviana.rojas';adm.pass='1112465394';adm.initials='VR';this.save();}}return this;},save(){try{localStorage.setItem(this.K,JSON.stringify(this._d));}catch(e){}},g(k){return this._d?this._d[k]:this._def()[k];},set(k,v){if(!this._d)this.init();this._d[k]=v;this.save();},push(k,item){if(!this._d)this.init();if(!Array.isArray(this._d[k]))this._d[k]=[];this._d[k].unshift(item);this.save();},updProd(id,upd){if(!this._d)return;if(!this._d.stocks)this._d.stocks={};this._d.stocks[String(id)]=Object.assign(this._d.stocks[String(id)]||{},upd);this.save();},updItem(k,id,upd){if(!this._d)return;var a=this._d[k];if(!Array.isArray(a))return;var i=a.findIndex(function(x){return x.id===id;});if(i>=0){Object.assign(a[i],upd);this.save();}},delItem(k,id){if(!this._d)return;this._d[k]=(this._d[k]||[]).filter(function(x){return x.id!==id;});this.save();}};
+const LS={K:'heladeria_v2',_d:null,_def(){const A=['pos','carta','mesas','pedidos','ventas','inventario','ingresos','gastos','costos','deudas','estadisticas','trazabilidad','proveedores','productos','usuarios','caja'];return{users:[{id:'u1',name:'Viviana Rojas',role:'admin',user:'viviana.rojas',pass:'3147361722',active:true,turno:'Completo',perms:[...A],color:'linear-gradient(135deg,#f4845f,#9b72cf)',initials:'VR'},{id:'u2',name:'Renata',role:'vendedor',user:'renata',pass:'3103482128',active:true,turno:'Mañana',perms:['pos','carta','mesas','pedidos','ventas','inventario','caja'],color:'#3b82f6',initials:'MG'},{id:'u3',name:'Leidy Viviana',role:'vendedor',user:'leidy2025',pass:'3104930091',active:true,turno:'Tarde',perms:['pos','carta','mesas','pedidos','ventas','inventario','caja'],color:'#06b6d4',initials:'JP'},{id:'u4',name:'Angel Villareal',role:'vendedor',user:'angel',pass:'3171107947',active:true,turno:'Variable',perms:['pos','carta','pedidos','ventas','inventario','caja'],color:'#10b981',initials:'PR'}],sales:[],purchases:[],orders:[],trazLog:[],gastos:[],movCaja:[],cierresTurno:[],deudas:[],products:null,suppliers:[{id:'s1',name:'Lácteos del Valle',phone:'311-456-7890',products:'Leche',credit:30,owed:0},{id:'s2',name:'Sabores Cali',phone:'300-123-4567',products:'Esencias',credit:15,owed:0},{id:'s3',name:'Azúcar y Endulzantes',phone:'302-987-6543',products:'Azúcar',credit:20,owed:0},{id:'s4',name:'Empaques Rápidos',phone:'316-555-0099',products:'Conos',credit:0,owed:0}],orderCounter:100};},init(){try{var r=localStorage.getItem(this.K);this._d=r?JSON.parse(r):null;}catch(e){this._d=null;}if(!this._d)this._d=this._def();var def=this._def();for(var k in def){if(this._d[k]===undefined)this._d[k]=def[k];}this._d.products=null;/* precios siempre del código */var su=this._d.users;if(su&&Array.isArray(su)){var adm=su.find(function(u){return u.id==='u1'||u.role==='admin';});if(adm&&(adm.user==='admin'||adm.name==='Administrador')){adm.name='Viviana Rojas';adm.user='viviana.rojas';adm.pass='1112465394';adm.initials='VR';this.save();}}return this;},save(){try{localStorage.setItem(this.K,JSON.stringify(this._d));}catch(e){}},g(k){return this._d?this._d[k]:this._def()[k];},set(k,v){if(!this._d)this.init();this._d[k]=v;this.save();},push(k,item){if(!this._d)this.init();if(!Array.isArray(this._d[k]))this._d[k]=[];this._d[k].unshift(item);this.save();},updProd(id,upd){if(!this._d)return;if(!this._d.stocks)this._d.stocks={};this._d.stocks[String(id)]=Object.assign(this._d.stocks[String(id)]||{},upd);this.save();},updItem(k,id,upd){if(!this._d)return;var a=this._d[k];if(!Array.isArray(a))return;var i=a.findIndex(function(x){return x.id===id;});if(i>=0){Object.assign(a[i],upd);this.save();}},delItem(k,id){if(!this._d)return;this._d[k]=(this._d[k]||[]).filter(function(x){return x.id!==id;});this.save();}};
 LS.init();
 // VERIFICAR PRECIO DE BOCATTO - si es 0, el archivo es viejo
 var testProd = typeof prods !== 'undefined' ? null : null;
@@ -1399,7 +1390,6 @@ let posMode='mostrador',invCatF='ALL',prodCatF='ALL',cartaCatF='ALL',clienteCatF
 var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
 let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];let cierresGeneral=LS.g('cierresGeneral')||[];
-const BASE_CAJA = 100000; // Base fija de caja - NO editable
 
 
 // MAPA DE PRECIOS - siempre correcto, nunca del localStorage
@@ -1576,43 +1566,21 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
-  // SIEMPRE usar usuarios del código — más seguro y simple
-  var usuariosCodigo = LS._def().users;
-  // Aplicar permisos editados si existen en localStorage, pero credenciales del código
+  // Siempre leer usuarios de localStorage (donde se guardan los permisos editados)
   var _su = LS.g('users');
   if(_su && _su.length > 0){
-    systemUsers = usuariosCodigo.map(function(uCodigo){
-      var uLocal = _su.find(function(x){ return x.id === uCodigo.id; });
-      if(uLocal){
-        // Tomar permisos de localStorage pero credenciales y active del código
-        return Object.assign({}, uLocal, {
-          pass: uCodigo.pass,
-          user: uCodigo.user,
-          active: true  // siempre activo según código
-        });
-      }
-      return uCodigo;
-    });
+    systemUsers = _su;
   } else {
-    systemUsers = usuariosCodigo;
+    systemUsers = LS._def().users;
+    LS.set('users', systemUsers);
   }
   const user=document.getElementById('loginUser').value.trim().toLowerCase();
   const pass=document.getElementById('loginPass').value;
-  const errEl=document.getElementById('loginError');
-  const errMsg=document.getElementById('loginErrorMsg');
+  const errEl=document.getElementById('loginError');const errMsg=document.getElementById('loginErrorMsg');
   errEl.classList.remove('show');
-  // Buscar usuario con credenciales del código
-  const found=usuariosCodigo.find(u=>u.user.toLowerCase()===user&&u.pass===pass);
-  if(!found){
-    errMsg.textContent=usuariosCodigo.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';
-    errEl.classList.add('show');
-    document.getElementById('loginPass').value='';
-    return;
-  }
-  // Usar el usuario mezclado (con permisos actualizados si existen)
-  currentUser = systemUsers.find(function(u){ return u.id === found.id; }) || found;
-  logAction('login','Ingresó al sistema');
-  showApp();
+  const found=systemUsers.find(u=>u.user.toLowerCase()===user&&u.pass===pass&&u.active);
+  if(!found){errMsg.textContent=systemUsers.find(u=>u.user.toLowerCase()===user)?'Contraseña incorrecta':'Usuario no encontrado';errEl.classList.add('show');document.getElementById('loginPass').value='';return;}
+  currentUser=found;logAction('login','Ingresó al sistema');showApp();
 }
 
 function showApp(){
@@ -1676,9 +1644,6 @@ function applyPermissions(){
     const permMap={ventas:'ventas',gastos:'gastos',costos:'costos',deudas:'deudas',inventario:'inventario',compras:'ingresos',productos:'productos',proveedores:'proveedores',usuarios:'usuarios'};
     el.classList.toggle('locked',!hasPerm(permMap[k]));
   });
-  // Ocultar estadísticas si no tiene permiso
-  var sniEst = document.getElementById('sni-estadisticas');
-  if(sniEst) sniEst.style.display = (currentUser.role==='admin'||hasPerm('estadisticas')) ? '' : 'none';
   // Btn nuevo producto
   const bnp=document.getElementById('btn-new-prod');
   if(bnp)bnp.style.display=hasPerm('productos')?'':'none';
@@ -3291,13 +3256,11 @@ function guardarVentaM(){
 }
 function renderSalesTable(){
   const tbl=document.getElementById('sales-tbl');if(!tbl)return;
-  var salesHoy = getSalesHoy();
-  const tot=salesHoy.reduce((s,v)=>s+v.total,0);
-  const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
+  const tot=sales.reduce((s,v)=>s+v.total,0);const unds=sales.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
-  if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Transacciones hoy</div><div class="sval" style="color:var(--acc4)">${salesHoy.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${salesHoy.length?fmt(tot/salesHoy.length):'$0'}</div></div>`;
-  if(!salesHoy.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin ventas hoy</td></tr>';return;}
-  tbl.innerHTML=[...salesHoy].reverse().map(s=>`<tr><td>${s.id}</td><td>${s.time}</td><td>${s.name}</td><td>${catBadge(s.cat)}</td><td>${s.qty}</td><td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td><td>${s.canal}</td><td style="color:var(--text2);font-size:11px">${s.emp}</td></tr>`).join('');
+  if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Transacciones</div><div class="sval" style="color:var(--acc4)">${sales.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${sales.length?fmt(tot/sales.length):'$0'}</div></div>`;
+  if(!sales.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
+  tbl.innerHTML=[...sales].reverse().map(s=>`<tr><td>${s.id}</td><td>${s.time}</td><td>${s.name}</td><td>${catBadge(s.cat)}</td><td>${s.qty}</td><td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td><td>${s.canal}</td><td style="color:var(--text2);font-size:11px">${s.emp}</td></tr>`).join('');
 }
 
 // ══════════════════════════════════════════════
@@ -3676,16 +3639,19 @@ function confirmarReinicio(){
 }
 
 function renderDashboard(){
-  var salesHoy = getSalesHoy();
-  const tot=salesHoy.reduce((s,v)=>s+v.total,0);
+  const tot=sales.reduce((s,v)=>s+v.total,0);
   const low=prods.filter(p=>p.active&&p.descuenta&&p.stock>0&&p.stock<=p.min);
   const out=prods.filter(p=>p.active&&p.descuenta&&p.stock<=0);
   const st=document.getElementById('dash-stats');if(!st)return;
-  st.innerHTML=`<div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div><div class="schg up">${salesHoy.length} pedidos</div></div><div class="stat"><div class="sico"><i class="ti ti-package"></i></div><div class="slb">Stock crítico</div><div class="sval" style="color:${out.length?'var(--acc)':'var(--acc3)'}">${out.length+low.length}</div></div><div class="stat"><div class="sico"><i class="ti ti-list"></i></div><div class="slb">Pedidos activos</div><div class="sval" style="color:var(--acc5)">${liveOrders.filter(o=>o.status!=='entregado').length}</div></div><div class="stat"><div class="sico"><i class="ti ti-users"></i></div><div class="slb">Empleados activos</div><div class="sval" style="color:var(--acc4)">${systemUsers.filter(u=>u.active).length}</div></div>`;
+  st.innerHTML=`<div class="stat"><div class="sico"><i class="ti ti-cash"></i></div><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div><div class="schg up">${sales.length} pedidos</div></div><div class="stat"><div class="sico"><i class="ti ti-package"></i></div><div class="slb">Stock crítico</div><div class="sval" style="color:${out.length?'var(--acc)':'var(--acc3)'}">${out.length+low.length}</div></div><div class="stat"><div class="sico"><i class="ti ti-list"></i></div><div class="slb">Pedidos activos</div><div class="sval" style="color:var(--acc5)">${liveOrders.filter(o=>o.status!=='entregado').length}</div></div><div class="stat"><div class="sico"><i class="ti ti-users"></i></div><div class="slb">Empleados activos</div><div class="sval" style="color:var(--acc4)">${systemUsers.filter(u=>u.active).length}</div></div>`;
   const da=document.getElementById('dash-alerts');if(da)da.innerHTML=(out.length?`<div class="alert ae"><i class="ti ti-alert-circle"></i><strong>Agotados (${out.length}):</strong> ${out.map(p=>p.name).join(', ')}</div>`:'')+(low.length?`<div class="alert aw"><i class="ti ti-alert-triangle"></i><strong>Stock bajo (${low.length}):</strong> ${low.map(p=>p.name).join(', ')}</div>`:'');
+  // chart
   const dc=document.getElementById('dash-chart');if(dc){dc.innerHTML='';[[180,240,210,280,320,380,287],[90,120,100,150,160,200,140]].forEach((d,ci)=>d.forEach((v,i)=>{if(!dc.children[i]){const g=document.createElement('div');g.className='bar-g';dc.appendChild(g);}const b=document.createElement('div');b.className='bar';b.style.cssText=`height:${Math.round(v/420*100)}%;background:${ci===0?'var(--acc3)':'var(--acc)'}`;dc.children[i].appendChild(b);if(ci===1){const l=document.createElement('div');l.className='bar-l';l.textContent=['L','M','X','J','V','S','D'][i];dc.children[i].appendChild(l);}}));}
-  const dc2=document.getElementById('dash-cat');if(dc2){const cs={};Object.keys(CC).forEach(c=>{cs[c]={t:0,q:0};});salesHoy.forEach(s=>{if(cs[s.cat]){cs[s.cat].t+=s.total;cs[s.cat].q+=s.qty;}});dc2.innerHTML=`<table><thead><tr><th>Cat.</th><th>Und.</th><th>Total</th></tr></thead><tbody>${Object.keys(CC).map(c=>`<tr><td>${catBadge(c)}</td><td>${cs[c].q}</td><td style="color:var(--acc3)">${cs[c].t>0?fmt(cs[c].t):'—'}</td></tr>`).join('')}</tbody></table>`;}
-  const rt=document.getElementById('dash-sales-tbl');if(rt)rt.innerHTML=salesHoy.length?[...salesHoy].reverse().slice(0,5).map(s=>`<tr><td>${s.time}</td><td>${s.name}</td><td style="color:var(--text2);font-size:10px">${s.emp}</td><td style="color:var(--acc3)">${s.total>0?fmt(s.total):'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">Sin ventas hoy</td></tr>';
+  // sales by cat
+  const dc2=document.getElementById('dash-cat');if(dc2){const cs={};Object.keys(CC).forEach(c=>{cs[c]={t:0,q:0};});sales.forEach(s=>{if(cs[s.cat]){cs[s.cat].t+=s.total;cs[s.cat].q+=s.qty;}});dc2.innerHTML=`<table><thead><tr><th>Cat.</th><th>Und.</th><th>Total</th></tr></thead><tbody>${Object.keys(CC).map(c=>`<tr><td>${catBadge(c)}</td><td>${cs[c].q}</td><td style="color:var(--acc3)">${cs[c].t>0?fmt(cs[c].t):'—'}</td></tr>`).join('')}</tbody></table>`;}
+  // recent sales
+  const rt=document.getElementById('dash-sales-tbl');if(rt)rt.innerHTML=sales.length?[...sales].reverse().slice(0,5).map(s=>`<tr><td>${s.time}</td><td>${s.name}</td><td style="color:var(--text2);font-size:10px">${s.emp}</td><td style="color:var(--acc3)">${s.total>0?fmt(s.total):'—'}</td></tr>`).join(''):'<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:14px">Sin ventas</td></tr>';
+  // inv
   const di=document.getElementById('dash-inv');if(di)di.innerHTML=(out.length||low.length)?[...out.map(p=>({p,cls:'br',st:'Agotado'})),...low.map(p=>({p,cls:'by',st:'Bajo'}))].slice(0,8).map(({p,cls,st})=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(30,30,56,.7);font-size:12px"><span>${p.emoji} ${p.name}</span><span class="badge ${cls}">${st}${cls==='by'?' ('+p.stock+')':''}</span></div>`).join(''):'<div style="text-align:center;color:var(--acc3);padding:14px;font-size:12px">✓ Todo en orden</div>';
 }
 
@@ -3751,192 +3717,90 @@ function calcCambio(){
   }
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
-function getPagoTotals(){
-  var t={};
-  Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});
-  getSalesHoy().forEach(function(s){
-    var k=s.pago||'Efectivo';
-    if(!t[k])t[k]={monto:0,count:0};
-    t[k].monto+=(s.total||0);
-    t[k].count++;
-  });
-  return t;
-}
-
-// BASE FIJA DE CAJA
-
-// Totales de ventas filtradas por turno (desde el último cierre)
-function getPagoTotalsTurno(){
-  // Encontrar el timestamp del último cierre registrado hoy
-  var hoy = new Date().toLocaleDateString('es-CO');
-  var cierresHoy = cierresTurno.filter(function(c){ return c.fecha===hoy; });
-  var ultimoCierreTs = cierresHoy.length > 0 ? cierresHoy[0].timestamp : null;
-
-  // Filtrar solo ventas después del último cierre
-  var ventasTurno = sales.filter(function(s){
-    if(!ultimoCierreTs) return true; // primer turno: todas las ventas
-    return (s.timestamp||'') > ultimoCierreTs;
-  });
-
-  var t={};
-  Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});
-  ventasTurno.forEach(function(s){
-    var k=s.pago||'Efectivo';
-    if(!t[k])t[k]={monto:0,count:0};
-    t[k].monto+=(s.total||0);t[k].count++;
-  });
-  return t;
-}
+function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});sales.forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
 
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
-function getFechaHoy(){
-  var now = new Date();
-  var y = now.getFullYear();
-  var m = String(now.getMonth()+1).padStart(2,'0');
-  var d = String(now.getDate()).padStart(2,'0');
-  return y+'-'+m+'-'+d;
-}
-
-// Función central: devuelve SOLO las ventas de la jornada activa de HOY
-// Usa el último cierre como corte absoluto — ventas anteriores al cierre nunca aparecen
-function getSalesHoy(){
-  var hoy = getFechaHoy();
-  // Encontrar el timestamp del cierre más reciente (de cualquier día)
-  var ultimoCierre = null;
-  cierresTurno.forEach(function(c){
-    var ts = c.timestamp || '';
-    if(!ultimoCierre || ts > ultimoCierre){ ultimoCierre = ts; }
-  });
-  return sales.filter(function(s){
-    var ts = s.timestamp || '';
-    var fecha = s.fecha || ts.split('T')[0] || '';
-    // 1. Debe ser de hoy
-    if(fecha !== hoy) return false;
-    // 2. Debe ser POSTERIOR al último cierre (de cualquier día)
-    if(ultimoCierre && ts && ts <= ultimoCierre) return false;
-    return true;
-  });
-}
-
-function getVentasTurnoActual(){
-  return getSalesHoy();
-}
-
-function getPagoTotalsturno(){
-  var ventasTurno = getVentasTurnoActual();
-  var totals = {};
-  ventasTurno.forEach(function(s){
-    var pago = s.pago||'Efectivo';
-    if(!totals[pago]) totals[pago]={monto:0,count:0};
-    totals[pago].monto += (s.total||0);
-    totals[pago].count++;
-  });
-  return totals;
-}
-
-function getEgresosTurnoActual(){
-  var ultimoCierre = cierresTurno.length > 0 ? cierresTurno[0] : null;
-  var corteTs = ultimoCierre ? ultimoCierre.timestamp : null;
-  return movCaja.filter(function(m){
-    if(m.tipo!=='egreso') return false;
-    if(!corteTs) return true;
-    return m.timestamp && m.timestamp > corteTs;
-  });
-}
-
 function abrirCierreTurno(){
-  var t = getPagoTotalsturno();
+  // Calcular totales del turno
+  var t = getPagoTotals();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
   var totalVentas = efe + nequi + tarjeta + trans;
-  var egresosArr = getEgresosTurnoActual();
-  var egresosEfectivo = egresosArr.reduce(function(s,m){return s+(m.monto||0);},0);
-  var esperado = BASE_CAJA + efe - egresosEfectivo;
-  var aRetirar = Math.max(0, esperado - BASE_CAJA);
-  var ventasTurno = getVentasTurnoActual();
+  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
 
+  // Precalcular en el modal
   var res = document.getElementById('ct-resumen');
   if(res) res.innerHTML =
-    '<div style="background:#edfaf2;border:1px solid #3aaa6a;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700">' +
-    '<span>💵 Base fija de caja:</span><span style="color:#3aaa6a">'+fmt(BASE_CAJA)+'</span></div>' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
-    '<div><span style="color:var(--text2)">Ventas efectivo turno:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Ventas efectivo:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
     '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b style="color:#9b72cf">'+fmt(nequi)+'</b></div>' +
     '<div><span style="color:var(--text2)">Tarjeta:</span> <b style="color:#3b82f6">'+fmt(tarjeta)+'</b></div>' +
     '<div><span style="color:var(--text2)">Transferencia:</span> <b style="color:#f0a500">'+fmt(trans)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Total ventas turno:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Egresos en efectivo:</span> <b style="color:#e94560">-'+fmt(egresosEfectivo)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Total ventas:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Gastos turno:</span> <b style="color:#e94560">'+fmt(gastosTurno)+'</b></div>' +
     '</div>' +
-    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
-    '<div style="font-weight:700">Efectivo esperado: <span style="color:#3aaa6a">'+fmt(esperado)+'</span></div>' +
-    '<div style="font-weight:700;color:#e94560">💰 A retirar: '+fmt(aRetirar)+'</div>' +
-    '</div>' +
-    '<div style="font-size:10px;color:var(--text3);margin-top:4px">'+ventasTurno.length+' ventas en este turno</div>';
+    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:flex;justify-content:space-between;font-weight:700;font-size:13px">' +
+    '<span>Total pedidos: '+sales.length+'</span>' +
+    '<span style="color:#3aaa6a">'+fmt(totalVentas)+'</span></div>';
 
-  var turnoDefault = currentUser&&currentUser.turno&&currentUser.turno.includes('Mañana')?'1':'2';
+  // Detectar turno según usuario
+  var turnoDefault = currentUser && currentUser.turno && currentUser.turno.includes('Mañana') ? '1' : '2';
   var sel = document.getElementById('ct-turno');
   if(sel) sel.value = turnoDefault;
 
-  var fondoEl = document.getElementById('ct-fondo');
-  if(fondoEl){fondoEl.value=BASE_CAJA;fondoEl.readOnly=true;fondoEl.style.background='var(--bg3)';}
-
-  document.getElementById('ct-contado').value='';
-  document.getElementById('ct-obs').value='';
-  var dif=document.getElementById('ct-diferencia');
-  if(dif) dif.innerHTML='';
+  document.getElementById('ct-fondo').value = '';
+  document.getElementById('ct-contado').value = '';
+  document.getElementById('ct-obs').value = '';
+  var dif = document.getElementById('ct-diferencia');
+  if(dif) dif.innerHTML = '';
 
   openM('cierre-turno');
 }
+
 function calcCierre(){
-  var t = getPagoTotalsturno();
+  var t = getPagoTotals();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
-  var egresosEfectivo = getEgresosTurnoActual().reduce(function(s,m){return s+(m.monto||0);},0);
+  var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
-  var esperado = BASE_CAJA + efe - egresosEfectivo;
-  var aRetirar = Math.max(0, esperado - BASE_CAJA);
+  var esperado = fondo + efe;
   var diferencia = contado - esperado;
-  var estado = Math.abs(diferencia)<100?'correcto':diferencia>0?'sobrante':'faltante';
-  var color = estado==='correcto'?'#3aaa6a':estado==='sobrante'?'#f0a500':'#e94560';
-  var icon = estado==='correcto'?'✅':estado==='sobrante'?'🟡':'🔴';
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+  var color = estado==='correcto' ? '#3aaa6a' : estado==='sobrante' ? '#f0a500' : '#e94560';
+  var icon = estado==='correcto' ? '✅' : estado==='sobrante' ? '🟡' : '🔴';
   var dif = document.getElementById('ct-diferencia');
   if(dif && contado > 0) dif.innerHTML =
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Base fija de caja:</span><span style="color:#3aaa6a"><b>'+fmt(BASE_CAJA)+'</b></span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Ventas en efectivo (turno):</span><span>'+fmt(efe)+'</span></div>' +
-    (egresosEfectivo>0?'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Egresos en efectivo:</span><span style="color:#e94560">-'+fmt(egresosEfectivo)+'</span></div>':'')+
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;font-weight:700"><span>Efectivo esperado en caja:</span><span>'+fmt(esperado)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>💰 Dinero a retirar:</span><span style="color:#e94560;font-weight:700">'+fmt(aRetirar)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Fondo inicial:</span><span>'+fmt(fondo)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">' +
-    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>' +
-    '<div style="background:#edfaf2;border-radius:8px;padding:8px;margin-top:8px;text-align:center;font-size:12px;font-weight:700;color:#3aaa6a">Base que queda en caja: '+fmt(BASE_CAJA)+'</div>';
+    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>';
 }
+
 function confirmarCierreTurno(){
   var turno = document.getElementById('ct-turno').value;
+  var fondo = parseFloat(document.getElementById('ct-fondo').value)||0;
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
   var obs = document.getElementById('ct-obs').value.trim();
 
   if(contado <= 0){toast('Ingresa el efectivo contado','var(--acc)');return;}
   if(!confirm('¿Confirmas el cierre del Turno '+turno+'? Esta acción no se puede deshacer.')) return;
 
-  var t = getPagoTotalsturno();
+  var t = getPagoTotals();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
-  var egresosEfectivo = getEgresosTurnoActual().reduce(function(s,m){return s+(m.monto||0);},0);
-  var totalVentas = efe + nequi + tarjeta + trans;
-  var esperado = BASE_CAJA + efe - egresosEfectivo;
-  var aRetirar = Math.max(0, esperado - BASE_CAJA);
-  var diferencia = contado - esperado;
-  var estado = Math.abs(diferencia)<100?'correcto':diferencia>0?'sobrante':'faltante';
-  var ventasTurno = getVentasTurnoActual();
   var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
+  var totalVentas = efe + nequi + tarjeta + trans;
+  var esperado = fondo + efe;
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
 
   var now = new Date();
   var cierre = {
@@ -3947,36 +3811,29 @@ function confirmarCierreTurno(){
     turno: turno,
     usuario: currentUser ? currentUser.name : '—',
     usuarioId: currentUser ? currentUser.id : '',
-    baseCaja: BASE_CAJA,
-    fondo: BASE_CAJA,
+    fondo: fondo,
     ventasEfectivo: efe,
     ventasNequi: nequi,
     ventasTarjeta: tarjeta,
     ventasTransferencia: trans,
     totalVentas: totalVentas,
     gastos: gastosTurno,
-    egresosEfectivo: egresosEfectivo,
     esperado: esperado,
-    aRetirar: aRetirar,
     contado: contado,
     diferencia: diferencia,
     estado: estado,
     observaciones: obs,
-    numPedidos: ventasTurno.length,
-    timestamp: now.toISOString(),
-    // IDs de ventas incluidas (para evitar duplicados en siguiente turno)
-    ventasIds: ventasTurno.map(function(s){return s.id;})
+    numPedidos: sales.length,
+    timestamp: now.toISOString()
   };
 
   cierresTurno.unshift(cierre);
   LS.set('cierresTurno', cierresTurno);
-  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('cierresTurno',cierre.id,cierre);
 
   closeM('cierre-turno');
-  toast('✅ Cierre Turno '+turno+' — A retirar: '+fmt(aRetirar)+' — Base queda: '+fmt(BASE_CAJA),'#3aaa6a');
+  toast('✅ Cierre de Turno '+turno+' registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
   renderCaja();
 }
-
 
 // ══════════════════════════════════════════════
 // CIERRE GENERAL DEL DÍA
@@ -4409,37 +4266,7 @@ function exportarCierresPDF(){
   w.print();
 }
 
-function renderCaja(){
-  movCaja=LS.g('movCaja')||[];
-  cierresTurno=LS.g('cierresTurno')||[];
-  var salesHoy = getSalesHoy();
-  var t=getPagoTotals(); // ya filtra por hoy
-  var tot=salesHoy.reduce(function(s,v){return s+(v.total||0);},0);
-  var efe=t['Efectivo']?t['Efectivo'].monto:0;
-  var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);
-  var hoy = getFechaHoy();
-  var comprasEfe=purchases.filter(function(p){return p.tipoPago==='contado'&&((p.fecha||'').startsWith(hoy)||(p.timestamp||'').startsWith(hoy));}).reduce(function(s,p){return s+(p.total||0);},0);
-  var gastosEfe=(LS.g('gastos')||[]).filter(function(g){return g.tipoPago==='contado'&&(g.fecha||'').startsWith(hoy);}).reduce(function(s,g){return s+(g.monto||0);},0);
-  var efeNeto=efe-comprasEfe-gastosEfe;
-  var st=document.getElementById('caja-stats');
-  if(st)st.innerHTML=
-    '<div class="stat"><div class="sico">💰</div><div class="slb">Ventas totales</div><div class="sval" style="color:#3aaa6a">'+fmt(tot)+'</div></div>'+
-    '<div class="stat"><div class="sico">💵</div><div class="slb">Efectivo ventas</div><div class="sval" style="color:#3aaa6a">'+fmt(efe)+'</div></div>'+
-    '<div class="stat"><div class="sico">📱</div><div class="slb">Digital</div><div class="sval" style="color:#9b72cf">'+fmt(dig)+'</div></div>'+
-    '<div class="stat"><div class="sico">🛒</div><div class="slb">Compras en efectivo</div><div class="sval" style="color:#e94560">-'+fmt(comprasEfe)+'</div></div>'+
-    '<div class="stat"><div class="sico">📋</div><div class="slb">Gastos en efectivo</div><div class="sval" style="color:#e94560">-'+fmt(gastosEfe)+'</div></div>'+
-    '<div class="stat"><div class="sico">🏦</div><div class="slb">Efectivo neto caja</div><div class="sval" style="color:'+(efeNeto>=0?'#3aaa6a':'#e94560')+'">'+fmt(efeNeto)+'</div></div>'+
-    '<div class="stat"><div class="sico">🔒</div><div class="slb">Último cierre</div><div class="sval" style="font-size:13px">'+(cierresTurno.length?cierresTurno[0].hora:'Sin cierres')+'</div></div>';
-  var donut=document.getElementById('caja-donut');
-  if(donut){var total2=tot||1;donut.innerHTML=Object.entries(PAGO_CFG).map(function(e){var k=e[0],cfg=e[1];var m2=t[k]?t[k].monto:0;var pct=Math.round(m2/total2*100);return'<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #f0f2f5"><span style="font-size:17px">'+cfg.icon+'</span><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12.5px;font-weight:600">'+k+'</span><span style="font-weight:700;color:'+cfg.color+'">'+fmt(m2)+'</span></div><div style="height:5px;background:#f0f2f5;border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+cfg.color+';border-radius:3px"></div></div></div></div>';}).join('')+(comprasEfe>0?'<div style="display:flex;justify-content:space-between;padding:7px 0;border-top:2px solid var(--border);font-size:12px"><span>🛒 Compras contado</span><span style="color:#e94560;font-weight:700">-'+fmt(comprasEfe)+'</span></div>':'')+(gastosEfe>0?'<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px"><span>📋 Gastos contado</span><span style="color:#e94560;font-weight:700">-'+fmt(gastosEfe)+'</span></div>':'')+'<div style="display:flex;justify-content:space-between;padding:8px 0;border-top:2px solid var(--border);font-weight:700;font-size:13px"><span>💵 Efectivo neto</span><span style="color:'+(efeNeto>=0?'#3aaa6a':'#e94560')+'">'+fmt(efeNeto)+'</span></div>';}
-  var fp=document.getElementById('caja-filter-pago')?document.getElementById('caja-filter-pago').value:'ALL';
-  var allMov=salesHoy.map(function(s){return{id:s.id,hora:s.time,tipo:'venta',desc:s.name,emp:s.emp,pago:s.pago||'Efectivo',monto:s.total,signo:1};}).concat(movCaja.map(function(m){return{id:m.id,hora:m.hora,tipo:m.tipo,desc:m.desc,emp:m.emp,pago:m.pago,monto:m.monto,signo:m.tipo==='ingreso'?1:-1};})).sort(function(a,b){return(b.id||'').localeCompare(a.id||'');});
-  var filt=fp==='ALL'?allMov:allMov.filter(function(m){return m.pago===fp;});
-  var tbl=document.getElementById('caja-tbl');
-  if(tbl){tbl.innerHTML=!filt.length?'<tr><td colspan="6" style="text-align:center;color:#aab0bb;padding:16px">Sin movimientos</td></tr>':filt.map(function(m){var c2=PAGO_CFG[m.pago]||{icon:'📝',color:'#888'};return'<tr><td style="font-size:11px;color:#7a8494">'+(m.hora||'—')+'</td><td>'+(m.tipo==='venta'?'<span style="background:#edfaf2;color:#3aaa6a;padding:2px 7px;border-radius:10px;font-size:10px">Venta</span>':'<span style="background:#eff6ff;color:#3b82f6;padding:2px 7px;border-radius:10px;font-size:10px">'+m.tipo+'</span>')+'</td><td>'+m.desc+'</td><td style="font-size:11px;color:#7a8494">'+(m.emp||'—')+'</td><td>'+c2.icon+' '+m.pago+'</td><td style="font-weight:700;color:'+(m.signo>0?'#3aaa6a':'#e94560')+'">'+(m.signo>0?'+':'−')+fmt(m.monto)+'</td></tr>';}).join('');}
-  var ct=document.getElementById('cierres-tbl');
-  if(ct){ct.innerHTML=cierresTurno.length?cierresTurno.map(function(c){return'<tr><td>'+c.fecha+' '+c.hora+'</td><td>'+c.emp+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.efectivo||0)+'</td><td style="color:#9b72cf;font-weight:700">'+fmt(c.digital||0)+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.total||0)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#aab0bb;padding:14px">Sin cierres</td></tr>';}
-}
+function renderCaja(){movCaja=LS.g('movCaja')||[];cierresTurno=LS.g('cierresTurno')||[];var t=getPagoTotals();var tot=sales.reduce(function(s,v){return s+(v.total||0);},0);var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var st=document.getElementById('caja-stats');if(st)st.innerHTML='<div class="stat"><div class="sico">💰</div><div class="slb">Total caja</div><div class="sval" style="color:#3aaa6a">'+fmt(tot)+'</div></div><div class="stat"><div class="sico">💵</div><div class="slb">Efectivo</div><div class="sval" style="color:#3aaa6a">'+fmt(efe)+'</div></div><div class="stat"><div class="sico">📱</div><div class="slb">Digital</div><div class="sval" style="color:#9b72cf">'+fmt(dig)+'</div></div><div class="stat"><div class="sico">🔒</div><div class="slb">Último cierre</div><div class="sval" style="font-size:13px">'+(cierresTurno.length?cierresTurno[0].hora:'Sin cierres')+'</div></div>';var donut=document.getElementById('caja-donut');if(donut){var total2=tot||1;donut.innerHTML=Object.entries(PAGO_CFG).map(function(e){var k=e[0],cfg=e[1];var m=t[k]?t[k].monto:0;var pct=Math.round(m/total2*100);return'<div style="display:flex;align-items:center;gap:9px;padding:7px 0;border-bottom:1px solid #f0f2f5"><span style="font-size:17px">'+cfg.icon+'</span><div style="flex:1"><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:12.5px;font-weight:600">'+k+'</span><span style="font-weight:700;color:'+cfg.color+'">'+fmt(m)+'</span></div><div style="height:5px;background:#f0f2f5;border-radius:3px"><div style="height:100%;width:'+pct+'%;background:'+cfg.color+';border-radius:3px"></div></div></div></div>';}).join('');}var fp=document.getElementById('caja-filter-pago')?document.getElementById('caja-filter-pago').value:'ALL';var allMov=sales.map(function(s){return{id:s.id,hora:s.time,tipo:'venta',desc:s.name,emp:s.emp,pago:s.pago||'Efectivo',monto:s.total,signo:1};}).concat(movCaja.map(function(m){return{id:m.id,hora:m.hora,tipo:m.tipo,desc:m.desc,emp:m.emp,pago:m.pago,monto:m.monto,signo:m.tipo==='ingreso'?1:-1};})).sort(function(a,b){return(b.id||'').localeCompare(a.id||'');});var filt=fp==='ALL'?allMov:allMov.filter(function(m){return m.pago===fp;});var tbl=document.getElementById('caja-tbl');if(tbl){tbl.innerHTML=!filt.length?'<tr><td colspan="6" style="text-align:center;color:#aab0bb;padding:16px">Sin movimientos</td></tr>':filt.map(function(m){var c2=PAGO_CFG[m.pago]||{icon:'📝',color:'#888'};return'<tr><td style="font-size:11px;color:#7a8494">'+(m.hora||'—')+'</td><td>'+(m.tipo==='venta'?'<span style="background:#edfaf2;color:#3aaa6a;padding:2px 7px;border-radius:10px;font-size:10px">Venta</span>':'<span style="background:#eff6ff;color:#3b82f6;padding:2px 7px;border-radius:10px;font-size:10px">'+m.tipo+'</span>')+'</td><td>'+m.desc+'</td><td style="font-size:11px;color:#7a8494">'+(m.emp||'—')+'</td><td>'+c2.icon+' '+m.pago+'</td><td style="font-weight:700;color:'+(m.signo>0?'#3aaa6a':'#e94560')+'">'+(m.signo>0?'+':'−')+fmt(m.monto)+'</td></tr>';}).join('');}var ct=document.getElementById('cierres-tbl');if(ct){ct.innerHTML=cierresTurno.length?cierresTurno.map(function(c){return'<tr><td>'+c.fecha+' '+c.hora+'</td><td>'+c.emp+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.efectivo)+'</td><td style="color:#9b72cf;font-weight:700">'+fmt(c.digital)+'</td><td style="color:#3aaa6a;font-weight:700">'+fmt(c.total)+'</td></tr>';}).join(''):'<tr><td colspan="5" style="text-align:center;color:#aab0bb;padding:14px">Sin cierres</td></tr>';}}
 function openCierre(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var det=document.getElementById('cierre-detalle');if(det)det.innerHTML='<div style="display:flex;justify-content:space-between;padding:5px 0;font-size:13px;font-weight:700"><span>TOTAL</span><span style="color:#3aaa6a">'+fmt(efe+dig)+'</span></div>';}
 function calcDiferencia(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var real=parseFloat(document.getElementById('cierre-efectivo-real').value)||0;var diff=real-efe;var el=document.getElementById('cierre-diferencia');if(el)el.innerHTML='<b>Diferencia: '+(diff>=0?'+':'')+fmt(diff)+'</b>';}
 function guardarCierre(){var t=getPagoTotals();var efe=t['Efectivo']?t['Efectivo'].monto:0;var dig=(t['Nequi/Daviplata']?t['Nequi/Daviplata'].monto:0)+(t['Tarjeta']?t['Tarjeta'].monto:0)+(t['Transferencia']?t['Transferencia'].monto:0);var real=parseFloat(document.getElementById('cierre-efectivo-real').value)||efe;var now=new Date();var c={id:'c'+Date.now(),fecha:now.toLocaleDateString('es-CO'),hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),emp:currentUser?currentUser.name:'—',efectivo:real,digital:dig,total:real+dig,ventas:sales.length};cierresTurno.unshift(c);LS.set('cierresTurno',cierresTurno);closeM('cierre');renderCaja();toast('Cierre registrado ✓','#3aaa6a');}
@@ -4676,25 +4503,33 @@ async function fbCargarTodo(){
     // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
     var fbUsuarios = await fbGetAll('usuarios');
     if(fbUsuarios && fbUsuarios.length > 0){
+      // Usar usuarios de Firebase pero verificar que las contraseñas del código sean correctas
       var usuariosCodigo = LS._def().users;
       fbUsuarios.forEach(function(fbU){
         var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
         if(uCodigo){
+          // Siempre usar la contraseña del código (seguridad)
           fbU.pass = uCodigo.pass;
           fbU.user = uCodigo.user;
-          if(!fbU.perms || !Array.isArray(fbU.perms) || fbU.perms.length === 0){
-            fbU.perms = uCodigo.perms;
-          }
         }
-        fbU.active = fbU.active === false ? false : true;
       });
       systemUsers = fbUsuarios;
     } else {
+      // Primera vez: subir usuarios del código a Firebase
       var usuariosDelCodigo = LS._def().users;
       systemUsers = usuariosDelCodigo;
       for(var u of systemUsers) await fbSet('usuarios', u.id, u);
     }
     LS.set('users', systemUsers);
+    // Si hay usuario logueado, actualizar sus permisos con los de Firebase
+    if(typeof currentUser !== 'undefined' && currentUser){
+      var userActualizado = systemUsers.find(function(u){ return u.id === currentUser.id; });
+      if(userActualizado){
+        currentUser = userActualizado;
+        try{ applyPermissions(); }catch(e){}
+        try{ renderDashboard(); }catch(e){}
+      }
+    }
 
     // 2. Proveedores
     var fbSuppliers = await fbGetAll('suppliers');
@@ -4799,7 +4634,7 @@ onSnapshot(collection(db,'pedidosPendientes'), snap => {
 }, err => console.warn('pedidosPendientes listener', err));
 
 // Ventas en tiempo real (sincronización entre dispositivos)
-onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(500)), snap => {
+onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200)), snap => {
   snap.docChanges().forEach(ch => {
     if(ch.type === 'removed') return;
     var d = ch.doc.data(); delete d._ts;
@@ -4807,14 +4642,12 @@ onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(500
     if(idx >= 0){ Object.assign(sales[idx], d); }
     else { sales.unshift(d); }
   });
-  // Ordenar por timestamp descendente
+  // Ordenar por timestamp
   sales.sort((a,b) => (b.timestamp||'') > (a.timestamp||'') ? 1 : -1);
   LS.set('sales', sales);
-  // Refrescar vistas — todas filtran por fecha de hoy internamente
-  try{ renderSalesTable(); }catch(e){}
+  try{ renderVentas(); }catch(e){}
   try{ updateBadges(); }catch(e){}
   try{ renderDashboard(); }catch(e){}
-  try{ renderCaja(); }catch(e){}
 }, err => console.warn('ventas listener', err));
 
 // Usuarios en tiempo real — actualizar permisos desde Firebase
@@ -4826,15 +4659,7 @@ onSnapshot(collection(db,'usuarios'), snap => {
   var usuariosCodigo = LS._def().users;
   arr.forEach(function(fbU){
     var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
-    if(uCodigo){
-      fbU.pass = uCodigo.pass;
-      fbU.user = uCodigo.user;
-      // Si Firebase no tiene permisos, usar los del código
-      if(!fbU.perms || !Array.isArray(fbU.perms) || fbU.perms.length === 0){
-        fbU.perms = uCodigo.perms;
-      }
-    }
-    fbU.active = fbU.active === false ? false : true;
+    if(uCodigo){ fbU.pass = uCodigo.pass; fbU.user = uCodigo.user; }
   });
   systemUsers = arr;
   LS.set('users', arr);
@@ -4846,6 +4671,7 @@ onSnapshot(collection(db,'usuarios'), snap => {
   try{ renderUsers(); }catch(e){}
   try{ renderUserPills(); }catch(e){}
 }, err => console.warn('usuarios listener', err));
+
 // Proveedores en tiempo real
 onSnapshot(collection(db,'suppliers'), snap => {
   if(snap.empty) return;
