@@ -3277,19 +3277,12 @@ function renderSalesTable(){
   const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
   if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades hoy</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc4)">${salesHoy.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${salesHoy.length?fmt(tot/salesHoy.length):'$0'}</div></div>`;
-  // Mostrar TODAS las ventas con su fecha para que se pueda ver cuáles son de ayer/hoy
-  var todasVentas = [...sales].sort(function(a,b){ return (b.timestamp||'') > (a.timestamp||'') ? 1:-1; });
-  if(!todasVentas.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
-  tbl.innerHTML=todasVentas.map(function(s){
+  if(!salesHoy.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas hoy</td></tr>';return;}
+  tbl.innerHTML=salesHoy.map(function(s){
     var fecha = getFechaDeVenta(s) || '—';
-    var esHoy = fecha === hoy;
-    var rowStyle = esHoy ? '' : 'opacity:.6;background:#f8f8f8';
-    var fechaLabel = esHoy
-      ? '<span style="color:#3aaa6a;font-weight:700;font-size:10px">HOY</span>'
-      : '<span style="color:#e94560;font-size:10px">'+fecha+'</span>';
-    return `<tr style="${rowStyle}">
+    return `<tr>
       <td>${s.id}</td>
-      <td>${fechaLabel}</td>
+      <td><span style="color:#3aaa6a;font-weight:700;font-size:10px">HOY</span></td>
       <td>${s.time||'—'}</td>
       <td>${s.name}</td>
       <td>${catBadge(s.cat)}</td>
