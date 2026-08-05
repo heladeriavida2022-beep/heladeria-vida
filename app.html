@@ -3751,15 +3751,30 @@ function calcCambio(){
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getFechaHoy(){
   var n = new Date();
-  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  // Fecha en hora Colombia (UTC-5)
+  var col = new Date(n.getTime() + (n.getTimezoneOffset() * 60000) - (5 * 3600000));
+  return col.getFullYear()+'-'+String(col.getMonth()+1).padStart(2,'0')+'-'+String(col.getDate()).padStart(2,'0');
 }
 
 function getFechaDeVenta(s){
-  // Obtener fecha de una venta aunque no tenga campo fecha
+  // Extraer fecha real Colombia desde el ID de la venta (contiene timestamp ms)
+  if(s.id){
+    var m = s.id.match(/v(\d{13})/);
+    if(m){
+      var ts = parseInt(m[1]);
+      var d = new Date(ts);
+      // Convertir a hora Colombia UTC-5
+      var col = new Date(d.getTime() + (d.getTimezoneOffset()*60000) - (5*3600000));
+      return col.getFullYear()+'-'+String(col.getMonth()+1).padStart(2,'0')+'-'+String(col.getDate()).padStart(2,'0');
+    }
+  }
+  // Fallback: campo fecha o timestamp
   if(s.fecha) return s.fecha;
-  if(s.timestamp) return s.timestamp.substring(0,10);
-  // Si solo tiene hora (ventas antiguas sin timestamp ni fecha)
-  // No podemos saber el día — las excluimos del filtro de hoy
+  if(s.timestamp){
+    var d2 = new Date(s.timestamp);
+    var col2 = new Date(d2.getTime() + (d2.getTimezoneOffset()*60000) - (5*3600000));
+    return col2.getFullYear()+'-'+String(col2.getMonth()+1).padStart(2,'0')+'-'+String(col2.getDate()).padStart(2,'0');
+  }
   return null;
 }
 
@@ -3769,13 +3784,15 @@ function getSalesHoy(){
   var ultCierreHoy = null;
   (LS.g('cierresTurno')||[]).forEach(function(c){
     if(!c.timestamp) return;
-    if(c.timestamp.substring(0,10) === hoy){
+    var d = new Date(c.timestamp);
+    var col = new Date(d.getTime() + (d.getTimezoneOffset()*60000) - (5*3600000));
+    var fechaCol = col.getFullYear()+'-'+String(col.getMonth()+1).padStart(2,'0')+'-'+String(col.getDate()).padStart(2,'0');
+    if(fechaCol === hoy){
       if(!ultCierreHoy || c.timestamp > ultCierreHoy) ultCierreHoy = c.timestamp;
     }
   });
   return sales.filter(function(s){
     var f = getFechaDeVenta(s);
-    // Ventas sin fecha ni timestamp no se muestran en el día actual
     if(!f) return false;
     if(f !== hoy) return false;
     if(ultCierreHoy && s.timestamp && s.timestamp <= ultCierreHoy) return false;
@@ -3783,9 +3800,7 @@ function getSalesHoy(){
   });
 }
 
-function getVentasTurnoActual(){
-  return getSalesHoy();
-}
+function getVentasTurnoActual(){ return getSalesHoy(); }
 function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});getSalesHoy().forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
