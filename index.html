@@ -2973,9 +2973,28 @@ function crearProd(){
   const nm=document.getElementById('np-nm').value.trim().toUpperCase();
   if(!nm){toast('Ingresa el nombre','var(--acc)');return;}
   const cat=document.getElementById('np-cat').value;
-  prods.push({id:Date.now(),name:nm,cat,emoji:document.getElementById('np-em').value||CE[cat],price:parseFloat(document.getElementById('np-pr').value)||0,stock:parseInt(document.getElementById('np-st').value)||0,min:parseInt(document.getElementById('np-min').value)||5,unit:document.getElementById('np-un').value,descuenta:document.getElementById('np-desc').value==='1',active:true});
-  logAction('admin',`Creó producto ${nm} (${cat})`);
-  closeM('producto');renderProdTable();renderCarta();renderPOS();updateBadges();toast('Producto "'+nm+'" creado ✓');
+  const nuevoProd={
+    id:Date.now(),
+    name:nm,
+    cat:cat,
+    emoji:document.getElementById('np-em').value||CE[cat]||'🍦',
+    price:parseFloat(document.getElementById('np-pr').value)||0,
+    stock:parseInt(document.getElementById('np-st').value)||0,
+    min:parseInt(document.getElementById('np-min').value)||5,
+    unit:document.getElementById('np-un').value,
+    descuenta:document.getElementById('np-desc').value==='1',
+    active:true
+  };
+  prods.push(nuevoProd);
+  // Guardar en Firebase para que todos los usuarios lo vean
+  if(typeof window.FB!=='undefined'&&window.FB.set){
+    window.FB.set('productos', String(nuevoProd.id), nuevoProd);
+  }
+  logAction('admin','Creó producto '+nm+' ('+cat+')');
+  closeM('producto');renderProdTable();
+  try{renderCarta();}catch(e){}
+  renderPOS();updateBadges();
+  toast('Producto "'+nm+'" creado ✓','#3aaa6a');
 }
 
 // ══════════════════════════════════════════════
@@ -4628,12 +4647,25 @@ async function fbCargarTodo(){
       for(var s of suppliers) await fbSet('suppliers', s.id, s);
     }
 
-    // 3. Inventario (solo stock)
+    // 3. Inventario (solo stock) + productos nuevos creados desde la app
     var fbInv = await fbGetAll('inventario');
     fbInv.forEach(function(item){
       var p = prods.find(x => String(x.id) === String(item.id));
       if(p && item.stock !== undefined) p.stock = item.stock;
     });
+    // Cargar productos nuevos guardados en colección 'productos'
+    try{
+      var fbProds = await fbGetAll('productos');
+      fbProds.forEach(function(fp){
+        if(!prods.find(function(p){ return String(p.id)===String(fp.id)||p.name===fp.name; })){
+          prods.push(fp);
+        } else {
+          // Actualizar stock del producto existente
+          var px = prods.find(function(p){ return String(p.id)===String(fp.id); });
+          if(px && fp.stock!==undefined) px.stock = fp.stock;
+        }
+      });
+    }catch(e){ console.warn('productos FB:', e); }
 
     // 4. Ventas
     var fbVentas = await fbGetAll('ventas');
