@@ -3857,8 +3857,84 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
-// SISTEMA DE TURNOS
+// RESTAURAR CIERRES HISTÓRICOS EN FIREBASE
 // ══════════════════════════════════════════════
+async function restaurarCierresHistoricos(){
+  try{
+    // Verificar si ya existe el cierre del 03/08/2026
+    var existentes = await fbGetAll('cierresTurno');
+    var ya03 = existentes.find(function(c){ return c.fecha==='3/8/2026'||c.fecha==='03/08/2026'||c.id==='ct_historico_20260803'; });
+    if(!ya03){
+      var cierre03 = {
+        id: 'ct_historico_20260803',
+        fecha: '03/08/2026',
+        turno: 'T1',
+        usuario: 'Leidy Viviana',
+        usuarioId: 'u3',
+        horaApertura: '14:00',
+        horaCierre: '21:00',
+        baseInicial: 100000,
+        fondo: 100000,
+        ventasEfectivo: 102000,
+        ventasNequi: 0,
+        ventasTarjeta: 0,
+        ventasTransferencia: 32500,
+        totalVentas: 134500,
+        gastos: 33400,
+        egresosEfectivo: 33400,
+        esperado: 168600,
+        contado: 168600,
+        diferencia: 0,
+        dineroRetirado: 68600,
+        estado: 'correcto',
+        observaciones: 'Cierre histórico restaurado — compra materia prima $33.400 contado',
+        timestamp: '2026-08-03T21:00:00.000Z',
+        restaurado: true
+      };
+      await window.FB.set('cierresTurno', cierre03.id, cierre03);
+      console.log('✅ Cierre 03/08/2026 guardado en Firebase:', cierre03.id);
+    } else {
+      console.log('ℹ️ Cierre 03/08/2026 ya existe en Firebase');
+    }
+
+    // Verificar si ya existe el cierre del 04/08/2026
+    var ya04 = existentes.find(function(c){ return c.fecha==='4/8/2026'||c.fecha==='04/08/2026'||c.id==='ct_historico_20260804'; });
+    if(!ya04){
+      var cierre04 = {
+        id: 'ct_historico_20260804',
+        fecha: '04/08/2026',
+        turno: 'T2',
+        usuario: 'Leidy Viviana',
+        usuarioId: 'u3',
+        horaApertura: '14:00',
+        horaCierre: '21:00',
+        baseInicial: 100000,
+        fondo: 100000,
+        ventasEfectivo: 143000,
+        ventasNequi: 0,
+        ventasTarjeta: 0,
+        ventasTransferencia: 108000,
+        totalVentas: 251000,
+        gastos: 0,
+        egresosEfectivo: 42000,
+        esperado: 201000,
+        contado: 201000,
+        diferencia: 0,
+        dineroRetirado: 101000,
+        estado: 'correcto',
+        observaciones: 'Cierre histórico restaurado — compra helados cremosos $42.000 contado',
+        timestamp: '2026-08-04T21:00:00.000Z',
+        restaurado: true
+      };
+      await window.FB.set('cierresTurno', cierre04.id, cierre04);
+      console.log('✅ Cierre 04/08/2026 guardado en Firebase:', cierre04.id);
+    } else {
+      console.log('ℹ️ Cierre 04/08/2026 ya existe en Firebase');
+    }
+  }catch(e){ console.warn('restaurarCierres:', e); }
+}
+
+
 
 var _turnoSeleccionado = null;
 
@@ -4769,8 +4845,25 @@ window.FB = {
 async function fbCargarTodo(){
   fbStatus('Cargando...', true);
   try {
-    // 0. Cargar imágenes de productos desde Storage
-    await window.FB.cargarImagenesProductos();
+    // Cargar cierres de turno desde Firebase
+    try{
+      var fbCierres = await fbGetAll('cierresTurno');
+      if(fbCierres && fbCierres.length > 0){
+        // Mezclar con localStorage sin duplicar
+        var localCierres = LS.g('cierresTurno')||[];
+        fbCierres.forEach(function(fc){
+          if(!localCierres.find(function(lc){ return lc.id===fc.id; })){
+            localCierres.push(fc);
+          }
+        });
+        localCierres.sort(function(a,b){ return (b.timestamp||'')>(a.timestamp||'')?1:-1; });
+        cierresTurno = localCierres;
+        LS.set('cierresTurno', cierresTurno);
+      }
+    }catch(e){ console.warn('cierres FB:', e); }
+
+    // Restaurar cierres históricos si no existen
+    await restaurarCierresHistoricos();
     // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
     var fbUsuarios = await fbGetAll('usuarios');
     if(fbUsuarios && fbUsuarios.length > 0){
