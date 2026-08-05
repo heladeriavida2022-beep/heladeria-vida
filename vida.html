@@ -1576,6 +1576,7 @@ function quickLogin(user, pass){
 }
 
 function doLogin(){
+  try{
   // SIEMPRE usar usuarios del código — más seguro y simple
   var usuariosCodigo = LS._def().users;
   // Aplicar permisos editados si existen en localStorage, pero credenciales del código
@@ -1613,6 +1614,8 @@ function doLogin(){
   currentUser = systemUsers.find(function(u){ return u.id === found.id; }) || found;
   logAction('login','Ingresó al sistema');
   showApp();
+  showApp();
+  }catch(err){alert("Error al ingresar: "+err.message);console.error("doLogin error:",err);}
 }
 
 function showApp(){
