@@ -805,7 +805,7 @@ try{
               <div class="stat"><div class="sico">💳</div><div class="slb">Total pendiente</div><div class="sval" id="deuda-total" style="color:var(--acc)">$0</div></div>
               <div class="stat"><div class="sico">⚠️</div><div class="slb">Vencidas / urgentes</div><div class="sval" id="deuda-urgentes" style="color:var(--acc)">0</div></div>
             </div>
-            <div class="card"><div class="tw"><table><thead><tr><th>Proveedor</th><th>Concepto</th><th>Monto</th><th>Vence</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="deudas-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin deudas registradas</td></tr></tbody></table></div></div>
+            <div class="card"><div class="tw"><table><thead><tr><th>Proveedor/Acreedor</th><th>Concepto</th><th>Total</th><th>Saldo pendiente</th><th>Vence</th><th>Estado</th><th>Acción</th></tr></thead><tbody id="deudas-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin deudas registradas</td></tr></tbody></table></div></div>
           </div>
 
           <!-- INVENTARIO -->
@@ -3193,10 +3193,13 @@ function guardarIngreso(){
       acreedor:prov,
       concepto:'Compra: '+productosNombres.join(', '),
       monto:totalCompra,
+      montoPagado:0,
       fecha:fecha,
       vence:vence,
       pagada:false,
-      origen:'compra'
+      origen:'compra',
+      tipo:'pagar',
+      compraId:compra.id
     };
     var deudas=LS.g('deudas')||[];
     deudas.unshift(deuda);
@@ -3252,16 +3255,44 @@ function pagarDeuda(id){
   var deudas=LS.g('deudas')||[];
   var d=deudas.find(x=>x.id===id);
   if(!d)return;
-  if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+'?'))return;
-  // Registrar salida de caja
-  var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:d.monto,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
+  var saldo=d.monto-(d.montoPagado||0);
+  if(!confirm('¿Confirmar pago TOTAL de '+fmt(saldo)+' a '+d.acreedor+'?'))return;
+  // Registrar egreso de caja
+  var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),fecha:new Date().toISOString().split('T')[0],timestamp:new Date().toISOString(),tipo:'egreso',desc:'Pago a proveedor: '+d.acreedor+' — '+d.concepto,monto:saldo,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
   movCaja.unshift(mov);LS.set('movCaja',movCaja);
-  if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
+  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('caja',mov.id,mov);
   // Marcar como pagada
-  d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
+  d.pagada=true;d.montoPagado=d.monto;d.fechaPago=new Date().toISOString().split('T')[0];
   LS.set('deudas',deudas);
-  renderDeudas();updateDeudasBadge();renderCaja();
-  toast('Pago registrado — salida de caja ✓','#3aaa6a');
+  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('deudas',d.id,d);
+  renderDeudas();updateDeudasBadge();
+  try{renderCaja();}catch(e){}
+  toast('Pago total registrado — egreso de caja: '+fmt(saldo),'#3aaa6a');
+}
+
+function pagarDeudaParcial(id){
+  var deudas=LS.g('deudas')||[];
+  var d=deudas.find(x=>x.id===id);
+  if(!d)return;
+  var saldo=d.monto-(d.montoPagado||0);
+  var valorStr=prompt('Pago parcial a '+d.acreedor+'\nSaldo pendiente: '+fmt(saldo)+'\n\n¿Cuánto va a pagar?','');
+  if(!valorStr)return;
+  var valor=parseFloat(valorStr.replace(/[^0-9.]/g,''));
+  if(isNaN(valor)||valor<=0){toast('Valor inválido','#e94560');return;}
+  if(valor>saldo){toast('El valor supera el saldo pendiente ('+fmt(saldo)+')','#e94560');return;}
+  // Registrar egreso
+  var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),fecha:new Date().toISOString().split('T')[0],timestamp:new Date().toISOString(),tipo:'egreso',desc:'Pago parcial a '+d.acreedor+' ('+fmt(valor)+' de '+fmt(d.monto)+')',monto:valor,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
+  movCaja.unshift(mov);LS.set('movCaja',movCaja);
+  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('caja',mov.id,mov);
+  // Actualizar deuda
+  d.montoPagado=(d.montoPagado||0)+valor;
+  if(d.montoPagado>=d.monto){d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];}
+  LS.set('deudas',deudas);
+  if(typeof window.FB!=='undefined'&&window.FB.set) window.FB.set('deudas',d.id,d);
+  renderDeudas();updateDeudasBadge();
+  try{renderCaja();}catch(e){}
+  var restante=d.monto-d.montoPagado;
+  toast('Pago parcial registrado — '+fmt(valor)+' | Saldo: '+fmt(restante),'#3aaa6a');
 }
 
 function updateDeudasBadge(){
@@ -3275,9 +3306,64 @@ function renderDeudas(){
   var pendientes=deudas.filter(d=>!d.pagada);
   var hoy=new Date();hoy.setHours(0,0,0,0);
 
-  // Separar: fiados (clientes nos deben) vs deudas (debemos a proveedores)
+  // Separar: fiados (clientes nos deben) vs cuentas por pagar (debemos a proveedores)
   var fiados=pendientes.filter(d=>d.tipo==='cobrar'||d.origen==='fiado');
-  var porPagar=pendientes.filter(d=>d.tipo!=='cobrar'&&d.origen!=='fiado');
+  var porPagar=pendientes.filter(d=>d.tipo==='pagar'||(!d.tipo&&d.origen!=='fiado'&&d.tipo!=='cobrar'));
+
+  var totalPorCobrar=fiados.reduce((s,d)=>s+d.monto,0);
+  var totalPorPagar=porPagar.reduce((s,d)=>s+(d.monto-(d.montoPagado||0)),0);
+  var urgentes=porPagar.filter(d=>{if(!d.vence)return false;var v=new Date(d.vence);v.setHours(0,0,0,0);return v<=new Date(hoy.getTime()+7*86400000);}).length;
+
+  var totEl=document.getElementById('deuda-total');
+  var urgEl=document.getElementById('deuda-urgentes');
+  if(totEl)totEl.textContent=fmt(totalPorPagar);
+  if(urgEl)urgEl.textContent=urgentes;
+
+  // Alertas
+  var alertBox=document.getElementById('deudas-alerts');
+  if(alertBox){
+    var vencidas=porPagar.filter(d=>{if(!d.vence)return false;var v=new Date(d.vence);v.setHours(0,0,0,0);return v<hoy;});
+    var html=vencidas.map(d=>`<div class="alert ae" style="margin-bottom:8px"><i class="ti ti-alert-circle"></i><strong>Vencida:</strong> ${d.acreedor} — ${fmt(d.monto-(d.montoPagado||0))} venció el ${d.vence}</div>`).join('');
+    if(totalPorCobrar>0) html=`<div class="alert" style="margin-bottom:8px;background:#fff8e6;border:1.5px solid #f0a500;color:#d48a00"><i class="ti ti-coin"></i><strong>Por cobrar (fiados):</strong> ${fmt(totalPorCobrar)} pendiente de clientes</div>`+html;
+    alertBox.innerHTML=html;
+  }
+
+  var tbl=document.getElementById('deudas-tbl');if(!tbl)return;
+  if(!deudas.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
+
+  tbl.innerHTML=deudas.map(d=>{
+    var esFiado=d.tipo==='cobrar'||d.origen==='fiado';
+    var saldoPendiente=d.monto-(d.montoPagado||0);
+    var estado='Pendiente';var cls='by';
+    if(d.pagada){estado=esFiado?'Cobrado':'Pagada';cls='bg';}
+    else if(esFiado){estado='Por cobrar';cls='by';}
+    else if(d.vence){
+      var v=new Date(d.vence);v.setHours(0,0,0,0);
+      var diff=(v-hoy)/86400000;
+      if(diff<0){estado='Vencida';cls='br';}
+      else if(diff<=7){estado='Urgente';cls='by';}
+    }
+    var origenLabel=esFiado?'💸 Fiado cliente':d.origen==='compra'?'🛒 Compra crédito':'✍️ Manual';
+    return `<tr style="${d.pagada?'opacity:.55':''}">
+      <td><b>${d.acreedor}</b><div style="font-size:10px;color:var(--text3)">${origenLabel}</div></td>
+      <td style="font-size:11.5px;max-width:150px">${d.concepto}</td>
+      <td style="font-weight:700">${fmt(d.monto)}</td>
+      <td style="color:${saldoPendiente>0&&!d.pagada?'var(--acc)':'#3aaa6a'};font-weight:700">${fmt(saldoPendiente)}</td>
+      <td style="font-size:11px;color:var(--text2)">${d.vence||'—'}</td>
+      <td><span class="badge ${cls}">${estado}</span></td>
+      <td>${d.pagada
+        ?`<span style="font-size:10px;color:#3aaa6a">✓ ${d.fechaPago||''}</span>`
+        :esFiado
+          ?`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">Cobrar</button>`
+          :`<div style="display:flex;gap:4px">
+              <button class="btn btn-acc btn-sm" onclick="pagarDeuda('${d.id}')" style="background:#3aaa6a;border-color:#3aaa6a">💵 Pagar total</button>
+              <button class="btn btn-ghost btn-sm" onclick="pagarDeudaParcial('${d.id}')">Parcial</button>
+            </div>`
+      }</td>
+    </tr>`;
+  }).join('');
+  updateDeudasBadge();
+}
 
   var totalPorCobrar=fiados.reduce((s,d)=>s+d.monto,0);
   var totalPorPagar=porPagar.reduce((s,d)=>s+d.monto,0);
