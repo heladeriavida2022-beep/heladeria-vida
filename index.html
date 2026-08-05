@@ -3230,10 +3230,14 @@ function guardarAjuste(){
   const prev=p.stock;
   if(tipo==='set')p.stock=qty;else if(tipo==='add')p.stock+=qty;else p.stock=Math.max(0,p.stock-qty);
   const motivo=document.getElementById('aj-m').value;
-  purchases.push({fecha:new Date().toISOString().split('T')[0],name:p.name,cat:p.cat,tipo:'Ajuste',qty:p.stock-prev,unit:p.unit,costo:0,total:0,prov:'—',por:currentUser.name});
+  // Guardar en localStorage
+  LS.updProd(p.id,{stock:p.stock});
+  // Sincronizar con Firebase para que todos los usuarios vean el cambio
+  if(typeof window.fbUpdateStock==='function') window.fbUpdateStock(p.id,p.stock);
+  purchases.push({fecha:getFechaHoy(),name:p.name,cat:p.cat,tipo:'Ajuste',qty:p.stock-prev,unit:p.unit,costo:0,total:0,prov:'—',por:currentUser.name});
   logAction('ajuste',`Ajustó ${p.name}: ${prev} → ${p.stock}`,motivo);
   closeM('ajuste');renderInv();renderProdTable();updateBadges();renderComprasTable();
-  toast('Stock ajustado: '+prev+' → '+p.stock,'var(--acc4)');
+  toast('Stock ajustado: '+prev+' → '+p.stock+' ✓','var(--acc4)');
 }
 function renderComprasTable(){
   const tbl=document.getElementById('compras-tbl');if(!tbl)return;
