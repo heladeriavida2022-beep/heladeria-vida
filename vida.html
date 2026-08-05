@@ -665,8 +665,9 @@ try{
           <!-- CAJA -->
           <div class="adm-view" id="adv-caja" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa">
-              <button class="btn btn-acc" onclick="openM('ingreso-caja')"><i class="ti ti-plus"></i> Ingreso</button>
-              <button class="btn btn-ghost" onclick="openM('egreso-caja')"><i class="ti ti-minus"></i> Egreso</button>
+              <button class="btn btn-acc" onclick="abrirModalAperturaTurno()"><i class="ti ti-door-enter"></i> Apertura de turno</button>
+              <button class="btn btn-ghost" onclick="openM('ingreso-caja')"><i class="ti ti-plus"></i> Ingreso</button>
+              <button class="btn btn-ghost" onclick="openM('egreso-caja')"style="color:#e94560"><i class="ti ti-minus"></i> Egreso</button>i-minus"></i> Egreso</button>
               <button class="btn btn-acc" style="background:#e94560;border-color:#e94560" onclick="abrirCierreTurno()"><i class="ti ti-lock"></i> Cierre de turno</button>
             </div>
             <div class="g4" id="caja-stats" style="margin-bottom:14px"></div>
@@ -1222,6 +1223,26 @@ try{
 </div></div>
 
 <!-- CIERRE DE TURNO PROFESIONAL -->
+
+<!-- MODAL APERTURA DE TURNO -->
+<div class="ov" id="ov-apertura-turno"><div class="modal" style="max-width:440px">
+  <div class="mt"><i class="ti ti-door-enter" style="color:#3aaa6a"></i>Apertura de Caja</div>
+  <div id="apertura-info" style="background:var(--bg3);border-radius:10px;padding:12px;margin-bottom:14px;font-size:13px">
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--text2)">Usuario:</span><b id="apertura-usuario">—</b></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="color:var(--text2)">Fecha:</span><b id="apertura-fecha">—</b></div>
+    <div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Base inicial:</span><b style="color:#3aaa6a">$100.000</b></div>
+  </div>
+  <div id="apertura-turno-activo" style="display:none;background:#fff8e1;border:1.5px solid #f0a500;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px"></div>
+  <div id="apertura-seleccion">
+    <div style="font-weight:700;margin-bottom:10px;font-size:13px">Selecciona el turno:</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+      <button class="btn" id="btn-t1" onclick="seleccionarTurnoApertura('T1')" style="padding:14px;font-size:15px;border:2px solid var(--border);border-radius:10px;background:var(--bg3)">🔵 TURNO 1</button>
+      <button class="btn" id="btn-t2" onclick="seleccionarTurnoApertura('T2')" style="padding:14px;font-size:15px;border:2px solid var(--border);border-radius:10px;background:var(--bg3)">🟢 TURNO 2</button>
+    </div>
+    <button class="btn btn-acc" id="btn-abrir-turno" onclick="confirmarAperturaTurno()" disabled style="width:100%;padding:12px;font-size:14px;opacity:.5">🟢 ABRIR TURNO</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-cierre-turno"><div class="modal" style="max-width:560px">
   <button class="mx" onclick="closeM('cierre-turno')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-lock" style="color:#e94560"></i>Cierre de Turno</div>
@@ -1389,7 +1410,8 @@ let cartItems=[],cartaCart=[];
 let posMode='mostrador',invCatF='ALL',prodCatF='ALL',cartaCatF='ALL',clienteCatF='ALL';
 var _lsOC=LS.g('orderCounter');let orderCounter=_lsOC||100;
 var _lsSup=LS.g('suppliers');let suppliers=(_lsSup&&_lsSup.length>0)?_lsSup:(function(){var d=LS._def().suppliers;LS.set('suppliers',d);return d;})();
-let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];let cierresGeneral=LS.g('cierresGeneral')||[];
+let movCaja=LS.g('movCaja')||[];let cierresTurno=LS.g('cierresTurno')||[];
+let turnoActivo=null; // Turno actualmente abiertolet cierresGeneral=LS.g('cierresGeneral')||[];
 
 
 // MAPA DE PRECIOS - siempre correcto, nunca del localStorage
@@ -2114,11 +2136,14 @@ function confirmarVenta(){
 
   // ID único garantizado
   var saleId='v'+now.getTime()+'_'+Math.random().toString(36).slice(2,6);
+  var _ta=getTurnoActivo();
   var sale={
     id:saleId,
     time:timeStr,
     fecha:getFechaHoy(),
     timestamp:now.toISOString(),
+    turnoId:_ta?_ta.turnoId:null,
+    turno:_ta?_ta.turno:null,
     name:items,
     cat:cartItems.length===1?cartItems[0].cat:'VARIOS',
     qty:cartItems.reduce(function(s,i){return s+i.qty;},0),
@@ -3831,6 +3856,83 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
+// SISTEMA DE TURNOS
+// ══════════════════════════════════════════════
+
+var _turnoSeleccionado = null;
+
+function seleccionarTurnoApertura(t){
+  _turnoSeleccionado = t;
+  document.getElementById('btn-t1').style.cssText = t==='T1'
+    ? 'padding:14px;font-size:15px;border:2px solid #3b82f6;border-radius:10px;background:#eff6ff;font-weight:700'
+    : 'padding:14px;font-size:15px;border:2px solid var(--border);border-radius:10px;background:var(--bg3)';
+  document.getElementById('btn-t2').style.cssText = t==='T2'
+    ? 'padding:14px;font-size:15px;border:2px solid #3aaa6a;border-radius:10px;background:#edfaf2;font-weight:700'
+    : 'padding:14px;font-size:15px;border:2px solid var(--border);border-radius:10px;background:var(--bg3)';
+  var btn = document.getElementById('btn-abrir-turno');
+  btn.disabled = false; btn.style.opacity='1';
+  btn.textContent = t==='T1' ? '🔵 ABRIR TURNO 1' : '🟢 ABRIR TURNO 2';
+}
+
+async function abrirModalAperturaTurno(){
+  document.getElementById('apertura-usuario').textContent = currentUser ? currentUser.name : '—';
+  document.getElementById('apertura-fecha').textContent = new Date().toLocaleDateString('es-CO',{weekday:'long',day:'numeric',month:'long'});
+  _turnoSeleccionado = null;
+  var btn = document.getElementById('btn-abrir-turno');
+  btn.disabled=true; btn.style.opacity='0.5'; btn.textContent='🟢 ABRIR TURNO';
+  ['btn-t1','btn-t2'].forEach(function(id){
+    document.getElementById(id).style.cssText='padding:14px;font-size:15px;border:2px solid var(--border);border-radius:10px;background:var(--bg3)';
+  });
+  var avisoEl = document.getElementById('apertura-turno-activo');
+  var selEl = document.getElementById('apertura-seleccion');
+  avisoEl.style.display='none'; selEl.style.display='block';
+
+  try{
+    var turnos = await fbGetAll('turnos');
+    var hoy = getFechaHoy();
+    var turnoAbierto = turnos.find(function(t){ return t.estado==='abierto'&&t.fecha===hoy; });
+    if(turnoAbierto){
+      turnoActivo=turnoAbierto; LS.set('turnoActivo',turnoAbierto);
+      avisoEl.style.display='block';
+      avisoEl.innerHTML='⚠️ <b>Turno ya abierto:</b> '+turnoAbierto.turno+' por '+turnoAbierto.usuario+' a las '+turnoAbierto.horaApertura+'<br><small>Continuando con turno activo...</small>';
+      selEl.style.display='none';
+      setTimeout(function(){ closeM('apertura-turno'); renderCaja(); },2000);
+      return;
+    }
+  }catch(e){ console.warn('turnos FB:',e); }
+  openM('apertura-turno');
+}
+
+async function confirmarAperturaTurno(){
+  if(!_turnoSeleccionado){ toast('Selecciona un turno','var(--acc)'); return; }
+  var now = new Date();
+  var nuevoTurno = {
+    turnoId:'turno_'+_turnoSeleccionado+'_'+getFechaHoy()+'_'+Date.now(),
+    turno:_turnoSeleccionado,
+    usuarioId:currentUser?currentUser.id:'',
+    usuario:currentUser?currentUser.name:'—',
+    fecha:getFechaHoy(),
+    horaApertura:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    timestampApertura:now.toISOString(),
+    baseInicial:100000,
+    estado:'abierto'
+  };
+  try{ await window.FB.set('turnos',nuevoTurno.turnoId,nuevoTurno); }catch(e){}
+  turnoActivo=nuevoTurno; LS.set('turnoActivo',nuevoTurno);
+  logAction('caja','Apertura '+_turnoSeleccionado,'Base: $100.000');
+  closeM('apertura-turno');
+  renderCaja();
+  toast('✅ Turno '+_turnoSeleccionado+' abierto con base $100.000','#3aaa6a');
+}
+
+function getTurnoActivo(){
+  if(turnoActivo) return turnoActivo;
+  var local = LS.g('turnoActivo');
+  if(local && local.fecha===getFechaHoy() && local.estado==='abierto'){ turnoActivo=local; return local; }
+  return null;
+}
+
+// ══════════════════════════════════════════════
 
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
@@ -3936,15 +4038,18 @@ function confirmarCierreTurno(){
   var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
 
   var now = new Date();
+  var ta = getTurnoActivo();
   var cierre = {
     id: 'ct'+Date.now(),
+    turnoId: ta ? ta.turnoId : null,
     fecha: now.toLocaleDateString('es-CO'),
-    horaApertura: '',
+    horaApertura: ta ? ta.horaApertura : '',
     horaCierre: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
     turno: turno,
     usuario: currentUser ? currentUser.name : '—',
     usuarioId: currentUser ? currentUser.id : '',
-    fondo: fondo,
+    fondo: 100000,
+    baseInicial: 100000,
     ventasEfectivo: efe,
     ventasNequi: nequi,
     ventasTarjeta: tarjeta,
@@ -3962,6 +4067,16 @@ function confirmarCierreTurno(){
 
   cierresTurno.unshift(cierre);
   LS.set('cierresTurno', cierresTurno);
+
+  // Marcar turno activo como cerrado en Firebase
+  if(ta && ta.turnoId){
+    ta.estado='cerrado';
+    ta.timestampCierre=now.toISOString();
+    ta.fechaCierre=getFechaHoy();
+    try{ window.FB.set('turnos',ta.turnoId,ta); }catch(e){}
+    turnoActivo=null;
+    LS.set('turnoActivo',null);
+  }
 
   closeM('cierre-turno');
   toast('✅ Cierre de Turno '+turno+' registrado — Estado: '+estado.toUpperCase(),'#3aaa6a');
