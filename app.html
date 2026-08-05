@@ -1522,8 +1522,8 @@ let prods=[
     {n:"MEDIO LITRO DE HELADO",s:14,p:7000},
     {n:"CUARTOS DE HELADO",s:11,p:4500},
     {n:"VASITO",s:0,p:2200},
-    {n:"HELADOS POLARES",s:7,p:2500},{n:"CHOCOCONO FLOW",s:7,p:4500},{n:"PLATILLO JUMBO",s:1,p:5000},{n:"ALOHA TAJIN",s:13,p:3500}
-  ].map(({n,s},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:0,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
+    {n:"HELADOS POLARES",s:7,p:2500},{n:"CHOCOCONO FLOW",s:7,p:4500},{n:"PLATILLO JUMBO",s:1,p:5000},{n:"ALOHA TAJIN",s:13,p:3500},{n:"HELADOS CREMOSOS",s:0,p:2700},{n:"HELADOS DE AGUA",s:0,p:1800},{n:"HELADOS DE FRUTAS",s:0,p:2500},{n:"CAJA DE HELADOS",s:0,p:120000},{n:"MEDIA CAJA DE HELADOS",s:0,p:60000}
+  ].map(({n,s,p},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:p||0,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
   ...["CHICLE AMARILLO","OKA LOKA","ROLIN ROLLON","MECHAS LOKAS","BOLA DE CHICLE","CAPRI","TAKIS FUEGO","OKA LOKA FUSION","GALLETA CAPRI"]
     .map((n,i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:0,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
   ...[{n:"BOTELLA CON AGUA GRANDE",p:2000},{n:"BOTELLA CON AGUA PEQUEÑA",p:1000},{n:"CERVEZA",p:4500},{n:"BOTELLA DE TAMARINDO",p:4000},{n:"JUGO HIT",p:2500}]
