@@ -2114,7 +2114,7 @@ function confirmarVenta(){
   var sale={
     id:saleId,
     time:timeStr,
-    fecha:now.toISOString().split('T')[0],
+    fecha:getFechaHoy(),
     timestamp:now.toISOString(),
     name:items,
     cat:cartItems.length===1?cartItems[0].cat:'VARIOS',
@@ -2151,7 +2151,7 @@ function confirmarVenta(){
       acreedor: nombreFiado+(telFiado?' ('+telFiado+')':''),
       concepto:'Venta fiada: '+items,
       monto:tot,
-      fecha:now.toISOString().split('T')[0],
+      fecha:getFechaHoy(),
       vence:'',
       pagada:false,
       origen:'fiado',
@@ -2359,7 +2359,7 @@ function cobrarPendiente(){
   var sale={
     id:'v'+now.getTime()+'_pend',
     time:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
-    fecha:now.toISOString().split('T')[0],timestamp:now.toISOString(),
+    fecha:getFechaHoy(),timestamp:now.toISOString(),
     name:items,cat:'VARIOS',
     qty:p.items.reduce(function(s,i){return s+i.qty;},0),
     price:p.total,total:p.total,canal:p.mesa,pago:pago,obs:p.obs,
@@ -3735,31 +3735,35 @@ function calcCambio(){
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getFechaHoy(){
-  // Fecha local Colombia (UTC-5)
-  var n=new Date();
-  var colombia=new Date(n.getTime() - (n.getTimezoneOffset()*60000));
-  var s=colombia.toISOString().split('T')[0];
-  return s;
+  // Fecha local Colombia
+  var n = new Date();
+  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
 }
+
 function getSalesHoy(){
-  var hoy=getFechaHoy();
-  // Timestamp de inicio del día de hoy en Colombia
-  var inicioHoy = hoy + 'T00:00:00';
-  var finHoy = hoy + 'T23:59:59';
-  // Último cierre de caja (corte de turno)
-  var ultCierre=null;
+  var hoy = getFechaHoy();
+  // Último cierre de HOY (no de días anteriores)
+  var ultCierreHoy = null;
   (LS.g('cierresTurno')||[]).forEach(function(c){
-    if(c.timestamp&&(!ultCierre||c.timestamp>ultCierre)) ultCierre=c.timestamp;
+    if(!c.timestamp) return;
+    var fechaCierre = c.timestamp.substring(0,10);
+    if(fechaCierre === hoy){
+      if(!ultCierreHoy || c.timestamp > ultCierreHoy) ultCierreHoy = c.timestamp;
+    }
   });
   return sales.filter(function(s){
-    // Usar campo fecha si existe, sino extraer del timestamp
+    // Solo ventas de hoy
     var f = s.fecha || (s.timestamp||'').substring(0,10);
-    // Comparar con fecha de hoy
     if(f !== hoy) return false;
-    // Si hay cierre posterior, excluir ventas anteriores al cierre
-    if(ultCierre && s.timestamp && s.timestamp <= ultCierre) return false;
+    // Si hay cierre hoy, excluir ventas anteriores al cierre
+    if(ultCierreHoy && s.timestamp && s.timestamp <= ultCierreHoy) return false;
     return true;
   });
+}
+
+// Ventas del turno actual (alias de getSalesHoy)
+function getVentasTurnoActual(){
+  return getSalesHoy();
 }
 function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});getSalesHoy().forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
 // ══════════════════════════════════════════════
