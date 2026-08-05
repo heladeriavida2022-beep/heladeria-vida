@@ -694,6 +694,7 @@ try{
           <div class="adm-view" id="adv-cierres" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
               <div style="font-size:14px;font-weight:700;font-family:var(--font-head)">🔒 Cierres de Caja por Turno</div>
+              <button class="btn btn-ghost" onclick="diagnosticoAyer()" style="color:#3aaa6a"><i class="ti ti-chart-bar"></i> Diagnóstico ayer</button>
               <button class="btn btn-acc" style="background:#1a1a2e;border-color:#1a1a2e" onclick="abrirCierreGeneral()"><i class="ti ti-lock-square"></i> Cierre General del Día</button>
             </div>
             <!-- Filtros -->
@@ -3930,6 +3931,26 @@ function getTurnoActivo(){
   var local = LS.g('turnoActivo');
   if(local && local.fecha===getFechaHoy() && local.estado==='abierto'){ turnoActivo=local; return local; }
   return null;
+}
+
+function diagnosticoAyer(){
+  var ayer='2026-08-03';
+  var vA=sales.filter(function(s){var f=s.fecha||(s.timestamp||'').substring(0,10);return f===ayer;});
+  var efe=vA.filter(function(s){return s.pago==='Efectivo';}).reduce(function(t,s){return t+s.total;},0);
+  var dig=vA.filter(function(s){return s.pago!=='Efectivo';}).reduce(function(t,s){return t+s.total;},0);
+  var tot=vA.reduce(function(t,s){return t+s.total;},0);
+  var cA=(purchases||[]).filter(function(p){return(p.fecha||'').startsWith(ayer)&&p.tipoPago==='contado';}).reduce(function(t,c){return t+(c.total||0);},0);
+  var html='<div style="position:fixed;top:60px;right:20px;z-index:9999;background:#fff;border:2px solid #3aaa6a;border-radius:12px;padding:16px;max-width:320px;font-size:13px;box-shadow:0 4px 20px rgba(0,0,0,.15)">' +
+    '<div style="font-weight:700;font-size:15px;margin-bottom:10px;color:#3aaa6a">📊 Diagnóstico 03/08/2026</div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Ventas encontradas:</span><b>'+vA.length+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Total ventas:</span><b style="color:#3aaa6a">'+fmt(tot)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Efectivo:</span><b>'+fmt(efe)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Digital:</span><b>'+fmt(dig)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span>Compras contado:</span><b style="color:#e94560">-'+fmt(cA)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;border-top:1px solid #eee;padding-top:8px;margin-top:5px"><span>Efectivo esperado:</span><b style="color:#3aaa6a">'+fmt(100000+efe-cA)+'</b></div>' +
+    '<button onclick="this.parentElement.remove()" style="margin-top:10px;width:100%;padding:6px;border:1px solid #ccc;border-radius:6px;cursor:pointer">Cerrar</button>' +
+    '</div>';
+  document.body.insertAdjacentHTML('beforeend',html);
 }
 
 // ══════════════════════════════════════════════
