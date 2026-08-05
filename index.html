@@ -740,7 +740,7 @@ try{
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
             <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div><input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:140px;padding:5px 9px;font-size:11px"></div>
-            <div class="tw"><table><thead><tr><th>#</th><th>Hora</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>Total</th><th>Canal</th><th>Empleado</th></tr></thead><tbody id="sales-tbl"></tbody></table></div></div>
+            <div class="tw"><table><thead><tr><th>#</th><th>Fecha</th><th>Hora</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>Total</th><th>Canal</th><th>Empleado</th></tr></thead><tbody id="sales-tbl"></tbody></table></div></div>
           </div>
 
           <!-- GASTOS -->
@@ -3271,12 +3271,34 @@ function guardarVentaM(){
 }
 function renderSalesTable(){
   const tbl=document.getElementById('sales-tbl');if(!tbl)return;
+  var hoy = getFechaHoy();
   var salesHoy=getSalesHoy();
-  const tot=salesHoy.reduce((s,v)=>s+v.total,0);const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
+  const tot=salesHoy.reduce((s,v)=>s+v.total,0);
+  const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
-  if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Transacciones</div><div class="sval" style="color:var(--acc4)">${salesHoy.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${sales.length?fmt(tot/salesHoy.length):'$0'}</div></div>`;
-  if(!salesHoy.length){tbl.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
-  tbl.innerHTML=[...salesHoy].reverse().map(s=>`<tr><td>${s.id}</td><td>${s.time}</td><td>${s.name}</td><td>${catBadge(s.cat)}</td><td>${s.qty}</td><td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td><td>${s.canal}</td><td style="color:var(--text2);font-size:11px">${s.emp}</td></tr>`).join('');
+  if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades hoy</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc4)">${salesHoy.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${salesHoy.length?fmt(tot/salesHoy.length):'$0'}</div></div>`;
+  // Mostrar TODAS las ventas con su fecha para que se pueda ver cuáles son de ayer/hoy
+  var todasVentas = [...sales].sort(function(a,b){ return (b.timestamp||'') > (a.timestamp||'') ? 1:-1; });
+  if(!todasVentas.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas</td></tr>';return;}
+  tbl.innerHTML=todasVentas.map(function(s){
+    var fecha = getFechaDeVenta(s) || '—';
+    var esHoy = fecha === hoy;
+    var rowStyle = esHoy ? '' : 'opacity:.6;background:#f8f8f8';
+    var fechaLabel = esHoy
+      ? '<span style="color:#3aaa6a;font-weight:700;font-size:10px">HOY</span>'
+      : '<span style="color:#e94560;font-size:10px">'+fecha+'</span>';
+    return `<tr style="${rowStyle}">
+      <td>${s.id}</td>
+      <td>${fechaLabel}</td>
+      <td>${s.time||'—'}</td>
+      <td>${s.name}</td>
+      <td>${catBadge(s.cat)}</td>
+      <td>${s.qty}</td>
+      <td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td>
+      <td>${s.canal||'—'}</td>
+      <td style="color:var(--text2);font-size:11px">${s.emp||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════
@@ -3735,33 +3757,39 @@ function calcCambio(){
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getFechaHoy(){
-  // Fecha local Colombia
   var n = new Date();
   return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
 }
 
+function getFechaDeVenta(s){
+  // Obtener fecha de una venta aunque no tenga campo fecha
+  if(s.fecha) return s.fecha;
+  if(s.timestamp) return s.timestamp.substring(0,10);
+  // Si solo tiene hora (ventas antiguas sin timestamp ni fecha)
+  // No podemos saber el día — las excluimos del filtro de hoy
+  return null;
+}
+
 function getSalesHoy(){
   var hoy = getFechaHoy();
-  // Último cierre de HOY (no de días anteriores)
+  // Último cierre de HOY como corte de turno
   var ultCierreHoy = null;
   (LS.g('cierresTurno')||[]).forEach(function(c){
     if(!c.timestamp) return;
-    var fechaCierre = c.timestamp.substring(0,10);
-    if(fechaCierre === hoy){
+    if(c.timestamp.substring(0,10) === hoy){
       if(!ultCierreHoy || c.timestamp > ultCierreHoy) ultCierreHoy = c.timestamp;
     }
   });
   return sales.filter(function(s){
-    // Solo ventas de hoy
-    var f = s.fecha || (s.timestamp||'').substring(0,10);
+    var f = getFechaDeVenta(s);
+    // Ventas sin fecha ni timestamp no se muestran en el día actual
+    if(!f) return false;
     if(f !== hoy) return false;
-    // Si hay cierre hoy, excluir ventas anteriores al cierre
     if(ultCierreHoy && s.timestamp && s.timestamp <= ultCierreHoy) return false;
     return true;
   });
 }
 
-// Ventas del turno actual (alias de getSalesHoy)
 function getVentasTurnoActual(){
   return getSalesHoy();
 }
