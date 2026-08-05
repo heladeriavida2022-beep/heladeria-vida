@@ -4088,6 +4088,8 @@ function confirmarCierreTurno(){
 
   cierresTurno.unshift(cierre);
   LS.set('cierresTurno', cierresTurno);
+  // Guardar cierre en Firebase para que sea visible desde cualquier dispositivo
+  try{ window.FB.set('cierresTurno', cierre.id, cierre); }catch(e){ console.warn('cierre FB:', e); }
 
   // Marcar turno activo como cerrado en Firebase
   if(ta && ta.turnoId){
