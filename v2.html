@@ -1522,7 +1522,7 @@ let prods=[
     {n:"MEDIO LITRO DE HELADO",s:14,p:7000},
     {n:"CUARTOS DE HELADO",s:11,p:4500},
     {n:"VASITO",s:0,p:2200},
-    {n:"HELADOS POLARES",s:7,p:2500},{n:"CHOCOCONO FLOW",s:7,p:4500},{n:"PLATILLO JUMBO",s:1,p:5000},{n:"ALOHA TAJIN",s:13,p:3500},{n:"HELADOS CREMOSOS",s:0,p:2700},{n:"HELADOS DE AGUA",s:0,p:1800},{n:"HELADOS DE FRUTAS",s:0,p:2500},{n:"CAJA DE HELADOS",s:0,p:120000},{n:"MEDIA CAJA DE HELADOS",s:0,p:60000}
+    {n:"HELADOS POLARES",s:7,p:2500},{n:"CHOCOCONO FLOW",s:7,p:4500},{n:"PLATILLO JUMBO",s:1,p:5000},{n:"ALOHA TAJIN",s:13,p:3500},{n:"HELADOS CREMOSOS",s:16,p:2700},{n:"HELADOS DE AGUA",s:10,p:1800},{n:"HELADOS DE FRUTAS",s:10,p:2500},{n:"CAJA DE HELADOS",s:0,p:120000},{n:"MEDIA CAJA DE HELADOS",s:0,p:60000}
   ].map(({n,s,p},i)=>({id:100+i,name:n,cat:'EMPAQUETADOS',emoji:'📦',price:p||0,stock:s,min:5,unit:'unidades',descuenta:true,active:true})),
   ...["CHICLE AMARILLO","OKA LOKA","ROLIN ROLLON","MECHAS LOKAS","BOLA DE CHICLE","CAPRI","TAKIS FUEGO","OKA LOKA FUSION","GALLETA CAPRI"]
     .map((n,i)=>({id:200+i,name:n,cat:'DULCERIA',emoji:'🍬',price:0,stock:30,min:10,unit:'unidades',descuenta:true,active:true})),
@@ -4666,6 +4666,11 @@ async function fbCargarTodo(){
         }
       });
     }catch(e){ console.warn('productos FB:', e); }
+    // Desactivar productos duplicados (creados manualmente con nombre incorrecto)
+    var duplicados = ['HELADO CREMOSOS','HELADO DE FRUTAS','HELADO DE AGUA'];
+    prods.forEach(function(p){
+      if(duplicados.indexOf(p.name) >= 0) p.active = false;
+    });
 
     // 4. Ventas
     var fbVentas = await fbGetAll('ventas');
