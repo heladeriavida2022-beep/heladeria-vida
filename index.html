@@ -3238,7 +3238,22 @@ function guardarAjuste(){
 function renderComprasTable(){
   const tbl=document.getElementById('compras-tbl');if(!tbl)return;
   if(!purchases.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
-  tbl.innerHTML=[...purchases].reverse().map(c=>`<tr><td>${c.fecha}</td><td>${c.name}</td><td><span class="badge ${c.tipo==='Ajuste'?'bp':'bb'}">${c.tipo}</span></td><td style="color:${c.qty>=0?'var(--acc3)':'var(--acc)'}">${c.qty>=0?'+':''}${c.qty} ${c.unit}</td><td style="color:var(--acc2)">${c.total>0?fmt(c.total):'—'}</td><td>${c.prov}</td><td style="color:var(--text2)">${c.por}</td></tr>`).join('');
+  tbl.innerHTML=[...purchases].reverse().map(c=>{
+    var pagoLabel = c.tipoPago==='credito'
+      ? '<span class="badge" style="background:#fff8e1;color:#d48a00;font-size:10px">📋 Crédito</span>'
+      : c.tipoPago==='contado'
+        ? '<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Contado</span>'
+        : '<span class="badge bb">'+( c.tipo||'Compra')+'</span>';
+    return `<tr>
+      <td>${c.fecha}</td>
+      <td>${c.name||'—'}</td>
+      <td>${pagoLabel}</td>
+      <td style="color:${(c.qty||0)>=0?'var(--acc3)':'var(--acc)'}">${(c.qty||0)>=0?'+':''}${c.qty||''} ${c.unit||''}</td>
+      <td style="color:var(--acc2)">${c.total>0?fmt(c.total):'—'}</td>
+      <td>${c.prov||'—'}</td>
+      <td style="color:var(--text2)">${c.por||'—'}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ══════════════════════════════════════════════
@@ -3720,17 +3735,29 @@ function calcCambio(){
 }
 const PAGO_CFG={'Efectivo':{icon:'💵',color:'#3aaa6a'},'Nequi/Daviplata':{icon:'📱',color:'#9b72cf'},'Tarjeta':{icon:'💳',color:'#3b82f6'},'Transferencia':{icon:'🏦',color:'#f0a500'}};
 function getFechaHoy(){
+  // Fecha local Colombia (UTC-5)
   var n=new Date();
-  return n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  var colombia=new Date(n.getTime() - (n.getTimezoneOffset()*60000));
+  var s=colombia.toISOString().split('T')[0];
+  return s;
 }
 function getSalesHoy(){
   var hoy=getFechaHoy();
+  // Timestamp de inicio del día de hoy en Colombia
+  var inicioHoy = hoy + 'T00:00:00';
+  var finHoy = hoy + 'T23:59:59';
+  // Último cierre de caja (corte de turno)
   var ultCierre=null;
-  (LS.g('cierresTurno')||[]).forEach(function(c){ if(c.timestamp&&(!ultCierre||c.timestamp>ultCierre)) ultCierre=c.timestamp; });
+  (LS.g('cierresTurno')||[]).forEach(function(c){
+    if(c.timestamp&&(!ultCierre||c.timestamp>ultCierre)) ultCierre=c.timestamp;
+  });
   return sales.filter(function(s){
-    var f=s.fecha||(s.timestamp||'').split('T')[0];
-    if(f!==hoy) return false;
-    if(ultCierre&&s.timestamp&&s.timestamp<=ultCierre) return false;
+    // Usar campo fecha si existe, sino extraer del timestamp
+    var f = s.fecha || (s.timestamp||'').substring(0,10);
+    // Comparar con fecha de hoy
+    if(f !== hoy) return false;
+    // Si hay cierre posterior, excluir ventas anteriores al cierre
+    if(ultCierre && s.timestamp && s.timestamp <= ultCierre) return false;
     return true;
   });
 }
