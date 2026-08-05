@@ -4465,8 +4465,29 @@ function imprimirCGById(id){
   w.print();
 }
 
-function renderCierres(){
-  cierresTurno = LS.g('cierresTurno')||[];
+async function renderCierres(){
+  // Cargar desde Firebase como fuente principal
+  try{
+    var fbCierres = await fbGetAll('cierresTurno');
+    if(fbCierres && fbCierres.length > 0){
+      // Mezclar con localStorage sin duplicar — Firebase tiene prioridad
+      var localCierres = LS.g('cierresTurno')||[];
+      var merged = [...fbCierres];
+      localCierres.forEach(function(lc){
+        if(!merged.find(function(fc){ return fc.id===lc.id; })){
+          merged.push(lc);
+        }
+      });
+      merged.sort(function(a,b){ return (b.timestamp||'')>(a.timestamp||'')?1:-1; });
+      cierresTurno = merged;
+      LS.set('cierresTurno', cierresTurno);
+    } else {
+      cierresTurno = LS.g('cierresTurno')||[];
+    }
+  }catch(e){
+    console.warn('cierres desde Firebase:', e);
+    cierresTurno = LS.g('cierresTurno')||[];
+  }
   var desde = document.getElementById('cf-desde')?.value||'';
   var hasta = document.getElementById('cf-hasta')?.value||'';
   var turnoF = document.getElementById('cf-turno')?.value||'ALL';
