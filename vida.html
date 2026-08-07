@@ -4510,8 +4510,22 @@ async function renderCierres(){
     if(turnoF !== 'ALL' && c.turno !== turnoF) ok = false;
     if(usuF !== 'ALL' && c.usuario !== usuF) ok = false;
     if(estF !== 'ALL' && c.estado !== estF) ok = false;
-    if(desde && c.timestamp && c.timestamp < desde) ok = false;
-    if(hasta && c.timestamp && c.timestamp > hasta+'T23:59:59') ok = false;
+    // Si no hay filtro de fecha, mostrar solo los de hoy
+    if(!desde && !hasta){
+      var hoy = getFechaHoy();
+      // Comparar fecha del cierre con hoy
+      var fechaCierre = c.timestamp ? c.timestamp.substring(0,10) : '';
+      var fechaCierreLocal = c.fecha || '';
+      // Convertir fecha local (dd/mm/yyyy) a ISO si es necesario
+      if(fechaCierreLocal && fechaCierreLocal.includes('/')){
+        var partes = fechaCierreLocal.split('/');
+        if(partes.length===3) fechaCierreLocal = partes[2]+'-'+partes[1].padStart(2,'0')+'-'+partes[0].padStart(2,'0');
+      }
+      if(fechaCierre !== hoy && fechaCierreLocal !== hoy) ok = false;
+    } else {
+      if(desde && c.timestamp && c.timestamp < desde) ok = false;
+      if(hasta && c.timestamp && c.timestamp > hasta+'T23:59:59') ok = false;
+    }
     return ok;
   });
 
