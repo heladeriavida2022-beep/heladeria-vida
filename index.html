@@ -3329,19 +3329,20 @@ function renderSalesTable(){
   const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
   if(st)st.innerHTML=`<div class="stat"><div class="slb">Total hoy</div><div class="sval" style="color:var(--acc3)">${fmt(tot)}</div></div><div class="stat"><div class="slb">Unidades hoy</div><div class="sval" style="color:var(--acc5)">${unds}</div></div><div class="stat"><div class="slb">Ventas hoy</div><div class="sval" style="color:var(--acc4)">${salesHoy.length}</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">${salesHoy.length?fmt(tot/salesHoy.length):'$0'}</div></div>`;
+  var isAdmin = currentUser && currentUser.role === 'admin';
   if(!salesHoy.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas hoy</td></tr>';return;}
   tbl.innerHTML=salesHoy.map(function(s){
-    var fecha = getFechaDeVenta(s) || '—';
+    var corregido = s.pagoCorregido ? ' <span title="Pago corregido" style="font-size:9px;color:#f0a500">✏️</span>' : '';
     return `<tr>
-      <td>${s.id}</td>
+      <td style="font-size:10px">${s.id.split('_')[0]}</td>
       <td><span style="color:#3aaa6a;font-weight:700;font-size:10px">HOY</span></td>
       <td>${s.time||'—'}</td>
       <td>${s.name}</td>
       <td>${catBadge(s.cat)}</td>
       <td>${s.qty}</td>
       <td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td>
-      <td>${s.canal||'—'}</td>
-      <td style="color:var(--text2);font-size:11px">${s.emp||'—'}</td>
+      <td>${s.pago||'Efectivo'}${corregido}</td>
+      <td>${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="abrirCorreccionPago('${s.id}')" style="font-size:10px;padding:2px 6px">✏️</button>`:''}</td>
     </tr>`;
   }).join('');
 }
@@ -3857,6 +3858,74 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// CORRECCIÓN MÉTODO DE PAGO (solo admin)
+// ══════════════════════════════════════════════
+
+var _ventaACorregir = null;
+
+function abrirCorreccionPago(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede corregir el método de pago','#e94560');return;}
+  var venta=sales.find(function(s){return s.id===id;});
+  if(!venta){toast('Venta no encontrada','#e94560');return;}
+  _ventaACorregir=venta;
+  // Crear modal dinámicamente si no existe
+  var mo=document.getElementById('ov-corregir-pago');
+  if(!mo){
+    mo=document.createElement('div');
+    mo.className='ov';mo.id='ov-corregir-pago';
+    mo.innerHTML='<div class="modal" style="max-width:420px">'+
+      '<button class="mx" onclick="closeM(\'corregir-pago\')"><i class="ti ti-x"></i></button>'+
+      '<div class="mt"><i class="ti ti-edit" style="color:#f0a500"></i>Corregir Método de Pago</div>'+
+      '<div id="corregir-pago-info" style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:14px;font-size:13px"></div>'+
+      '<div class="fg"><label class="fgrp-label">Método de pago correcto</label>'+
+      '<select class="finput" id="corregir-pago-select">'+
+        '<option value="Efectivo">💵 Efectivo</option>'+
+        '<option value="Nequi/Daviplata">📱 Nequi/Daviplata</option>'+
+        '<option value="Tarjeta">💳 Tarjeta</option>'+
+        '<option value="Transferencia">🏦 Transferencia</option>'+
+      '</select></div>'+
+      '<div class="fg"><label class="fgrp-label">Motivo de la corrección</label>'+
+      '<input class="finput" id="corregir-pago-motivo" placeholder="Ej: Cliente pagó en efectivo"></div>'+
+      '<div style="display:flex;gap:8px;margin-top:10px">'+
+        '<button class="btn btn-acc" onclick="confirmarCorreccionPago()" style="flex:1">✅ Confirmar corrección</button>'+
+        '<button class="btn btn-ghost" onclick="closeM(\'corregir-pago\')">Cancelar</button>'+
+      '</div></div>';
+    document.body.appendChild(mo);
+  }
+  document.getElementById('corregir-pago-info').innerHTML=
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--text2)">ID:</span><b style="font-size:11px">'+venta.id+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--text2)">Hora:</span><b>'+venta.time+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between;margin-bottom:5px"><span style="color:var(--text2)">Total:</span><b style="color:#3aaa6a">'+fmt(venta.total)+'</b></div>'+
+    '<div style="display:flex;justify-content:space-between"><span style="color:var(--text2)">Pago actual:</span><b style="color:#e94560">'+venta.pago+'</b></div>';
+  document.getElementById('corregir-pago-select').value=venta.pago||'Efectivo';
+  document.getElementById('corregir-pago-motivo').value='';
+  openM('corregir-pago');
+}
+
+function confirmarCorreccionPago(){
+  if(!_ventaACorregir){toast('Error: venta no identificada','#e94560');return;}
+  var nuevoPago=document.getElementById('corregir-pago-select').value;
+  var motivo=document.getElementById('corregir-pago-motivo').value.trim();
+  if(nuevoPago===_ventaACorregir.pago){toast('El método es igual al actual','#f0a500');return;}
+  if(!confirm('¿Confirmar corrección?\n'+_ventaACorregir.pago+' → '+nuevoPago))return;
+  var pagoAnterior=_ventaACorregir.pago;
+  _ventaACorregir.pago=nuevoPago;
+  _ventaACorregir.pagoCorregido=true;
+  _ventaACorregir.pagoOriginal=pagoAnterior;
+  _ventaACorregir.motivoCorreccion=motivo;
+  _ventaACorregir.corregidoPor=currentUser.name;
+  _ventaACorregir.timestampCorreccion=new Date().toISOString();
+  LS.set('sales',sales);
+  try{window.FB.set('ventas',_ventaACorregir.id,_ventaACorregir);}catch(e){}
+  logAction('admin','Corrigió pago '+_ventaACorregir.id,pagoAnterior+' → '+nuevoPago+(motivo?' | '+motivo:''));
+  closeM('corregir-pago');
+  renderSalesTable();
+  try{renderCaja();}catch(e){}
+  toast('✅ Pago corregido: '+pagoAnterior+' → '+nuevoPago,'#3aaa6a');
+  _ventaACorregir=null;
+}
+
 // RESTAURAR CIERRES HISTÓRICOS EN FIREBASE
 // ══════════════════════════════════════════════
 async function restaurarCierresHistoricos(){
