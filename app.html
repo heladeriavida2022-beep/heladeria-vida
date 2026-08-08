@@ -4283,48 +4283,62 @@ function abrirCierreTurno(){
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
-  var totalVentas = efe + nequi + tarjeta + trans;
-  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
-  // Egresos en efectivo de hoy (compras pagadas en efectivo)
+  var totalDigital = nequi + tarjeta + trans;
+  var totalVentas = efe + totalDigital;
+  var BASE = 100000;
   var hoy = getFechaHoy();
+
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp||'').substring(0,10);
-    return !fm || fm === hoy;
+    return fm === hoy;
   }).reduce(function(s,m){return s+(m.monto||0);},0);
-  // Efectivo esperado = base + ventas efectivo - egresos
-  var BASE = 100000;
-  var efeEsperado = BASE + efe - egresosEfectivo;
+
+  var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
+    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+  }).reduce(function(s,g){return s+(g.monto||0);},0);
+
+  var totalEgresos = egresosEfectivo + gastosEfe;
+  var totalEnCaja = BASE + efe - totalEgresos;
+  var aRetirar = Math.max(0, totalEnCaja - BASE);
+  var ventasTurno = getSalesHoy();
 
   var res = document.getElementById('ct-resumen');
   if(res) res.innerHTML =
-    '<div style="background:#edfaf2;border:1px solid #3aaa6a;border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;font-size:12px;font-weight:700">' +
-    '<span>💵 Base fija de caja:</span><span style="color:#3aaa6a">$100.000</span></div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:12px">' +
-    '<div><span style="color:var(--text2)">Ventas efectivo:</span> <b style="color:#3aaa6a">'+fmt(efe)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b style="color:#9b72cf">'+fmt(nequi)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Tarjeta:</span> <b style="color:#3b82f6">'+fmt(tarjeta)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Transferencia:</span> <b style="color:#f0a500">'+fmt(trans)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Total ventas:</span> <b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
-    (egresosEfectivo>0?'<div><span style="color:var(--text2)">Egresos efectivo:</span> <b style="color:#e94560">-'+fmt(egresosEfectivo)+'</b></div>':'') +
+    '<div style="background:#f0f4ff;border:1.5px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:10px">' +
+    '<div style="font-weight:700;color:#3b82f6;margin-bottom:6px;font-size:12px">📱 DINERO DIGITAL (no es efectivo físico)</div>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">' +
+    '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b>'+fmt(nequi)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Tarjeta:</span> <b>'+fmt(tarjeta)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Transferencia:</span> <b>'+fmt(trans)+'</b></div>' +
+    '<div><span style="color:var(--text2)">Total digital:</span> <b style="color:#3b82f6">'+fmt(totalDigital)+'</b></div>' +
+    '</div></div>' +
+    '<div style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:8px;padding:10px;margin-bottom:10px">' +
+    '<div style="font-weight:700;color:#3aaa6a;margin-bottom:6px;font-size:12px">💵 EFECTIVO EN CAJA</div>' +
+    '<div style="font-size:12px">' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Base inicial:</span><b>'+fmt(BASE)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Ventas en efectivo:</span><b>'+fmt(efe)+'</b></div>' +
+    (totalEgresos>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#e94560">Compras/gastos:</span><b style="color:#e94560">-'+fmt(totalEgresos)+'</b></div>':'')+
+    '<div style="display:flex;justify-content:space-between;border-top:1px solid #d1fae5;padding-top:6px;margin-top:4px;font-weight:700"><span>Total en caja:</span><b style="color:#3aaa6a">'+fmt(totalEnCaja)+'</b></div>' +
+    '</div></div>' +
+    '<div style="background:#fff8e1;border:2px solid #f0a500;border-radius:8px;padding:12px;text-align:center">' +
+    '<div style="font-size:11px;color:#d48a00;margin-bottom:4px;font-weight:700">💰 DINERO A RETIRAR</div>' +
+    '<div style="font-size:24px;font-weight:800;color:#d48a00">'+fmt(aRetirar)+'</div>' +
+    '<div style="font-size:10px;color:#888;margin-top:4px">Quedan $100.000 en caja para el próximo turno</div>' +
     '</div>' +
-    '<div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:13px;font-weight:700">' +
-    '<div>Efectivo esperado: <span style="color:#3aaa6a">'+fmt(efeEsperado)+'</span></div>' +
-    '<div style="color:#e94560">A retirar: '+fmt(Math.max(0,efeEsperado-BASE))+'</div>' +
-    '</div>';
+    '<div style="font-size:10px;color:var(--text3);margin-top:6px;text-align:center">'+ventasTurno.length+' ventas · Total: '+fmt(totalVentas)+'</div>';
 
-  var turnoDefault = currentUser && currentUser.turno && currentUser.turno.includes('Mañana') ? '1' : '2';
+  var turnoDefault = currentUser&&currentUser.turno&&currentUser.turno.includes('Mañana')?'1':'2';
   var sel = document.getElementById('ct-turno');
   if(sel) sel.value = turnoDefault;
 
   var fondoEl = document.getElementById('ct-fondo');
-  if(fondoEl){ fondoEl.value = 100000; fondoEl.readOnly = true; fondoEl.style.background='var(--bg3)'; }
+  if(fondoEl){fondoEl.value=BASE;fondoEl.readOnly=true;fondoEl.style.background='var(--bg3)';}
 
-  document.getElementById('ct-contado').value = '';
-  document.getElementById('ct-obs').value = '';
-  var dif = document.getElementById('ct-diferencia');
-  if(dif) dif.innerHTML = '';
-
+  document.getElementById('ct-contado').value='';
+  document.getElementById('ct-obs').value='';
+  var dif=document.getElementById('ct-diferencia');
+  if(dif) dif.innerHTML='';
   openM('cierre-turno');
 }
 
