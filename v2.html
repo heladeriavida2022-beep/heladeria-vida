@@ -4288,10 +4288,11 @@ function abrirCierreTurno(){
   var BASE = 100000;
   var hoy = getFechaHoy();
 
+  // Solo egresos que tienen fecha explícita de HOY
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
-    var fm = m.fecha || (m.timestamp||'').substring(0,10);
-    return fm === hoy;
+    var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
+    return fm === hoy; // si no tiene fecha, se excluye
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
   var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
@@ -4350,8 +4351,8 @@ function calcCierre(){
   var hoy = getFechaHoy();
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
-    var fm = m.fecha || (m.timestamp||'').substring(0,10);
-    return !fm || fm === hoy;
+    var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
+    return fm === hoy; // excluir sin fecha
   }).reduce(function(s,m){return s+(m.monto||0);},0);
   var esperado = BASE + efe - egresosEfectivo;
   var aRetirar = Math.max(0, esperado - BASE);
