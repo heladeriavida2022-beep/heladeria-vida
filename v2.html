@@ -836,7 +836,7 @@ try{
           <!-- COMPRAS -->
           <div class="adm-view" id="adv-compras" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('ingreso')"><i class="ti ti-truck"></i> Nueva compra</button></div>
-            <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Producto</th><th>Tipo</th><th>Cant.</th><th>Total</th><th>Proveedor</th><th>Por</th></tr></thead><tbody id="compras-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr></tbody></table></div></div>
+            <div class="card"><div class="tw"><table><thead><tr><th>Fecha</th><th>Proveedor</th><th>Productos</th><th>Total</th><th>Pago</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="compras-tbl"><tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr></tbody></table></div></div>
           </div>
 
           <!-- PRODUCTOS GESTIÓN -->
@@ -1068,7 +1068,8 @@ try{
     <div class="fg">
       <label class="fgrp-label">Tipo de pago</label>
       <select class="finput" id="ing-tipo-pago" onchange="toggleIngCredito()">
-        <option value="contado">💵 Contado (pago inmediato)</option>
+        <option value="contado_efectivo">💵 Contado - Efectivo</option>
+        <option value="contado_transferencia">📱 Contado - Transferencia</option>
         <option value="credito">📋 Crédito (factura pendiente)</option>
       </select>
     </div>
@@ -3122,9 +3123,129 @@ function toggleIngCredito(){
 
 function guardarIngreso(){
   var prov=document.getElementById('ing-prov').value;
-  var fecha=document.getElementById('ing-f').value||new Date().toISOString().split('T')[0];
+  var fecha=document.getElementById('ing-f').value||getFechaHoy();
   var tipoPago=document.getElementById('ing-tipo-pago').value;
   var vence=tipoPago==='credito'?(document.getElementById('ing-vence').value||''):'';
+  var validos=ingItems.filter(function(it){return it.pid&&it.qty>0;});
+  if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
+  if(!prov){toast('Selecciona un proveedor','var(--acc)');return;}
+
+  var ta=getTurnoActivo();
+  var now=new Date();
+  var compraId='comp_'+now.getTime();
+  var totalCompra=0;
+  var detalle=[];
+  var productosNombres=[];
+
+  validos.forEach(function(it){
+    var p=gP(parseInt(it.pid));if(!p)return;
+    var qty=parseFloat(it.qty)||0;
+    var costo=parseFloat(it.costo)||0;
+    var subtotal=qty*costo;
+    totalCompra+=subtotal;
+    productosNombres.push(p.name);
+    detalle.push({
+      productoId:String(p.id),producto:p.name,cat:p.cat,
+      cantidad:qty,unit:it.unit||'unidades',
+      precioUnitario:costo,subtotal:subtotal
+    });
+    // Actualizar inventario
+    if(p.descuenta){
+      p.stock+=qty;
+      LS.updProd(p.id,{stock:p.stock});
+      if(typeof window.fbUpdateStock==='function') window.fbUpdateStock(p.id,p.stock);
+    }
+  });
+
+  // Determinar si afecta efectivo
+  var afectaEfectivo = tipoPago==='contado_efectivo';
+  var afectaTransferencia = tipoPago==='contado_transferencia';
+  var esCredito = tipoPago==='credito';
+
+  // Crear UNA sola compra con detalle
+  var compra={
+    id:compraId,
+    fecha:fecha,
+    timestamp:now.toISOString(),
+    prov:prov,
+    tipoPago:tipoPago,
+    vence:vence,
+    total:totalCompra,
+    detalle:detalle,
+    numProductos:detalle.length,
+    por:currentUser?currentUser.name:'—',
+    porId:currentUser?currentUser.id:'',
+    turnoId:ta?ta.turnoId:null,
+    turno:ta?ta.turno:null,
+    estadoPago:esCredito?'pendiente':'pagada'
+  };
+
+  purchases.unshift(compra);
+  LS.set('purchases',purchases);
+  // Guardar en Firebase
+  try{window.FB.set('compras',compra.id,compra);}catch(e){}
+
+  // CRÉDITO → crear deuda
+  if(esCredito&&totalCompra>0){
+    var deuda={
+      id:'d'+now.getTime(),
+      acreedor:prov,
+      concepto:'Compra: '+productosNombres.slice(0,3).join(', ')+(productosNombres.length>3?'...':''),
+      monto:totalCompra,montoPagado:0,
+      fecha:fecha,vence:vence,
+      pagada:false,origen:'compra',tipo:'pagar',compraId:compraId
+    };
+    var deudas=LS.g('deudas')||[];
+    deudas.unshift(deuda);
+    LS.set('deudas',deudas);
+    try{window.FB.set('deudas',deuda.id,deuda);}catch(e){}
+    updateDeudasBadge();
+  }
+
+  // CONTADO EFECTIVO → egreso de caja
+  if(afectaEfectivo&&totalCompra>0){
+    var mov={
+      id:'m'+now.getTime(),
+      hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      fecha:getFechaHoy(),timestamp:now.toISOString(),
+      tipo:'egreso',
+      desc:'Compra a '+prov+' ('+productosNombres.slice(0,2).join(', ')+(productosNombres.length>2?'...':'')+')',
+      monto:totalCompra,pago:'Efectivo',
+      emp:currentUser?currentUser.name:'—',
+      turnoId:ta?ta.turnoId:null
+    };
+    movCaja.unshift(mov);
+    LS.set('movCaja',movCaja);
+    try{window.FB.set('caja',mov.id,mov);}catch(e){}
+  }
+
+  // CONTADO TRANSFERENCIA → registrar pero no afecta efectivo
+  if(afectaTransferencia&&totalCompra>0){
+    var movT={
+      id:'m'+now.getTime()+'t',
+      hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      fecha:getFechaHoy(),timestamp:now.toISOString(),
+      tipo:'egreso_transferencia',
+      desc:'Compra (transferencia) a '+prov,
+      monto:totalCompra,pago:'Transferencia',
+      emp:currentUser?currentUser.name:'—',
+      turnoId:ta?ta.turnoId:null
+    };
+    movCaja.unshift(movT);
+    LS.set('movCaja',movCaja);
+    try{window.FB.set('caja',movT.id,movT);}catch(e){}
+  }
+
+  logAction('ingreso','Compra a '+prov+' — '+detalle.length+' productos','Total: $'+totalCompra+' | '+tipoPago);
+  ingItems=[];
+  closeM('ingreso');renderInv();renderProdTable();updateBadges();renderComprasTable();
+  if(typeof renderDeudas==='function')renderDeudas();
+  if(typeof renderCaja==='function')renderCaja();
+  var msg=esCredito?'📋 Compra a crédito — deuda creada ✓':afectaEfectivo?'💵 Compra registrada — egreso de caja ✓':'📱 Compra registrada — transferencia ✓';
+  toast(msg,'#3aaa6a');
+}
+
+
   var validos=ingItems.filter(it=>it.pid&&it.qty>0);
   if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
 
@@ -3172,9 +3293,6 @@ function guardarIngreso(){
   closeM('ingreso');renderInv();renderProdTable();updateBadges();renderComprasTable();
   if(typeof renderDeudas==='function')renderDeudas();
   if(typeof renderCaja==='function')renderCaja();
-  var msg=tipoPago==='credito'?'Compra a crédito — deuda registrada ✓':'Compra registrada — salida de caja ✓';
-  toast(msg,'#3aaa6a');
-}
 
 // ══════════════════════════════════════════════
 // DEUDAS
@@ -3289,24 +3407,99 @@ function guardarAjuste(){
 }
 function renderComprasTable(){
   const tbl=document.getElementById('compras-tbl');if(!tbl)return;
-  if(!purchases.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros</td></tr>';return;}
-  tbl.innerHTML=[...purchases].reverse().map(c=>{
-    var pagoLabel = c.tipoPago==='credito'
-      ? '<span class="badge" style="background:#fff8e1;color:#d48a00;font-size:10px">📋 Crédito</span>'
-      : c.tipoPago==='contado'
-        ? '<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Contado</span>'
-        : '<span class="badge bb">'+( c.tipo||'Compra')+'</span>';
-    return `<tr>
-      <td>${c.fecha}</td>
-      <td>${c.name||'—'}</td>
-      <td>${pagoLabel}</td>
-      <td style="color:${(c.qty||0)>=0?'var(--acc3)':'var(--acc)'}">${(c.qty||0)>=0?'+':''}${c.qty||''} ${c.unit||''}</td>
-      <td style="color:var(--acc2)">${c.total>0?fmt(c.total):'—'}</td>
-      <td>${c.prov||'—'}</td>
-      <td style="color:var(--text2)">${c.por||'—'}</td>
-    </tr>`;
+  if(!purchases.length){tbl.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:16px">Sin registros de compras</td></tr>';return;}
+  var isAdmin=currentUser&&currentUser.role==='admin';
+  tbl.innerHTML=[...purchases].map(function(c){
+    // Compatibilidad: compras nuevas tienen detalle[], viejas son por producto
+    var tieneDetalle=Array.isArray(c.detalle)&&c.detalle.length>0;
+    var descripcion=tieneDetalle
+      ?(c.numProductos||c.detalle.length)+' producto(s): '+c.detalle.slice(0,2).map(function(d){return d.producto||d.name;}).join(', ')+(c.detalle.length>2?'...':'')
+      :(c.name||'—');
+    var tp=c.tipoPago||'contado';
+    var badgePago=tp==='credito'
+      ?'<span class="badge" style="background:#fff8e1;color:#d48a00;font-size:10px">📋 Crédito</span>'
+      :tp==='contado_transferencia'
+        ?'<span class="badge" style="background:#eff6ff;color:#3b82f6;font-size:10px">📱 Transferencia</span>'
+        :'<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Efectivo</span>';
+    var estadoBadge=c.estadoPago==='pendiente'
+      ?'<span class="badge br" style="font-size:10px">🔴 Pendiente</span>'
+      :'<span class="badge bg" style="font-size:10px">✅ Pagada</span>';
+    return '<tr>'+
+      '<td style="font-size:12px">'+(c.fecha||'—')+'</td>'+
+      '<td style="font-weight:700">'+(c.prov||'—')+'</td>'+
+      '<td style="font-size:11px;color:var(--text2);max-width:180px">'+descripcion+'</td>'+
+      '<td style="font-weight:700;color:#3aaa6a">'+fmt(c.total||0)+'</td>'+
+      '<td>'+badgePago+'</td>'+
+      '<td>'+estadoBadge+'</td>'+
+      '<td style="display:flex;gap:4px">'+
+        (tieneDetalle?'<button class="btn btn-ghost btn-sm" onclick="verDetalleCompra(\''+c.id+'\')" style="font-size:10px">👁 Detalle</button>':'')+
+        (isAdmin?'<button class="btn btn-ghost btn-sm" onclick="corregirPagoCompra(\''+c.id+'\')" style="font-size:10px">✏️</button>':'')+
+      '</td>'+
+    '</tr>';
   }).join('');
 }
+
+function verDetalleCompra(id){
+  var c=purchases.find(function(x){return x.id===id;});
+  if(!c||!c.detalle)return;
+  var html='<div style="font-size:12px">'+
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:var(--bg3);padding:10px;border-radius:8px;margin-bottom:10px">'+
+    '<div><b>Proveedor:</b> '+c.prov+'</div>'+
+    '<div><b>Fecha:</b> '+c.fecha+'</div>'+
+    '<div><b>Forma de pago:</b> '+(c.tipoPago==='credito'?'📋 Crédito':c.tipoPago==='contado_transferencia'?'📱 Transferencia':'💵 Efectivo')+'</div>'+
+    '<div><b>Registró:</b> '+c.por+'</div>'+
+    (c.vence?'<div><b>Vence:</b> '+c.vence+'</div>':'')+'</div>'+
+    '<div class="tw"><table><thead><tr><th>Producto</th><th>Cantidad</th><th>P. Unitario</th><th>Subtotal</th></tr></thead><tbody>'+
+    c.detalle.map(function(d){
+      return '<tr><td>'+(d.producto||d.name||'—')+'</td>'+
+        '<td style="text-align:center">'+(d.cantidad||d.qty||0)+' '+(d.unit||'')+'</td>'+
+        '<td style="text-align:right">'+fmt(d.precioUnitario||d.costo||0)+'</td>'+
+        '<td style="text-align:right;font-weight:700;color:#3aaa6a">'+fmt(d.subtotal||0)+'</td></tr>';
+    }).join('')+
+    '</tbody><tfoot><tr><td colspan="3" style="text-align:right;font-weight:700;padding-top:8px">TOTAL:</td>'+
+    '<td style="text-align:right;font-weight:800;color:#3aaa6a;font-size:14px">'+fmt(c.total||0)+'</td></tr></tfoot></table></div></div>';
+  var mo=document.getElementById('ov-detalle-compra');
+  if(!mo){
+    mo=document.createElement('div');mo.className='ov';mo.id='ov-detalle-compra';
+    mo.innerHTML='<div class="modal" style="max-width:600px">'+
+      '<button class="mx" onclick="closeM(\'detalle-compra\')"><i class="ti ti-x"></i></button>'+
+      '<div class="mt"><i class="ti ti-shopping-cart" style="color:#3aaa6a"></i>Detalle de compra</div>'+
+      '<div id="detalle-compra-body"></div>'+
+      '<div style="margin-top:10px"><button class="btn btn-ghost" onclick="closeM(\'detalle-compra\')">Cerrar</button></div>'+
+    '</div>';
+    document.body.appendChild(mo);
+  }
+  document.getElementById('detalle-compra-body').innerHTML=html;
+  openM('detalle-compra');
+}
+
+function corregirPagoCompra(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede corregir el método de pago','#e94560');return;}
+  var c=purchases.find(function(x){return x.id===id;});
+  if(!c){toast('Compra no encontrada','#e94560');return;}
+  var opciones=['contado_efectivo','contado_transferencia','credito'];
+  var labels={'contado_efectivo':'💵 Contado - Efectivo','contado_transferencia':'📱 Contado - Transferencia','credito':'📋 Crédito'};
+  var actual=c.tipoPago||'contado_efectivo';
+  var msg='CORREGIR MÉTODO DE PAGO\n\nCompra: '+c.prov+'\nFecha: '+c.fecha+'\nTotal: '+fmt(c.total)+'\nMétodo actual: '+labels[actual]+'\n\n';
+  opciones.forEach(function(o,i){msg+=(i+1)+'. '+labels[o]+'\n';});
+  var sel=prompt(msg+'\nIngresa el número del nuevo método:');
+  if(!sel)return;
+  var idx=parseInt(sel)-1;
+  if(isNaN(idx)||idx<0||idx>2){toast('Opción inválida','#e94560');return;}
+  var nuevo=opciones[idx];
+  if(nuevo===actual){toast('Es el mismo método actual','#f0a500');return;}
+  c.tipoPago=nuevo;
+  c.estadoPago=nuevo==='credito'?'pendiente':'pagada';
+  c.pagoCorregido=true;c.pagoOriginal=actual;c.corregidoPor=currentUser.name;c.timestampCorreccion=new Date().toISOString();
+  LS.set('purchases',purchases);
+  try{window.FB.set('compras',c.id,c);}catch(e){}
+  logAction('admin','Corrigió pago compra '+c.id,actual+' → '+nuevo);
+  renderComprasTable();
+  toast('✅ Método de pago corregido: '+labels[actual]+' → '+labels[nuevo],'#3aaa6a');
+}
+
+
+
 
 // ══════════════════════════════════════════════
 // VENTAS
@@ -4969,6 +5162,23 @@ async function fbCargarTodo(){
 
     // Restaurar cierres históricos si no existen
     await restaurarCierresHistoricos();
+
+    // Cargar compras desde Firebase
+    try{
+      var fbCompras=await fbGetAll('compras');
+      if(fbCompras&&fbCompras.length>0){
+        var localC=purchases||[];
+        fbCompras.forEach(function(fc){
+          if(!localC.find(function(lc){return lc.id===fc.id;})){
+            localC.push(fc);
+          }
+        });
+        localC.sort(function(a,b){return (b.timestamp||'')>(a.timestamp||'')?1:-1;});
+        purchases=localC;
+        LS.set('purchases',purchases);
+      }
+    }catch(e){console.warn('compras FB:',e);}
+
     // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
     var fbUsuarios = await fbGetAll('usuarios');
     if(fbUsuarios && fbUsuarios.length > 0){
