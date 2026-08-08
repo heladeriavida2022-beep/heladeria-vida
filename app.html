@@ -3486,7 +3486,7 @@ function renderSalesTable(){
       <td>${s.qty}</td>
       <td style="color:${s.total>0?'var(--acc3)':'var(--text2)'}">${s.total>0?fmt(s.total):'—'}</td>
       <td>${s.pago||'Efectivo'}${corregido}</td>
-      <td>${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="abrirCorreccionPago('${s.id}')" style="font-size:10px;padding:2px 6px">✏️</button>`:''}</td>
+      <td>${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="abrirCorreccionPago('${s.id}')" style="font-size:10px;padding:2px 6px">✏️</button><button class="btn btn-ghost btn-sm" onclick="eliminarVenta('${s.id}')" style="font-size:10px;padding:2px 6px;color:#e94560">🗑️</button>`:''}</td>
     </tr>`;
   }).join('');
 }
@@ -4078,7 +4078,31 @@ function abrirCorreccionPago(id){
   openM('corregir-pago');
 }
 
-function confirmarCorreccionPago(){
+function eliminarVenta(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede eliminar ventas','#e94560');return;}
+  var venta=sales.find(function(s){return s.id===id;});
+  if(!venta){toast('Venta no encontrada','#e94560');return;}
+  if(!confirm('⚠️ ¿ELIMINAR esta venta?\n\nID: '+id+'\nHora: '+venta.time+'\nTotal: '+fmt(venta.total)+'\nEmpleado: '+venta.emp+'\n\nEsta acción NO se puede deshacer.'))return;
+  // Marcar como eliminada (no borrar físicamente para auditoría)
+  venta.eliminada=true;
+  venta.eliminadaPor=currentUser.name;
+  venta.timestampEliminacion=new Date().toISOString();
+  // Remover del array local
+  var idx=sales.findIndex(function(s){return s.id===id;});
+  if(idx>=0) sales.splice(idx,1);
+  LS.set('sales',sales);
+  // Eliminar de Firebase
+  try{
+    if(typeof fbDel==='function') fbDel('ventas',id);
+  }catch(e){ console.warn('eliminar Firebase:',e); }
+  logAction('admin','Eliminó venta '+id,fmt(venta.total)+' | '+venta.emp);
+  renderSalesTable();
+  try{renderCaja();}catch(e){}
+  try{renderDashboard();}catch(e){}
+  toast('🗑️ Venta eliminada: '+fmt(venta.total),'#e94560');
+}
+
+
   if(!_ventaACorregir){toast('Error: venta no identificada','#e94560');return;}
   var nuevoPago=document.getElementById('corregir-pago-select').value;
   var motivo=document.getElementById('corregir-pago-motivo').value.trim();
