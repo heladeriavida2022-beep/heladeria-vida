@@ -4003,7 +4003,38 @@ function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
-// CORRECCIÓN MÉTODO DE PAGO (solo admin)
+// CORRECCIÓN DE CIERRE (solo admin)
+// ══════════════════════════════════════════════
+
+function corregirContadoCierre(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede corregir cierres','#e94560');return;}
+  var c=cierresTurno.find(function(x){return x.id===id;});
+  if(!c){toast('Cierre no encontrado','#e94560');return;}
+  var nuevoContado=parseFloat(prompt(
+    'CORREGIR CIERRE\n'+
+    'Fecha: '+c.fecha+' | Turno: '+c.turno+'\n'+
+    'Usuario: '+c.usuario+'\n'+
+    'Efectivo esperado: '+fmt(c.esperado)+'\n'+
+    'Contado actual: '+fmt(c.contado)+'\n'+
+    'Diferencia actual: '+fmt(c.diferencia)+'\n\n'+
+    'Ingresa el valor contado CORRECTO:'
+  ));
+  if(isNaN(nuevoContado)||nuevoContado<=0){toast('Valor inválido','#e94560');return;}
+  if(!confirm('¿Confirmar corrección?\nContado: '+fmt(c.contado)+' → '+fmt(nuevoContado)+'\nDiferencia: '+fmt(nuevoContado-c.esperado)))return;
+  c.contadoOriginal = c.contado;
+  c.contado = nuevoContado;
+  c.diferencia = nuevoContado - c.esperado;
+  c.estado = Math.abs(c.diferencia)<100?'correcto':c.diferencia>0?'sobrante':'faltante';
+  c.corregidoPor = currentUser.name;
+  c.timestampCorreccion = new Date().toISOString();
+  LS.set('cierresTurno', cierresTurno);
+  try{window.FB.set('cierresTurno',c.id,c);}catch(e){}
+  logAction('admin','Corrigió cierre '+c.id,'Contado: '+fmt(c.contadoOriginal)+' → '+fmt(nuevoContado));
+  renderCierres();
+  toast('✅ Cierre corregido — diferencia: '+fmt(c.diferencia),'#3aaa6a');
+}
+
+
 // ══════════════════════════════════════════════
 
 var _ventaACorregir = null;
@@ -4777,7 +4808,9 @@ async function renderCierres(){
       '<td style="font-size:11px">'+fmt(c.contado||0)+'</td>' +
       '<td style="color:'+(dif>=0?'#3aaa6a':'#e94560')+';font-weight:700">'+(dif>=0?'+':'')+fmt(dif)+'</td>' +
       '<td><span style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';color:'+estColor+';padding:2px 8px;border-radius:10px;font-size:10px;font-weight:700">'+estIcon+' '+est.charAt(0).toUpperCase()+est.slice(1)+'</span></td>' +
-      '<td><button onclick="verDetalleCierre(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px">Ver</button></td>' +
+      '<td><button onclick="verDetalleCierre(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px">Ver</button>'+
+      (currentUser&&currentUser.role==='admin'?'<button onclick="corregirContadoCierre(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px;color:#f0a500" title="Corregir contado">✏️</button>':'')+
+      '</td>' +
       '</tr>';
   }).join('');
 }
