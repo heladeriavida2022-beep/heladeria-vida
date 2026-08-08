@@ -5184,24 +5184,24 @@ async function fbCargarTodo(){
       }
     }catch(e){console.warn('compras FB:',e);}
 
-    // 1. Usuarios — leer de Firebase si existen (para respetar permisos editados)
+    // 1. Usuarios — credenciales y permisos SIEMPRE del código
     var fbUsuarios = await fbGetAll('usuarios');
+    var usuariosCodigo = LS._def().users;
     if(fbUsuarios && fbUsuarios.length > 0){
-      // Usar usuarios de Firebase pero verificar que las contraseñas del código sean correctas
-      var usuariosCodigo = LS._def().users;
       fbUsuarios.forEach(function(fbU){
         var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
         if(uCodigo){
-          // Siempre usar la contraseña del código (seguridad)
           fbU.pass = uCodigo.pass;
           fbU.user = uCodigo.user;
+          // Permisos y rol SIEMPRE del código
+          fbU.perms = uCodigo.perms;
+          fbU.role = uCodigo.role;
         }
+        fbU.active = fbU.active === false ? false : true;
       });
       systemUsers = fbUsuarios;
     } else {
-      // Primera vez: subir usuarios del código a Firebase
-      var usuariosDelCodigo = LS._def().users;
-      systemUsers = usuariosDelCodigo;
+      systemUsers = usuariosCodigo;
       for(var u of systemUsers) await fbSet('usuarios', u.id, u);
     }
     LS.set('users', systemUsers);
@@ -5357,11 +5357,17 @@ onSnapshot(collection(db,'usuarios'), snap => {
   if(snap.empty) return;
   var arr = [];
   snap.forEach(d => { var o = d.data(); delete o._ts; arr.push(o); });
-  // Aplicar contraseñas y usernames del código (seguridad)
   var usuariosCodigo = LS._def().users;
   arr.forEach(function(fbU){
     var uCodigo = usuariosCodigo.find(function(c){ return c.id === fbU.id; });
-    if(uCodigo){ fbU.pass = uCodigo.pass; fbU.user = uCodigo.user; }
+    if(uCodigo){
+      fbU.pass = uCodigo.pass;
+      fbU.user = uCodigo.user;
+      // Permisos SIEMPRE del código — Firebase no los sobreescribe
+      fbU.perms = uCodigo.perms;
+      fbU.role = uCodigo.role;
+    }
+    fbU.active = fbU.active === false ? false : true;
   });
   systemUsers = arr;
   LS.set('users', arr);
