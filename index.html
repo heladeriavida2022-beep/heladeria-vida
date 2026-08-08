@@ -4126,27 +4126,6 @@ function eliminarVenta(id){
 }
 
 
-  if(!_ventaACorregir){toast('Error: venta no identificada','#e94560');return;}
-  var nuevoPago=document.getElementById('corregir-pago-select').value;
-  var motivo=document.getElementById('corregir-pago-motivo').value.trim();
-  if(nuevoPago===_ventaACorregir.pago){toast('El método es igual al actual','#f0a500');return;}
-  if(!confirm('¿Confirmar corrección?\n'+_ventaACorregir.pago+' → '+nuevoPago))return;
-  var pagoAnterior=_ventaACorregir.pago;
-  _ventaACorregir.pago=nuevoPago;
-  _ventaACorregir.pagoCorregido=true;
-  _ventaACorregir.pagoOriginal=pagoAnterior;
-  _ventaACorregir.motivoCorreccion=motivo;
-  _ventaACorregir.corregidoPor=currentUser.name;
-  _ventaACorregir.timestampCorreccion=new Date().toISOString();
-  LS.set('sales',sales);
-  try{window.FB.set('ventas',_ventaACorregir.id,_ventaACorregir);}catch(e){}
-  logAction('admin','Corrigió pago '+_ventaACorregir.id,pagoAnterior+' → '+nuevoPago+(motivo?' | '+motivo:''));
-  closeM('corregir-pago');
-  renderSalesTable();
-  try{renderCaja();}catch(e){}
-  toast('✅ Pago corregido: '+pagoAnterior+' → '+nuevoPago,'#3aaa6a');
-
-// RESTAURAR CIERRES HISTÓRICOS EN FIREBASE
 // ══════════════════════════════════════════════
 async function restaurarCierresHistoricos(){
   try{
