@@ -4145,8 +4145,6 @@ function eliminarVenta(id){
   renderSalesTable();
   try{renderCaja();}catch(e){}
   toast('✅ Pago corregido: '+pagoAnterior+' → '+nuevoPago,'#3aaa6a');
-  _ventaACorregir=null;
-}
 
 // RESTAURAR CIERRES HISTÓRICOS EN FIREBASE
 // ══════════════════════════════════════════════
