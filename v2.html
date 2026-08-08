@@ -4349,12 +4349,37 @@ function calcCierre(){
   var contado = parseFloat(document.getElementById('ct-contado').value)||0;
   var BASE = 100000;
   var hoy = getFechaHoy();
-  var egresosEfectivo = movCaja.filter(function(m){
+  // Egresos de caja (compras contado con fecha)
+  var egresosMovCaja = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
-    return fm === hoy; // excluir sin fecha
+    return fm === hoy;
   }).reduce(function(s,m){return s+(m.monto||0);},0);
-  var esperado = BASE + efe - egresosEfectivo;
+  // Gastos en efectivo de hoy
+  var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
+    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+  }).reduce(function(s,g){return s+(g.monto||0);},0);
+  var totalEgresos = egresosMovCaja + gastosEfe;
+  var esperado = BASE + efe - totalEgresos;
+  var aRetirar = Math.max(0, esperado - BASE);
+  var diferencia = contado - esperado;
+  var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
+  var color = estado==='correcto' ? '#3aaa6a' : estado==='sobrante' ? '#f0a500' : '#e94560';
+  var icon = estado==='correcto' ? '✅' : estado==='sobrante' ? '🟡' : '🔴';
+  var dif = document.getElementById('ct-diferencia');
+  if(dif && contado > 0) dif.innerHTML =
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Base fija:</span><span style="color:#3aaa6a"><b>$100.000</b></span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Ventas efectivo:</span><span>'+fmt(efe)+'</span></div>' +
+    (totalEgresos>0?'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Compras/gastos:</span><span style="color:#e94560">-'+fmt(totalEgresos)+'</span></div>':'')+
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;font-weight:700"><span>Efectivo esperado:</span><span>'+fmt(esperado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>💰 A retirar:</span><span style="color:#e94560;font-weight:700">'+fmt(aRetirar)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px"><span>Efectivo contado:</span><span>'+fmt(contado)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;border-top:1px solid var(--border);padding-top:6px;margin-top:4px">' +
+    '<span>'+icon+' Diferencia ('+estado+'):</span><span style="color:'+color+'">'+fmt(diferencia)+'</span></div>' +
+    '<div style="background:#edfaf2;border-radius:8px;padding:8px;margin-top:8px;text-align:center;font-size:12px;font-weight:700;color:#3aaa6a">Base que queda en caja: $100.000</div>';
+}
+
+
   var aRetirar = Math.max(0, esperado - BASE);
   var diferencia = contado - esperado;
   var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
