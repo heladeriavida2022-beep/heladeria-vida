@@ -5404,6 +5404,27 @@ onSnapshot(collection(db,'usuarios'), snap => {
   try{ renderUserPills(); }catch(e){}
 }, err => console.warn('usuarios listener', err));
 
+// Productos nuevos en tiempo real
+onSnapshot(collection(db,'productos'), snap => {
+  snap.docChanges().forEach(ch => {
+    if(ch.type === 'removed') return;
+    var fp = ch.doc.data(); delete fp._ts;
+    var existe = prods.find(function(p){ return String(p.id)===String(fp.id)||p.name===fp.name; });
+    if(!existe){
+      prods.push(fp);
+      try{renderProdTable();}catch(e){}
+      try{renderPOS();}catch(e){}
+      try{renderCarta();}catch(e){}
+      updateBadges();
+    } else {
+      // Actualizar stock si cambió
+      if(fp.stock !== undefined) existe.stock = fp.stock;
+      if(fp.price !== undefined) existe.price = fp.price;
+      if(fp.active !== undefined) existe.active = fp.active;
+    }
+  });
+}, err => console.warn('productos listener', err));
+
 // Proveedores en tiempo real
 onSnapshot(collection(db,'suppliers'), snap => {
   if(snap.empty) return;
