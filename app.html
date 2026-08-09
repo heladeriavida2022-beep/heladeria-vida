@@ -911,6 +911,8 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px">🔍 Ver IDs de cierres</button>
+              <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
           </div>
@@ -4197,7 +4199,29 @@ function getPagoTotals(){
 // FONDO ADMINISTRATIVO
 // ══════════════════════════════════════════════
 
-async function renderFondoAdmin(){
+async function diagnosticoFondo(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='Cargando...';
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    cierres=cierres.filter(function(c){return (c.timestamp||'')>='2026-08-07';});
+    cierres.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+    var html='<b>CIERRES DESDE 07/08:</b><br>';
+    cierres.forEach(function(c){
+      var retirado=c.dineroRetirado!==undefined?c.dineroRetirado:Math.max(0,(c.contado||0)-100000);
+      html+='<br>ID: '+c.id+'<br>'+
+        'Fecha: '+c.fecha+' | Turno: '+c.turno+' | Usuario: '+c.usuario+'<br>'+
+        'Contado: $'+(c.contado||0)+' | Esperado: $'+(c.esperado||0)+'<br>'+
+        'dineroRetirado: '+(c.dineroRetirado!==undefined?'$'+c.dineroRetirado:'NO DEFINIDO')+' | Calculado: $'+retirado+'<br>'+
+        '<hr>';
+    });
+    div.innerHTML=html;
+  }catch(e){ div.innerHTML='Error: '+e.message; }
+}
+
+
   if(!currentUser||currentUser.role!=='admin') return;
   var btn=document.getElementById('btn-fondo-admin');
   if(btn) btn.style.display='flex';
