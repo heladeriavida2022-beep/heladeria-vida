@@ -4731,22 +4731,26 @@ function _abrirCierreTurnoInterno(){
 
   var res = document.getElementById('ct-resumen');
   if(res) res.innerHTML =
-    '<div style="background:#f0f4ff;border:1.5px solid #3b82f6;border-radius:8px;padding:10px;margin-bottom:10px">' +
-    '<div style="font-weight:700;color:#3b82f6;margin-bottom:6px;font-size:12px">📱 DINERO DIGITAL (no es efectivo físico)</div>' +
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;font-size:12px">' +
-    '<div><span style="color:var(--text2)">Nequi/Daviplata:</span> <b>'+fmt(nequi)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Tarjeta:</span> <b>'+fmt(tarjeta)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Transferencia:</span> <b>'+fmt(trans)+'</b></div>' +
-    '<div><span style="color:var(--text2)">Total digital:</span> <b style="color:#3b82f6">'+fmt(totalDigital)+'</b></div>' +
+    // TOTAL VENTAS DEL TURNO
+    '<div style="background:var(--bg3);border:1.5px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">' +
+    '<div style="font-weight:700;margin-bottom:6px;font-size:12px">🧾 TOTAL VENTAS DEL TURNO</div>' +
+    '<div style="font-size:12px">' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>💵 Efectivo:</span><b>'+fmt(efe)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>📱 Nequi/Daviplata:</span><b>'+fmt(nequi)+'</b></div>' +
+    (tarjeta>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>💳 Tarjeta:</span><b>'+fmt(tarjeta)+'</b></div>':'')+
+    (trans>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>🏦 Transferencia:</span><b>'+fmt(trans)+'</b></div>':'')+
+    '<div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:6px;margin-top:4px;font-weight:800;font-size:13px"><span>TOTAL VENTAS:</span><b style="color:#3aaa6a">'+fmt(totalVentas)+'</b></div>' +
     '</div></div>' +
+    // EFECTIVO EN CAJA
     '<div style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:8px;padding:10px;margin-bottom:10px">' +
-    '<div style="font-weight:700;color:#3aaa6a;margin-bottom:6px;font-size:12px">💵 EFECTIVO EN CAJA</div>' +
+    '<div style="font-weight:700;color:#3aaa6a;margin-bottom:6px;font-size:12px">💵 EFECTIVO EN CAJA (físico)</div>' +
     '<div style="font-size:12px">' +
     '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Base inicial:</span><b>'+fmt(BASE)+'</b></div>' +
     '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Ventas en efectivo:</span><b>'+fmt(efe)+'</b></div>' +
     (totalEgresos>0?'<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="color:#e94560">Compras/gastos:</span><b style="color:#e94560">-'+fmt(totalEgresos)+'</b></div>':'')+
-    '<div style="display:flex;justify-content:space-between;border-top:1px solid #d1fae5;padding-top:6px;margin-top:4px;font-weight:700"><span>Total en caja:</span><b style="color:#3aaa6a">'+fmt(totalEnCaja)+'</b></div>' +
+    '<div style="display:flex;justify-content:space-between;border-top:1px solid #d1fae5;padding-top:6px;margin-top:4px;font-weight:700"><span>Efectivo esperado:</span><b style="color:#3aaa6a">'+fmt(totalEnCaja)+'</b></div>' +
     '</div></div>' +
+    // DINERO A RETIRAR
     '<div style="background:#fff8e1;border:2px solid #f0a500;border-radius:8px;padding:12px;text-align:center">' +
     '<div style="font-size:11px;color:#d48a00;margin-bottom:4px;font-weight:700">💰 DINERO A RETIRAR</div>' +
     '<div style="font-size:24px;font-weight:800;color:#d48a00">'+fmt(aRetirar)+'</div>' +
