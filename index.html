@@ -4487,8 +4487,7 @@ function _abrirCierreTurnoInterno(){
   var totalVentas = efe + totalDigital;
   var BASE = 100000;
   var hoy = getFechaHoy();
-
-  // Solo egresos del turno activo
+  var ta = getTurnoActivo();
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
