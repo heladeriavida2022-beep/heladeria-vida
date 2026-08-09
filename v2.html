@@ -4201,8 +4201,20 @@ async function renderFondoAdmin(){
   if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr>';
 
   try{
-    // 1. Cargar todos los cierres desde Firebase
+    // 1. Cargar todos los cierres desde Firebase — solo desde 07/08/2026
     var cierres=await window.FB.getAll('cierresTurno');
+    cierres=cierres.filter(function(c){
+      var ts=c.timestamp||'';
+      var fecha=c.fecha||'';
+      // Incluir solo cierres del 07/08/2026 en adelante
+      if(ts) return ts >= '2026-08-07';
+      // Si no tiene timestamp, comparar por fecha (formato dd/mm/yyyy o yyyy-mm-dd)
+      if(fecha.includes('/')){
+        var p=fecha.split('/');
+        if(p.length===3) fecha=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+      }
+      return fecha >= '2026-08-07';
+    });
     cierres.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
 
     // 2. Cargar egresos del fondo (compras/gastos pagados desde fondo)
