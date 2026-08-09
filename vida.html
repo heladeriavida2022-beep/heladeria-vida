@@ -5312,6 +5312,8 @@ async function fbCargarTodo(){
 
     fbStatus('Sincronizado ✓', true);
     console.log('🔥 Firebase: todo cargado correctamente');
+    // Aplicar precios del catálogo DESPUÉS de cargar Firebase
+    if(typeof aplicarPreciosCatalogo === 'function') aplicarPreciosCatalogo();
   } catch(err){
     fbStatus('Error conexión', false);
     console.error('fbCargarTodo error:', err);
