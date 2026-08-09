@@ -461,6 +461,7 @@ try{
           <div class="slbl">Administración</div>
           <button class="sni" id="sni-usuarios" onclick="adminNav('usuarios',this)"><i class="ti ti-users"></i>Usuarios</button>
           <button class="sni" onclick="adminNav('asistente',this)"><i class="ti ti-robot"></i>Asistente IA</button>
+          <button class="sni" id="btn-fondo-admin" onclick="adminNav('fondo',this)" style="display:none"><i class="ti ti-safe"></i>💰 Fondo Admin</button>
         </div>
       </div>
       <div class="sbot">
@@ -896,6 +897,24 @@ try{
             </div>
           </div>
 
+          <!-- FONDO ADMINISTRATIVO — solo admin -->
+          <div class="adm-view" id="adv-fondo" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div style="max-width:700px">
+              <h2 style="font-size:16px;font-weight:800;margin-bottom:14px">💰 Fondo Disponible Administrativo</h2>
+              <!-- Resumen -->
+              <div id="fondo-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-bottom:16px"></div>
+              <!-- Saldo principal -->
+              <div id="fondo-saldo-card" style="background:linear-gradient(135deg,#1a1a2e,#16213e);border-radius:14px;padding:20px;text-align:center;margin-bottom:16px;color:#fff">
+                <div style="font-size:11px;opacity:.7;margin-bottom:4px">💰 FONDO DISPONIBLE</div>
+                <div id="fondo-saldo-valor" style="font-size:32px;font-weight:800;color:#3aaa6a">$0</div>
+                <div style="font-size:10px;opacity:.6;margin-top:4px">Dinero acumulado de retiros de caja</div>
+              </div>
+              <!-- Historial -->
+              <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
+            </div>
+          </div>
+
         </div>
       </div>
 
@@ -1110,8 +1129,9 @@ try{
     <div class="fg">
       <label class="fgrp-label">Tipo de pago</label>
       <select class="finput" id="ing-tipo-pago" onchange="toggleIngCredito()">
-        <option value="contado_efectivo">💵 Contado - Efectivo</option>
+        <option value="contado_efectivo">💵 Contado - Efectivo (caja turno)</option>
         <option value="contado_transferencia">📱 Contado - Transferencia</option>
+        <option value="fondo_admin">💰 Fondo Administrativo</option>
         <option value="credito">📋 Crédito (factura pendiente)</option>
       </select>
     </div>
@@ -1660,7 +1680,9 @@ function doLogin(){
 function showApp(){
   document.getElementById('loginScreen').style.display='none';
   var _sh=document.getElementById('appShell');if(_sh){_sh.style.display='flex';_sh.classList.add('show');}
-  // update header
+  // Mostrar botón fondo solo para admin
+  var btnFondo=document.getElementById('btn-fondo-admin');
+  if(btnFondo) btnFondo.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';e header
   var _ucav=document.getElementById('uc-av');if(_ucav){_ucav.textContent=currentUser.initials;_ucav.style.background=currentUser.color;}
   var _ucnm=document.getElementById('uc-name');if(_ucnm)_ucnm.textContent=currentUser.name;
   var _ucrl=document.getElementById('uc-role');if(_ucrl)_ucrl.textContent=ROLE_LABELS[currentUser.role];
@@ -1819,6 +1841,7 @@ function renderAdminView(id){
   if(id==='deudas')renderDeudas();
   if(id==='trazabilidad')renderTrazabilidad();
   if(id==='estadisticas')renderEmpStats();
+  if(id==='fondo')renderFondoAdmin();
 }
 
 // ══════════════════════════════════════════════
@@ -3254,6 +3277,22 @@ function guardarIngreso(){
   var afectaEfectivo = tipoPago==='contado_efectivo';
   var afectaTransferencia = tipoPago==='contado_transferencia';
   var esCredito = tipoPago==='credito';
+  var esFondo = tipoPago==='fondo_admin';
+
+  // FONDO ADMINISTRATIVO → descontar del fondo, NO de caja del turno
+  if(esFondo && totalCompra>0){
+    var movFondoCompra={
+      id:'fa_'+now.getTime(),
+      tipo:'egreso',
+      concepto:'Compra a '+prov+' ('+productosNombres.slice(0,2).join(', ')+(productosNombres.length>2?'...':'')+')',
+      valor:totalCompra,
+      fecha:getFechaHoy(),
+      timestamp:now.toISOString(),
+      usuario:currentUser?currentUser.name:'—',
+      compraId:compraId
+    };
+    try{window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);}catch(e){}
+  }
 
   // Crear UNA sola compra con detalle
   var compra={
@@ -4149,6 +4188,50 @@ function getPagoTotals(){
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
+// ══════════════════════════════════════════════
+// FONDO ADMINISTRATIVO
+// ══════════════════════════════════════════════
+
+async function renderFondoAdmin(){
+  if(!currentUser||currentUser.role!=='admin') return;
+  var btn=document.getElementById('btn-fondo-admin');
+  if(btn) btn.style.display='flex';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    movs.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+    var totalIngresos=movs.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var totalEgresos=movs.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var saldo=totalIngresos-totalEgresos;
+    var st=document.getElementById('fondo-stats');
+    if(st)st.innerHTML=
+      '<div class="stat"><div class="slb">Total retirado</div><div class="sval" style="color:#3aaa6a">'+fmt(totalIngresos)+'</div></div>'+
+      '<div class="stat"><div class="slb">Total usado</div><div class="sval" style="color:#e94560">'+fmt(totalEgresos)+'</div></div>'+
+      '<div class="stat"><div class="slb">Movimientos</div><div class="sval">'+movs.length+'</div></div>';
+    var sv=document.getElementById('fondo-saldo-valor');
+    if(sv){sv.textContent=fmt(saldo);sv.style.color=saldo>=0?'#3aaa6a':'#e94560';}
+    var tbl=document.getElementById('fondo-tbl');
+    if(!tbl)return;
+    if(!movs.length){tbl.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin movimientos aún</td></tr>';return;}
+    var saldoAcum=0;
+    tbl.innerHTML=movs.map(function(m){
+      saldoAcum+=m.tipo==='ingreso'?(m.valor||0):-(m.valor||0);
+      var color=m.tipo==='ingreso'?'#3aaa6a':'#e94560';
+      var signo=m.tipo==='ingreso'?'+':'-';
+      return '<tr>'+
+        '<td style="font-size:11px">'+(m.fecha||'—')+'</td>'+
+        '<td style="font-size:11px">'+(m.concepto||'—')+'</td>'+
+        '<td><span style="font-size:10px;font-weight:700;color:'+color+'">'+(m.tipo==='ingreso'?'💰 Retiro':'💸 Egreso')+'</span></td>'+
+        '<td style="font-weight:700;color:'+color+'">'+signo+fmt(m.valor||0)+'</td>'+
+        '<td style="font-weight:700">'+fmt(saldoAcum)+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){
+    var tbl2=document.getElementById('fondo-tbl');
+    if(tbl2)tbl2.innerHTML='<tr><td colspan="5" style="text-align:center;color:#e94560;padding:16px">Error cargando fondo</td></tr>';
+  }
+}
+
+// ══════════════════════════════════════════════
 // CORRECCIÓN DE CIERRE (solo admin)
 // ══════════════════════════════════════════════
 
@@ -4675,6 +4758,23 @@ function confirmarCierreTurno(){
   LS.set('cierresTurno', cierresTurno);
   // Guardar cierre en Firebase para que sea visible desde cualquier dispositivo
   try{ window.FB.set('cierresTurno', cierre.id, cierre); }catch(e){ console.warn('cierre FB:', e); }
+
+  // FASE 1: Registrar retiro en Fondo Administrativo
+  var dineroRetirado = Math.max(0, contado - 100000);
+  if(dineroRetirado > 0){
+    var movFondo = {
+      id: 'fa_'+Date.now(),
+      tipo: 'ingreso',
+      concepto: 'Retiro cierre '+turno+' — '+now.toLocaleDateString('es-CO'),
+      valor: dineroRetirado,
+      fecha: getFechaHoy(),
+      timestamp: now.toISOString(),
+      turno: turno,
+      usuario: currentUser ? currentUser.name : '—',
+      cierreId: cierre.id
+    };
+    try{ window.FB.set('fondoAdmin', movFondo.id, movFondo); }catch(e){}
+  }
 
   // Marcar turno activo como cerrado en Firebase
   if(ta && ta.turnoId){
