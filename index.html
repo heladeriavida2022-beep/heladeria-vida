@@ -4460,6 +4460,24 @@ function diagnosticoAyer(){
 var _cierreActivo = null; // cierre en proceso para mostrar detalle
 
 function abrirCierreTurno(){
+  // Intentar cargar turno activo desde Firebase si no está en local
+  var ta = getTurnoActivo();
+  if(!ta){
+    window.FB.getAll('turnos').then(function(turnos){
+      var hoy = getFechaHoy();
+      var turnoAbierto = turnos.find(function(t){ return t.estado==='abierto'&&t.fecha===hoy; });
+      if(turnoAbierto){
+        turnoActivo = turnoAbierto;
+        LS.set('turnoActivo', turnoAbierto);
+      }
+      _abrirCierreTurnoInterno();
+    }).catch(function(){ _abrirCierreTurnoInterno(); });
+  } else {
+    _abrirCierreTurnoInterno();
+  }
+}
+
+function _abrirCierreTurnoInterno(){
   var t = getPagoTotals();
   var efe = t['Efectivo'] ? t['Efectivo'].monto : 0;
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
