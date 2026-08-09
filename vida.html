@@ -4199,29 +4199,28 @@ function getPagoTotals(){
 // FONDO ADMINISTRATIVO
 // ══════════════════════════════════════════════
 
-async function diagnosticoFondo(){
+function diagnosticoFondo(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
   div.innerHTML='Cargando...';
-  try{
-    var cierres=await window.FB.getAll('cierresTurno');
+  window.FB.getAll('cierresTurno').then(function(cierres){
     cierres=cierres.filter(function(c){return (c.timestamp||'')>='2026-08-07';});
     cierres.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
     var html='<b>CIERRES DESDE 07/08:</b><br>';
     cierres.forEach(function(c){
       var retirado=c.dineroRetirado!==undefined?c.dineroRetirado:Math.max(0,(c.contado||0)-100000);
-      html+='<br>ID: '+c.id+'<br>'+
+      html+='<br><b>ID:</b> '+c.id+'<br>'+
         'Fecha: '+c.fecha+' | Turno: '+c.turno+' | Usuario: '+c.usuario+'<br>'+
         'Contado: $'+(c.contado||0)+' | Esperado: $'+(c.esperado||0)+'<br>'+
-        'dineroRetirado: '+(c.dineroRetirado!==undefined?'$'+c.dineroRetirado:'NO DEFINIDO')+' | Calculado: $'+retirado+'<br>'+
-        '<hr>';
+        '<b>dineroRetirado:</b> '+(c.dineroRetirado!==undefined?'$'+c.dineroRetirado:'NO DEFINIDO')+
+        ' | <b>Retiro calculado: $'+retirado+'</b><br><hr>';
     });
     div.innerHTML=html;
-  }catch(e){ div.innerHTML='Error: '+e.message; }
+  }).catch(function(e){ div.innerHTML='Error: '+e.message; });
 }
 
-
+async function renderFondoAdmin(){
   if(!currentUser||currentUser.role!=='admin') return;
   var btn=document.getElementById('btn-fondo-admin');
   if(btn) btn.style.display='flex';
