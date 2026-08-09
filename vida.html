@@ -3868,13 +3868,18 @@ function guardarProveedor(){
 // ESTADÍSTICAS POR EMPLEADO
 // ══════════════════════════════════════════════
 function renderEmpStats(){
-  // Calcular estadísticas del mes actual
-  var mesActual=new Date().toISOString().substring(0,7);
-  var ventasMes=sales.filter(function(s){return (s.time||s.fecha||'').substring&&((s.id||'').length>0);});
-  var ingresosMes=sales.reduce(function(t,s){return t+(s.total||0);},0);
-  var gastosMes=(LS.g('gastos')||[]).filter(function(g){return (g.fecha||'').startsWith(mesActual);}).reduce(function(t,g){return t+(g.monto||0);},0);
-  var ganancia=ingresosMes-gastosMes;
-  var margen=ingresosMes>0?Math.round((ganancia/ingresosMes)*100):0;
+  // Solo desde 07/08/2026 (inicio del nuevo período operativo)
+  var fechaInicio = '2026-08-07';
+  var ventasMes = sales.filter(function(s){
+    var f = getFechaDeVenta(s);
+    return f && f >= fechaInicio;
+  });
+  var ingresosMes = ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
+  var gastosMes = (LS.g('gastos')||[]).filter(function(g){
+    return (g.fecha||'') >= fechaInicio;
+  }).reduce(function(t,g){return t+(g.monto||0);},0);
+  var ganancia = ingresosMes - gastosMes;
+  var margen = ingresosMes>0 ? Math.round((ganancia/ingresosMes)*100) : 0;
 
   var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
   var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes);
@@ -3882,7 +3887,7 @@ function renderEmpStats(){
   var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
   const tbl=document.getElementById('emp-stats-tbl');if(!tbl)return;
   tbl.innerHTML=systemUsers.filter(u=>u.active).map(u=>{
-    const myS=sales.filter(s=>s.empId===u.id);
+    const myS=ventasMes.filter(s=>s.empId===u.id||s.emp===u.name);
     const tot=myS.reduce((s,v)=>s+v.total,0);
     const avg=myS.length?tot/myS.length:0;
     return`<tr><td><div style="display:flex;align-items:center;gap:7px"><div class="av" style="background:${u.color};color:#fff;font-size:9px;width:24px;height:24px">${u.initials}</div>${u.name}</div></td>
