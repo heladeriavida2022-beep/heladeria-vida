@@ -4475,8 +4475,14 @@ function abrirCierreTurno(){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
     if(fm !== hoy) return false;
-    if(m.turnoId && ta && ta.turnoId) return m.turnoId === ta.turnoId;
-    if(ta && ta.timestampApertura && m.timestamp) return m.timestamp >= ta.timestampApertura;
+    // Si tiene turnoId y hay turno activo, verificar que coincida
+    if(ta && ta.turnoId){
+      if(m.turnoId) return m.turnoId === ta.turnoId;
+      // Sin turnoId: incluir si el timestamp es posterior a la apertura del turno
+      if(ta.timestampApertura && m.timestamp) return m.timestamp >= ta.timestampApertura;
+      return false;
+    }
+    // Sin turno activo: incluir todos los egresos de hoy
     return true;
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
