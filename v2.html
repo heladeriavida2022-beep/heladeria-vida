@@ -911,7 +911,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
-              <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
+              <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
           </div>
 
@@ -4196,38 +4196,101 @@ async function renderFondoAdmin(){
   if(!currentUser||currentUser.role!=='admin') return;
   var btn=document.getElementById('btn-fondo-admin');
   if(btn) btn.style.display='flex';
+
+  var tbl=document.getElementById('fondo-tbl');
+  if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr>';
+
   try{
-    var movs=await window.FB.getAll('fondoAdmin');
-    movs.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
-    var totalIngresos=movs.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-    var totalEgresos=movs.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-    var saldo=totalIngresos-totalEgresos;
+    // 1. Cargar todos los cierres desde Firebase
+    var cierres=await window.FB.getAll('cierresTurno');
+    cierres.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+
+    // 2. Cargar egresos del fondo (compras/gastos pagados desde fondo)
+    var movsFondo=[];
+    try{ movsFondo=await window.FB.getAll('fondoAdmin'); }catch(e){}
+    var egresosFondo=movsFondo.filter(function(m){return m.tipo==='egreso';});
+
+    // 3. Construir historial combinado
+    var historial=[];
+
+    // Agregar retiros de cada cierre
+    cierres.forEach(function(c){
+      var retirado=0;
+      // Si tiene dineroRetirado explícito, usarlo
+      if(c.dineroRetirado!==undefined) retirado=c.dineroRetirado;
+      // Si tiene contado, calcular retiro
+      else if(c.contado!==undefined) retirado=Math.max(0,(c.contado||0)-100000);
+      // Si tiene esperado, calcular desde esperado
+      else if(c.esperado!==undefined) retirado=Math.max(0,(c.esperado||0)-100000);
+
+      if(retirado>0){
+        historial.push({
+          timestamp:c.timestamp||'',
+          fecha:c.fecha||'—',
+          concepto:'Cierre '+( c.turno||'')+(c.usuario?' — '+c.usuario:''),
+          tipo:'ingreso',
+          valor:retirado,
+          cierreId:c.id
+        });
+      }
+    });
+
+    // Agregar egresos del fondo
+    egresosFondo.forEach(function(m){
+      historial.push({
+        timestamp:m.timestamp||'',
+        fecha:m.fecha||'—',
+        concepto:m.concepto||'Egreso fondo',
+        tipo:'egreso',
+        valor:m.valor||0
+      });
+    });
+
+    // Ordenar por timestamp
+    historial.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+
+    // 4. Calcular totales
+    var totalRetiros=historial.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var totalEgresados=historial.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var saldo=totalRetiros-totalEgresados;
+
+    // 5. Actualizar stats
     var st=document.getElementById('fondo-stats');
-    if(st)st.innerHTML=
-      '<div class="stat"><div class="slb">Total retirado</div><div class="sval" style="color:#3aaa6a">'+fmt(totalIngresos)+'</div></div>'+
-      '<div class="stat"><div class="slb">Total usado</div><div class="sval" style="color:#e94560">'+fmt(totalEgresos)+'</div></div>'+
-      '<div class="stat"><div class="slb">Movimientos</div><div class="sval">'+movs.length+'</div></div>';
+    if(st) st.innerHTML=
+      '<div class="stat"><div class="slb">💰 Total retirado</div><div class="sval" style="color:#3aaa6a">'+fmt(totalRetiros)+'</div></div>'+
+      '<div class="stat"><div class="slb">💸 Pagado desde fondo</div><div class="sval" style="color:#e94560">'+fmt(totalEgresados)+'</div></div>'+
+      '<div class="stat"><div class="slb">📋 Cierres</div><div class="sval">'+cierres.length+'</div></div>';
+
+    // 6. Saldo principal
     var sv=document.getElementById('fondo-saldo-valor');
     if(sv){sv.textContent=fmt(saldo);sv.style.color=saldo>=0?'#3aaa6a':'#e94560';}
-    var tbl=document.getElementById('fondo-tbl');
+
+    // 7. Tabla historial
     if(!tbl)return;
-    if(!movs.length){tbl.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Sin movimientos aún</td></tr>';return;}
+    if(!historial.length){
+      tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Sin cierres registrados aún</td></tr>';
+      return;
+    }
     var saldoAcum=0;
-    tbl.innerHTML=movs.map(function(m){
+    tbl.innerHTML=historial.map(function(m){
       saldoAcum+=m.tipo==='ingreso'?(m.valor||0):-(m.valor||0);
       var color=m.tipo==='ingreso'?'#3aaa6a':'#e94560';
       var signo=m.tipo==='ingreso'?'+':'-';
+      var badge=m.tipo==='ingreso'
+        ?'<span style="background:#edfaf2;color:#3aaa6a;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700">💰 RETIRO</span>'
+        :'<span style="background:#fff5f5;color:#e94560;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700">💸 EGRESO</span>';
       return '<tr>'+
-        '<td style="font-size:11px">'+(m.fecha||'—')+'</td>'+
-        '<td style="font-size:11px">'+(m.concepto||'—')+'</td>'+
-        '<td><span style="font-size:10px;font-weight:700;color:'+color+'">'+(m.tipo==='ingreso'?'💰 Retiro':'💸 Egreso')+'</span></td>'+
+        '<td style="font-size:11px">'+m.fecha+'</td>'+
+        '<td style="font-size:11px;color:var(--text2)">'+m.concepto+'</td>'+
+        '<td>'+badge+'</td>'+
         '<td style="font-weight:700;color:'+color+'">'+signo+fmt(m.valor||0)+'</td>'+
-        '<td style="font-weight:700">'+fmt(saldoAcum)+'</td>'+
+        '<td style="font-weight:800;color:'+(saldoAcum>=0?'#3aaa6a':'#e94560')+'">'+fmt(saldoAcum)+'</td>'+
       '</tr>';
     }).join('');
+
   }catch(e){
-    var tbl2=document.getElementById('fondo-tbl');
-    if(tbl2)tbl2.innerHTML='<tr><td colspan="5" style="text-align:center;color:#e94560;padding:16px">Error cargando fondo</td></tr>';
+    console.error('fondoAdmin error:', e);
+    if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:#e94560;padding:16px">Error: '+e.message+'</td></tr>';
   }
 }
 
