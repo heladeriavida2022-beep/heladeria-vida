@@ -5604,18 +5604,19 @@ onSnapshot(collection(db,'productos'), snap => {
   snap.docChanges().forEach(ch => {
     if(ch.type === 'removed') return;
     var fp = ch.doc.data(); delete fp._ts;
+    var idNum = parseInt(fp.id)||0;
     var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
     if(!existe){
-      // Producto nuevo — agregar completo
-      prods.push(fp);
-      cambio=true;
-    } else {
-      // Producto existente — actualizar stock y precio
+      // Solo agregar si es producto nuevo (id >= 700)
+      if(idNum >= 700){
+        prods.push(fp);
+        cambio=true;
+      }
+    } else if(idNum >= 700){
+      // Solo actualizar stock de productos nuevos
       if(fp.stock !== undefined){ existe.stock = fp.stock; cambio=true; }
-      if(fp.price !== undefined) existe.price = fp.price;
-      if(fp.active !== undefined) existe.active = fp.active;
-      if(fp.name !== undefined) existe.name = fp.name;
     }
+    // Productos del código base (id < 700) NO se modifican desde Firebase
   });
   if(cambio){
     try{renderProdTable();}catch(e){}
