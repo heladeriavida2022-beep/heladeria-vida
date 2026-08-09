@@ -1682,7 +1682,7 @@ function showApp(){
   var _sh=document.getElementById('appShell');if(_sh){_sh.style.display='flex';_sh.classList.add('show');}
   // Mostrar botón fondo solo para admin
   var btnFondo=document.getElementById('btn-fondo-admin');
-  if(btnFondo) btnFondo.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';e header
+  if(btnFondo) btnFondo.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';
   var _ucav=document.getElementById('uc-av');if(_ucav){_ucav.textContent=currentUser.initials;_ucav.style.background=currentUser.color;}
   var _ucnm=document.getElementById('uc-name');if(_ucnm)_ucnm.textContent=currentUser.name;
   var _ucrl=document.getElementById('uc-role');if(_ucrl)_ucrl.textContent=ROLE_LABELS[currentUser.role];
