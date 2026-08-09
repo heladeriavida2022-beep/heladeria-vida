@@ -4097,7 +4097,24 @@ function getFechaDeVenta(s){
 
 function getSalesHoy(){
   var hoy = getFechaHoy();
-  // Último cierre de HOY como corte de turno
+  var ta = getTurnoActivo();
+
+  // Si hay turno activo con turnoId, filtrar por turnoId
+  if(ta && ta.turnoId){
+    return sales.filter(function(s){
+      var f = getFechaDeVenta(s);
+      if(!f || f !== hoy) return false;
+      // Ventas con turnoId: solo las del turno activo
+      if(s.turnoId) return s.turnoId === ta.turnoId;
+      // Ventas sin turnoId (históricas): usar timestamp de apertura del turno
+      if(ta.timestampApertura && s.timestamp){
+        return s.timestamp >= ta.timestampApertura;
+      }
+      return false;
+    });
+  }
+
+  // Sin turno activo: usar último cierre como corte
   var ultCierreHoy = null;
   (LS.g('cierresTurno')||[]).forEach(function(c){
     if(!c.timestamp) return;
@@ -4453,11 +4470,14 @@ function abrirCierreTurno(){
   var BASE = 100000;
   var hoy = getFechaHoy();
 
-  // Solo egresos que tienen fecha explícita de HOY
+  // Solo egresos del turno activo
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
-    return fm === hoy; // si no tiene fecha, se excluye
+    if(fm !== hoy) return false;
+    if(m.turnoId && ta && ta.turnoId) return m.turnoId === ta.turnoId;
+    if(ta && ta.timestampApertura && m.timestamp) return m.timestamp >= ta.timestampApertura;
+    return true;
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
   var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
