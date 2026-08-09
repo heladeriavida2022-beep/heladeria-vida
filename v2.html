@@ -4488,18 +4488,25 @@ function _abrirCierreTurnoInterno(){
   var BASE = 100000;
   var hoy = getFechaHoy();
   var ta = getTurnoActivo();
+
+  // Timestamp de corte: apertura del turno o último cierre de hoy
+  var corte = null;
+  if(ta && ta.timestampApertura) corte = ta.timestampApertura;
+  if(!corte){
+    // Usar último cierre de hoy como corte
+    (cierresTurno||[]).forEach(function(c){
+      if(!c.timestamp) return;
+      var fechaC = c.timestamp.substring(0,10);
+      if(fechaC === hoy && (!corte || c.timestamp > corte)) corte = c.timestamp;
+    });
+  }
+
+  // Egresos del turno actual (después del corte)
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
     if(fm !== hoy) return false;
-    // Si tiene turnoId y hay turno activo, verificar que coincida
-    if(ta && ta.turnoId){
-      if(m.turnoId) return m.turnoId === ta.turnoId;
-      // Sin turnoId: incluir si el timestamp es posterior a la apertura del turno
-      if(ta.timestampApertura && m.timestamp) return m.timestamp >= ta.timestampApertura;
-      return false;
-    }
-    // Sin turno activo: incluir todos los egresos de hoy
+    if(corte && m.timestamp) return m.timestamp > corte;
     return true;
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
