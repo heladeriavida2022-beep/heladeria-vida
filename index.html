@@ -3424,22 +3424,31 @@ function renderDeudas(){
   updateDeudasBadge();
 }
 function guardarAjuste(){
-  const id=parseInt(document.getElementById('aj-p').value);const p=gP(id);if(!p||!p.descuenta){toast('No maneja stock','var(--acc)');return;}
-  const tipo=document.getElementById('aj-tipo').value;const qty=parseFloat(document.getElementById('aj-q').value)||0;
-  const prev=p.stock;
-  if(tipo==='set')p.stock=qty;else if(tipo==='add')p.stock+=qty;else p.stock=Math.max(0,p.stock-qty);
+  const idRaw=document.getElementById('aj-p').value;
+  const id=parseInt(idRaw)||idRaw;
+  const p=gP(id)||gP(idRaw)||gP(String(idRaw));
+  if(!p){toast('Producto no encontrado','var(--acc)');return;}
+  if(!p.descuenta){toast('No maneja stock','var(--acc)');return;}
+  const tipo=document.getElementById('aj-tipo').value;
+  const qty=parseFloat(document.getElementById('aj-q').value)||0;
+  const prev=p.stock||0;
+  if(tipo==='set')p.stock=qty;
+  else if(tipo==='add')p.stock=(prev)+qty;
+  else p.stock=Math.max(0,(prev)-qty);
   const motivo=document.getElementById('aj-m').value;
   // Guardar en localStorage
   LS.updProd(p.id,{stock:p.stock});
-  // Sincronizar stock en Firebase
+  // Sincronizar stock en Firebase — ambas colecciones
   try{
+    var prodConStock=Object.assign({},p,{stock:p.stock});
     window.FB.set('inventario', String(p.id), {id:String(p.id), stock:p.stock});
-    window.FB.set('productos', String(p.id), Object.assign({},p,{stock:p.stock}));
-  }catch(e){ console.warn('ajuste FB:', e); }
-  purchases.push({fecha:getFechaHoy(),name:p.name,cat:p.cat,tipo:'Ajuste',qty:p.stock-prev,unit:p.unit,costo:0,total:0,prov:'—',por:currentUser.name});
-  logAction('ajuste',`Ajustó ${p.name}: ${prev} → ${p.stock}`,motivo);
+    window.FB.set('productos', String(p.id), prodConStock);
+    console.log('✅ Stock guardado en Firebase:', p.name, p.stock);
+  }catch(e){ console.warn('ajuste FB:', e); toast('Error guardando en Firebase','#e94560'); return; }
+  purchases.push({fecha:getFechaHoy(),name:p.name,cat:p.cat,tipo:'Ajuste',qty:p.stock-prev,unit:p.unit||'unidades',costo:0,total:0,prov:'—',por:currentUser?currentUser.name:'Admin'});
+  logAction('ajuste','Ajustó '+p.name+': '+prev+' → '+p.stock,motivo);
   closeM('ajuste');renderInv();renderProdTable();updateBadges();renderComprasTable();
-  toast('Stock ajustado: '+prev+' → '+p.stock+' ✓','var(--acc4)');
+  toast('✅ Stock '+p.name+': '+prev+' → '+p.stock,'var(--acc4)');
 }
 function renderComprasTable(){
   const tbl=document.getElementById('compras-tbl');if(!tbl)return;
