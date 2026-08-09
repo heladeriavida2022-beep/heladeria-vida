@@ -5453,20 +5453,17 @@ async function fbCargarTodo(){
     try{
       var fbProds = await fbGetAll('productos');
       fbProds.forEach(function(fp){
-        if(!prods.find(function(p){ return String(p.id)===String(fp.id)||p.name===fp.name; })){
+        var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
+        if(!existe){
+          // Producto nuevo creado desde la app — agregar
           prods.push(fp);
-        } else {
-          // Actualizar stock del producto existente
-          var px = prods.find(function(p){ return String(p.id)===String(fp.id); });
-          if(px && fp.stock!==undefined) px.stock = fp.stock;
+        } else if(parseInt(fp.id) >= 700){
+          // Solo actualizar stock de productos nuevos (id >= 700)
+          if(fp.stock !== undefined) existe.stock = fp.stock;
         }
+        // Productos del código base (id < 700) NO se sobreescriben desde Firebase
       });
     }catch(e){ console.warn('productos FB:', e); }
-    // Desactivar productos duplicados (creados manualmente con nombre incorrecto)
-    var duplicados = ['HELADO CREMOSOS','HELADO DE FRUTAS','HELADO DE AGUA'];
-    prods.forEach(function(p){
-      if(duplicados.indexOf(p.name) >= 0) p.active = false;
-    });
 
     // 4. Ventas
     var fbVentas = await fbGetAll('ventas');
