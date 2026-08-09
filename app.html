@@ -4273,6 +4273,28 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function crearDeudaFruver(){
+  try{
+    var deudas = await window.FB.getAll('deudas');
+    var ya = deudas.find(function(d){ return d.acreedor==='FRUVER LA COLORADA' && d.monto===37800; });
+    if(!ya){
+      var deuda={
+        id:'d_fruver_20260808',
+        acreedor:'FRUVER LA COLORADA',
+        concepto:'Gasto: FRUTAS',
+        monto:37800,
+        montoPagado:0,
+        fecha:'2026-08-08',
+        vence:'2026-08-15',
+        pagada:false,
+        origen:'gasto'
+      };
+      await window.FB.set('deudas',deuda.id,deuda);
+      console.log('✅ Deuda FRUVER creada en Firebase');
+    }
+  }catch(e){ console.warn('deuda fruver:',e); }
+}
+
 async function restaurarCierresHistoricos(){
   try{
     // Verificar si ya existe el cierre del 03/08/2026
@@ -5389,6 +5411,8 @@ async function fbCargarTodo(){
 
     // Restaurar cierres históricos si no existen
     await restaurarCierresHistoricos();
+    // Crear deuda FRUVER si no existe
+    await crearDeudaFruver();
 
     // Cargar compras desde Firebase
     try{
