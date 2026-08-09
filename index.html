@@ -1326,8 +1326,11 @@ try{
   <!-- Resumen automático -->
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:12px;margin:10px 0" id="ct-resumen"></div>
   <!-- Dinero contado -->
-  <div class="fg"><label class="fgrp-label">💵 Efectivo contado físicamente ($)</label>
-    <input class="finput" type="number" id="ct-contado" placeholder="0" oninput="calcCierre()">
+  <div class="fg"><label class="fgrp-label" style="font-weight:700;color:#3aaa6a">💵 Efectivo contado físicamente — TODO el dinero en caja (base + ventas - egresos)</label>
+    <input class="finput" type="number" id="ct-contado" placeholder="Ej: $564.200 — cuente TODO el efectivo físico" oninput="calcCierre()" style="font-size:14px;font-weight:700">
+  </div>
+  <div style="background:#fff8e1;border:1px solid #f0a500;border-radius:6px;padding:6px 10px;margin-bottom:6px;font-size:11px;color:#d48a00">
+    ⚠️ Ingrese el total de billetes contados <b>antes de retirar</b>. El sistema calculará cuánto retirar y cuánto dejar.
   </div>
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin:8px 0" id="ct-diferencia"></div>
   <div class="fg"><label class="fgrp-label">Observaciones</label>
