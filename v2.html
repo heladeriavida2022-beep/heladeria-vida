@@ -1034,7 +1034,28 @@ try{
     <div style="font-size:14px;font-weight:800;display:flex;justify-content:space-between;margin-bottom:10px">
       <span>Total a cobrar:</span><span id="pend-cobrar-total" style="color:#3aaa6a"></span>
     </div>
-    <div id="pend-metodos-pago" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px"></div>
+    <div id="pend-metodos-pago" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+    <!-- Botón pago mixto -->
+    <button onclick="selectPendPago('Mixto')" id="pend-btn-mixto" style="width:100%;padding:7px;border:2px solid #8b5cf6;background:rgba(139,92,246,.08);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;color:#7c3aed;font-family:var(--font-body);margin-bottom:8px">💜 Pago Mixto (Efectivo + Digital)</button>
+    <!-- Campos pago mixto pedido -->
+    <div id="pend-mixto-fields" style="display:none;margin-bottom:8px;background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:10px">
+      <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">💜 PAGO MIXTO</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+        <div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">💵 Efectivo</div>
+          <input class="finput" id="pend-mixto-efectivo" type="number" placeholder="$0" oninput="calcMixtoP()" style="font-size:13px;padding:6px 9px">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">📱 Digital</div>
+          <select class="finput" id="pend-mixto-tipo-digital" style="font-size:12px;padding:6px 9px">
+            <option value="Nequi/Daviplata">Nequi/Daviplata</option>
+            <option value="Transferencia">Transferencia</option>
+            <option value="Tarjeta">Tarjeta</option>
+          </select>
+        </div>
+      </div>
+      <div id="pend-mixto-resumen" style="margin-top:8px;font-size:12px;text-align:center;color:#7c3aed;font-weight:700"></div>
+    </div>
     <input type="hidden" id="pend-pago-sel" value="Efectivo">
     <!-- Calculadora cambio efectivo -->
     <div id="pend-cambio-wrap" style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:10px;padding:10px;margin-bottom:8px">
@@ -2392,7 +2413,25 @@ function selectPendPago(m,btn){
   var cfg=PAGO_CFG[m];
   if(btn&&cfg){btn.style.borderColor=cfg.color;btn.style.color=cfg.color;btn.style.background='rgba(0,0,0,.05)';}
   var cw=document.getElementById('pend-cambio-wrap');
-  if(cw) cw.style.display=m==='Efectivo'?'block':'none';
+  if(cw) cw.style.display=(m==='Efectivo'||m==='Mixto')?'block':'none';
+  var mf=document.getElementById('pend-mixto-fields');
+  if(mf) mf.style.display=m==='Mixto'?'block':'none';
+  // Resetear botón mixto visual
+  var bm=document.getElementById('pend-btn-mixto');
+  if(bm){bm.style.borderColor=m==='Mixto'?'#7c3aed':'#8b5cf6';bm.style.background=m==='Mixto'?'rgba(139,92,246,.2)':'rgba(139,92,246,.08)';}
+}
+
+function calcMixtoP(){
+  var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});if(!p)return;
+  var tot=p.total;
+  var efe=parseFloat(document.getElementById('pend-mixto-efectivo').value)||0;
+  var digital=Math.max(0,tot-efe);
+  var tipoDigital=document.getElementById('pend-mixto-tipo-digital').value;
+  var res=document.getElementById('pend-mixto-resumen');
+  if(res){
+    if(efe>tot) res.innerHTML='<span style="color:#e94560">⚠️ El efectivo supera el total</span>';
+    else res.innerHTML='💵 Efectivo: <b>'+fmt(efe)+'</b> + 📱 '+tipoDigital+': <b>'+fmt(digital)+'</b>';
+  }
 }
 
 function setPendRecibido(v){
@@ -2414,19 +2453,28 @@ function calcCambioPend(){
 function cobrarPendiente(){
   var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});if(!p)return;
   var pago=document.getElementById('pend-pago-sel').value||'Efectivo';
-  if(pago==='Efectivo'){
+  var pagoMixto=null;
+  if(pago==='Mixto'){
+    var efeM=parseFloat(document.getElementById('pend-mixto-efectivo').value)||0;
+    var tipoD=document.getElementById('pend-mixto-tipo-digital').value||'Nequi/Daviplata';
+    if(efeM<=0||efeM>=p.total){toast('Ingresa el valor en efectivo para el pago mixto','#e94560');return;}
+    pagoMixto={efectivo:efeM,digital:Math.max(0,p.total-efeM),tipoDigital:tipoD};
+  } else if(pago==='Efectivo'){
     var rec=parseFloat(document.getElementById('pend-efectivo-recibido').value)||0;
     if(rec>0&&rec<p.total){toast('❌ Dinero insuficiente — Falta '+fmt(p.total-rec),'#e94560');return;}
   }
   var now=new Date();
+  var ta=getTurnoActivo();
   var items=p.items.map(function(i){return i.qty+'x '+i.name;}).join(', ');
   var sale={
     id:'v'+now.getTime()+'_pend',
     time:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
     fecha:getFechaHoy(),timestamp:now.toISOString(),
+    turnoId:ta?ta.turnoId:null,turno:ta?ta.turno:null,
     name:items,cat:'VARIOS',
     qty:p.items.reduce(function(s,i){return s+i.qty;},0),
     price:p.total,total:p.total,canal:p.mesa,pago:pago,obs:p.obs,
+    pagoMixto:pagoMixto,
     emp:currentUser?currentUser.name:'—',empId:currentUser?currentUser.id:'',
     detalle:p.items.map(function(i){return {name:i.name,qty:i.qty,price:i.price,total:i.price*i.qty};}),
     origenPendiente:p.id
