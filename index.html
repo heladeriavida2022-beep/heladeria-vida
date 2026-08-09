@@ -3642,6 +3642,7 @@ function guardarGasto(){
       acreedor:terceroNombre||desc,
       concepto:'Gasto: '+desc,
       monto:monto,
+      montoPagado:0,
       fecha:fecha,
       vence:vence,
       pagada:false,
@@ -3651,7 +3652,9 @@ function guardarGasto(){
     var deudas=LS.g('deudas')||[];
     deudas.unshift(deuda);
     LS.set('deudas',deudas);
+    try{window.FB.set('deudas',deuda.id,deuda);}catch(e){}
     updateDeudasBadge();
+    if(typeof renderDeudas==='function') renderDeudas();
   }
 
   // Limpiar campos
