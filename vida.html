@@ -1639,6 +1639,22 @@ let prods=[
   {id:702,name:'PULPA COCO',cat:'INSUMOS',emoji:'🥥',price:0,stock:1,min:1,unit:'bolsa',descuenta:true,active:true,esInsumo:true},
 ];
 
+
+// ══════════════════════════════════════════════
+// VERIFICACIÓN DE VERSIÓN
+// ══════════════════════════════════════════════
+function mostrarAvisoVersion(versionNueva){
+  // Solo mostrar aviso — NO bloquear nada
+  var ya = document.getElementById('aviso-version');
+  if(ya) return; // ya está visible
+  var div = document.createElement('div');
+  div.id = 'aviso-version';
+  div.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#f0a500;color:#1a1a2e;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;font-family:var(--font-body);font-size:13px;font-weight:700;box-shadow:0 2px 8px rgba(0,0,0,.2)';
+  div.innerHTML = '<span>⚠️ HAY UNA VERSIÓN NUEVA ('+versionNueva+'). Recarga la aplicación para continuar.</span>'+
+    '<button onclick="location.reload(true)" style="background:#1a1a2e;color:#fff;border:none;padding:6px 14px;border-radius:6px;cursor:pointer;font-weight:700;font-family:var(--font-body);font-size:12px;margin-left:12px;white-space:nowrap">🔄 ACTUALIZAR</button>';
+  document.body.prepend(div);
+}
+
 // ══════════════════════════════════════════════
 // LOGIN
 // ══════════════════════════════════════════════
@@ -5761,6 +5777,20 @@ async function fbCargarTodo(){
     console.log('🔥 Firebase: todo cargado correctamente');
     // Aplicar precios del catálogo DESPUÉS de cargar Firebase
     if(typeof aplicarPreciosCatalogo === 'function') aplicarPreciosCatalogo();
+
+    // Verificar versión — solo informativo, no bloquea nada
+    try{
+      var versionLocal = '20260805';
+      var cfgDocs = await fbGetAll('config');
+      var cfgVersion = cfgDocs.find(function(c){ return c.id==='version'; });
+      if(!cfgVersion){
+        // Crear documento de versión si no existe
+        await fbSet('config','version',{id:'version',version:'20260805'});
+      } else if(cfgVersion.version && cfgVersion.version !== versionLocal){
+        // Versión diferente — mostrar aviso (no bloquear)
+        if(typeof mostrarAvisoVersion === 'function') mostrarAvisoVersion(cfgVersion.version);
+      }
+    }catch(e){ console.warn('version check:', e); }
   } catch(err){
     fbStatus('Error conexión', false);
     console.error('fbCargarTodo error:', err);
