@@ -587,6 +587,27 @@ try{
                 <button class="pago-btn" onclick="selectPago('Transferencia',this)" style="padding:7px 3px;border:2px solid #eaeef2;background:#f7f8fa;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);font-family:var(--font-body);line-height:1.4">🏦<br>Trans.</button>
                 <button class="pago-btn" onclick="selectPago('Fiado',this)" style="padding:7px 3px;border:2px solid #f0a500;background:rgba(240,165,0,.10);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;color:#d48a00;font-family:var(--font-body);line-height:1.4">📋<br>Fiado</button>
               </div>
+              <!-- Pago mixto -->
+              <button class="pago-btn" onclick="selectPago('Mixto',this)" style="width:100%;padding:7px;border:2px solid #8b5cf6;background:rgba(139,92,246,.08);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;color:#7c3aed;font-family:var(--font-body);margin-bottom:8px">💜 Pago Mixto (Efectivo + Digital)</button>
+              <!-- Campos pago mixto -->
+              <div id="mixto-fields" style="display:none;margin-bottom:8px;background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:10px">
+                <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">💜 PAGO MIXTO</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+                  <div>
+                    <div style="font-size:10px;color:var(--text2);margin-bottom:3px">💵 Efectivo</div>
+                    <input class="finput" id="mixto-efectivo" type="number" placeholder="$0" oninput="calcMixto()" style="font-size:13px;padding:6px 9px">
+                  </div>
+                  <div>
+                    <div style="font-size:10px;color:var(--text2);margin-bottom:3px">📱 Digital</div>
+                    <select class="finput" id="mixto-tipo-digital" style="font-size:12px;padding:6px 9px">
+                      <option value="Nequi/Daviplata">Nequi/Daviplata</option>
+                      <option value="Transferencia">Transferencia</option>
+                      <option value="Tarjeta">Tarjeta</option>
+                    </select>
+                  </div>
+                </div>
+                <div id="mixto-resumen" style="margin-top:8px;font-size:12px;text-align:center;color:#7c3aed;font-weight:700"></div>
+              </div>
               <!-- Campos extra para fiado -->
               <div id="fiado-fields" style="display:none;margin-bottom:8px">
                 <input class="finput" id="fiado-nombre" placeholder="Nombre del cliente" style="font-size:12px;padding:6px 9px;margin-bottom:5px;width:100%">
@@ -2103,6 +2124,17 @@ function confirmarVenta(){
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
   var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
 
+  // PAGO MIXTO
+  var pagoMixto=null;
+  if(pago==='Mixto'){
+    var efeM=parseFloat(document.getElementById('mixto-efectivo').value)||0;
+    var tipoD=document.getElementById('mixto-tipo-digital').value||'Nequi/Daviplata';
+    var digitalM=Math.max(0,tot-efeM);
+    if(efeM<=0||efeM>=tot){toast('Ingresa el valor en efectivo para el pago mixto','#e94560');return;}
+    pagoMixto={efectivo:efeM,digital:digitalM,tipoDigital:tipoD};
+    pago='Mixto';
+  }
+
   // VALIDAR EFECTIVO SUFICIENTE
   if(pago==='Efectivo' && tot>0){
     var recibidoEl=document.getElementById('efectivo-recibido');
@@ -2147,6 +2179,7 @@ function confirmarVenta(){
     timestamp:now.toISOString(),
     turnoId:_ta?_ta.turnoId:null,
     turno:_ta?_ta.turno:null,
+    pagoMixto:pagoMixto||null,
     name:items,
     cat:cartItems.length===1?cartItems[0].cat:'VARIOS',
     qty:cartItems.reduce(function(s,i){return s+i.qty;},0),
@@ -3897,15 +3930,32 @@ function selectPago(m,btn){
   // Mostrar/ocultar calculadora de cambio
   var cw=document.getElementById('cambio-wrap');
   if(cw){
-    cw.style.display=m==='Efectivo'?'block':'none';
-    if(m==='Efectivo'){
-      // Resetear calculadora
+    cw.style.display=(m==='Efectivo'||m==='Mixto')?'block':'none';
+    if(m==='Efectivo'||m==='Mixto'){
       var er=document.getElementById('efectivo-recibido');
       if(er) er.value='';
       var cr=document.getElementById('cambio-resultado');
       if(cr) cr.innerHTML='Ingresa el valor recibido';
       cr.style.background='#fff';cr.style.color='var(--text)';
       document.querySelectorAll('.btn-cambio').forEach(function(b){b.classList.remove('sel');});
+    }
+  }
+  // Mostrar/ocultar campos pago mixto
+  var mf=document.getElementById('mixto-fields');
+  if(mf) mf.style.display=m==='Mixto'?'block':'none';
+}
+
+function calcMixto(){
+  var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  var efe=parseFloat(document.getElementById('mixto-efectivo').value)||0;
+  var digital=Math.max(0,tot-efe);
+  var tipoDigital=document.getElementById('mixto-tipo-digital').value;
+  var res=document.getElementById('mixto-resumen');
+  if(res){
+    if(efe>tot){
+      res.innerHTML='<span style="color:#e94560">⚠️ El efectivo supera el total</span>';
+    } else {
+      res.innerHTML='💵 Efectivo: <b>'+fmt(efe)+'</b> + 📱 '+tipoDigital+': <b>'+fmt(digital)+'</b>';
     }
   }
 }
@@ -3999,7 +4049,28 @@ function getSalesHoy(){
 }
 
 function getVentasTurnoActual(){ return getSalesHoy(); }
-function getPagoTotals(){var t={};Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});getSalesHoy().forEach(function(s){var k=s.pago||'Efectivo';if(!t[k])t[k]={monto:0,count:0};t[k].monto+=(s.total||0);t[k].count++;});return t;}
+function getPagoTotals(){
+  var t={};
+  Object.keys(PAGO_CFG).forEach(function(k){t[k]={monto:0,count:0};});
+  getSalesHoy().forEach(function(s){
+    if(s.pago==='Mixto'&&s.pagoMixto){
+      // Separar efectivo y digital del pago mixto
+      if(!t['Efectivo']) t['Efectivo']={monto:0,count:0};
+      t['Efectivo'].monto+=s.pagoMixto.efectivo||0;
+      t['Efectivo'].count++;
+      var td=s.pagoMixto.tipoDigital||'Nequi/Daviplata';
+      if(!t[td]) t[td]={monto:0,count:0};
+      t[td].monto+=s.pagoMixto.digital||0;
+      t[td].count++;
+    } else {
+      var k=s.pago||'Efectivo';
+      if(!t[k])t[k]={monto:0,count:0};
+      t[k].monto+=(s.total||0);
+      t[k].count++;
+    }
+  });
+  return t;
+}
 // ══════════════════════════════════════════════
 // CAJA Y CIERRES DE TURNO
 // ══════════════════════════════════════════════
