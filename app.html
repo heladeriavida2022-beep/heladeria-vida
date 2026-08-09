@@ -4461,14 +4461,16 @@ function eliminarVenta(id){
 // ══════════════════════════════════════════════
 async function corregirRetiroCierre(){
   try{
-    var cierres = await fbGetAll('cierresTurno');
+    var cierres = await window.FB.getAll('cierresTurno');
     var c = cierres.find(function(x){ return x.id === 'ct1786218567111'; });
     if(c && c.dineroRetirado === undefined){
       c.dineroRetirado = 24000;
-      await fbSet('cierresTurno', c.id, c);
+      await window.FB.set('cierresTurno', c.id, c);
       console.log('✅ Retiro corregido: ct1786218567111 → $24.000');
+    } else if(c) {
+      console.log('ℹ️ Ya tiene dineroRetirado:', c.dineroRetirado);
     } else {
-      console.log('ℹ️ Cierre ya corregido o no encontrado');
+      console.log('ℹ️ Cierre no encontrado');
     }
   }catch(e){ console.warn('corregirRetiro:', e); }
 }
