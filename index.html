@@ -4097,38 +4097,21 @@ function getFechaDeVenta(s){
 
 function getSalesHoy(){
   var hoy = getFechaHoy();
-  var ta = getTurnoActivo();
 
-  // Si hay turno activo con turnoId, filtrar por turnoId
-  if(ta && ta.turnoId){
-    return sales.filter(function(s){
-      var f = getFechaDeVenta(s);
-      if(!f || f !== hoy) return false;
-      // Ventas con turnoId: solo las del turno activo
-      if(s.turnoId) return s.turnoId === ta.turnoId;
-      // Ventas sin turnoId (históricas): usar timestamp de apertura del turno
-      if(ta.timestampApertura && s.timestamp){
-        return s.timestamp >= ta.timestampApertura;
-      }
-      return false;
-    });
-  }
-
-  // Sin turno activo: usar último cierre como corte
+  // Usar último cierre de hoy como punto de corte del turno anterior
   var ultCierreHoy = null;
-  (LS.g('cierresTurno')||[]).forEach(function(c){
+  var todosLosCierres = cierresTurno||[];
+  todosLosCierres.forEach(function(c){
     if(!c.timestamp) return;
-    var d = new Date(c.timestamp);
-    var col = new Date(d.getTime() + (d.getTimezoneOffset()*60000) - (5*3600000));
-    var fechaCol = col.getFullYear()+'-'+String(col.getMonth()+1).padStart(2,'0')+'-'+String(col.getDate()).padStart(2,'0');
-    if(fechaCol === hoy){
+    var fechaC = c.timestamp.substring(0,10);
+    if(fechaC === hoy){
       if(!ultCierreHoy || c.timestamp > ultCierreHoy) ultCierreHoy = c.timestamp;
     }
   });
+
   return sales.filter(function(s){
     var f = getFechaDeVenta(s);
-    if(!f) return false;
-    if(f !== hoy) return false;
+    if(!f || f !== hoy) return false;
     if(ultCierreHoy && s.timestamp && s.timestamp <= ultCierreHoy) return false;
     return true;
   });
@@ -4489,19 +4472,17 @@ function _abrirCierreTurnoInterno(){
   var hoy = getFechaHoy();
   var ta = getTurnoActivo();
 
-  // Timestamp de corte: apertura del turno o último cierre de hoy
+  // Corte = timestamp del último cierre de hoy
   var corte = null;
-  if(ta && ta.timestampApertura) corte = ta.timestampApertura;
-  if(!corte){
-    // Usar último cierre de hoy como corte
-    (cierresTurno||[]).forEach(function(c){
-      if(!c.timestamp) return;
-      var fechaC = c.timestamp.substring(0,10);
-      if(fechaC === hoy && (!corte || c.timestamp > corte)) corte = c.timestamp;
-    });
-  }
+  var todosLosCierresHoy = cierresTurno||[];
+  todosLosCierresHoy.forEach(function(c){
+    if(!c.timestamp) return;
+    if(c.timestamp.substring(0,10) === hoy){
+      if(!corte || c.timestamp > corte) corte = c.timestamp;
+    }
+  });
 
-  // Egresos del turno actual (después del corte)
+  // Egresos después del último cierre
   var egresosEfectivo = movCaja.filter(function(m){
     if(m.tipo !== 'egreso') return false;
     var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
