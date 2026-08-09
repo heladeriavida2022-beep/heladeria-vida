@@ -5528,23 +5528,30 @@ onSnapshot(collection(db,'usuarios'), snap => {
 
 // Productos nuevos en tiempo real
 onSnapshot(collection(db,'productos'), snap => {
+  var cambio=false;
   snap.docChanges().forEach(ch => {
     if(ch.type === 'removed') return;
     var fp = ch.doc.data(); delete fp._ts;
-    var existe = prods.find(function(p){ return String(p.id)===String(fp.id)||p.name===fp.name; });
+    var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
     if(!existe){
+      // Producto nuevo — agregar completo
       prods.push(fp);
-      try{renderProdTable();}catch(e){}
-      try{renderPOS();}catch(e){}
-      try{renderCarta();}catch(e){}
-      updateBadges();
+      cambio=true;
     } else {
-      // Actualizar stock si cambió
-      if(fp.stock !== undefined) existe.stock = fp.stock;
+      // Producto existente — actualizar stock y precio
+      if(fp.stock !== undefined){ existe.stock = fp.stock; cambio=true; }
       if(fp.price !== undefined) existe.price = fp.price;
       if(fp.active !== undefined) existe.active = fp.active;
+      if(fp.name !== undefined) existe.name = fp.name;
     }
   });
+  if(cambio){
+    try{renderProdTable();}catch(e){}
+    try{renderPOS();}catch(e){}
+    try{renderCarta();}catch(e){}
+    try{renderInv();}catch(e){}
+    updateBadges();
+  }
 }, err => console.warn('productos listener', err));
 
 // Proveedores en tiempo real
