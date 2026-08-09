@@ -4584,9 +4584,30 @@ function confirmarCierreTurno(){
   var nequi = t['Nequi/Daviplata'] ? t['Nequi/Daviplata'].monto : 0;
   var tarjeta = t['Tarjeta'] ? t['Tarjeta'].monto : 0;
   var trans = t['Transferencia'] ? t['Transferencia'].monto : 0;
-  var gastosTurno = (LS.g('gastos')||[]).reduce(function(s,g){return s+(g.monto||0);},0);
   var totalVentas = efe + nequi + tarjeta + trans;
-  var esperado = fondo + efe;
+  var ta = getTurnoActivo();
+  var hoy = getFechaHoy();
+
+  // Egresos efectivo del turno activo
+  var egresosEfectivo = movCaja.filter(function(m){
+    if(m.tipo !== 'egreso') return false;
+    var fm = m.fecha || (m.timestamp ? m.timestamp.substring(0,10) : '');
+    if(fm !== hoy) return false;
+    if(ta && ta.turnoId){
+      if(m.turnoId) return m.turnoId === ta.turnoId;
+      if(ta.timestampApertura && m.timestamp) return m.timestamp >= ta.timestampApertura;
+      return false;
+    }
+    return true;
+  }).reduce(function(s,m){return s+(m.monto||0);},0);
+
+  var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
+    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+  }).reduce(function(s,g){return s+(g.monto||0);},0);
+
+  var totalEgresos = egresosEfectivo + gastosEfe;
+  var gastosTurno = totalEgresos;
+  var esperado = fondo + efe - totalEgresos;
   var diferencia = contado - esperado;
   var estado = Math.abs(diferencia) < 100 ? 'correcto' : diferencia > 0 ? 'sobrante' : 'faltante';
 
