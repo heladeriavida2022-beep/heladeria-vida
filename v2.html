@@ -1827,7 +1827,12 @@ function stockSt(p){if(!p.descuenta)return{cls:'bgr',lbl:'N/A'};if(p.stock<=0)re
 function closeM(id){document.getElementById('ov-'+id)?.classList.remove('open')}
 document.querySelectorAll('.ov').forEach(o=>o.addEventListener('click',e=>{if(e.target===o)closeM(o.id.replace('ov-',''));}));
 function fillDrops(){const opts=[...prods].filter(p=>p.active).sort((a,b)=>a.cat.localeCompare(b.cat)||a.name.localeCompare(b.name)).map(p=>`<option value="${p.id}">[${p.cat}] ${p.name}${p.descuenta?' ('+p.stock+')':''}</option>`).join('');['aj-p','vm-p'].forEach(id=>{const el=document.getElementById(id);if(el)el.innerHTML=opts;});updAjProd();}
-function updAjProd(){const p=gP(parseInt(document.getElementById('aj-p')?.value));if(!p)return;document.getElementById('aj-stock').textContent=p.descuenta?p.stock+' '+p.unit:'N/A';}
+function updAjProd(){
+  var idVal=document.getElementById('aj-p')?.value;
+  var p=gP(idVal)||gP(parseInt(idVal));
+  if(!p)return;
+  document.getElementById('aj-stock').textContent=p.descuenta?(p.stock||0)+' '+(p.unit||'unidades'):'N/A';
+}
 function calcIngTot(){}// legacy no-op
 function filterTbl(id,q){document.querySelectorAll('#'+id+' tr').forEach(r=>{r.style.display=r.textContent.toLowerCase().includes(q.toLowerCase())?'':'none'});}
 function updateBadges(){const n=prods.filter(p=>p.active&&p.descuenta&&p.stock<=p.min).length;const b=document.getElementById('snb-inv');if(b){b.textContent=n;b.style.display=n?'':'none';}}
