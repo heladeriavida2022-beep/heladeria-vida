@@ -1821,7 +1821,7 @@ function renderAdminView(id){
 // HELPERS
 // ══════════════════════════════════════════════
 const fmt=n=>'$'+Math.round(n).toLocaleString('es-CO');
-const gP=id=>prods.find(p=>p.id===id);
+const gP=id=>prods.find(p=>p.id===id||String(p.id)===String(id));
 const catBadge=c=>`<span class="badge" style="background:${CC[c]}18;color:${CC[c]};font-size:9px">${CE[c]} ${c}</span>`;
 function stockSt(p){if(!p.descuenta)return{cls:'bgr',lbl:'N/A'};if(p.stock<=0)return{cls:'br',lbl:'Agotado'};if(p.stock<=p.min)return{cls:'by',lbl:'Bajo'};return{cls:'bg',lbl:'OK'};}
 function closeM(id){document.getElementById('ov-'+id)?.classList.remove('open')}
