@@ -3431,8 +3431,12 @@ function guardarAjuste(){
   const motivo=document.getElementById('aj-m').value;
   // Guardar en localStorage
   LS.updProd(p.id,{stock:p.stock});
-  // Sincronizar con Firebase para que todos los usuarios vean el cambio
+  // Sincronizar con Firebase — colección inventario
   if(typeof window.fbUpdateStock==='function') window.fbUpdateStock(p.id,p.stock);
+  // También actualizar en colección productos (para productos creados desde la app)
+  try{
+    window.FB.set('productos', String(p.id), Object.assign({},p,{stock:p.stock}));
+  }catch(e){ console.warn('ajuste productos FB:', e); }
   purchases.push({fecha:getFechaHoy(),name:p.name,cat:p.cat,tipo:'Ajuste',qty:p.stock-prev,unit:p.unit,costo:0,total:0,prov:'—',por:currentUser.name});
   logAction('ajuste',`Ajustó ${p.name}: ${prev} → ${p.stock}`,motivo);
   closeM('ajuste');renderInv();renderProdTable();updateBadges();renderComprasTable();
