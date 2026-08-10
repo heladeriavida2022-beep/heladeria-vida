@@ -1214,7 +1214,9 @@ try{
   <div class="fr">
     <div class="fg"><label class="fgrp-label">Tipo de pago</label>
       <select class="finput" id="g-tipo-pago" onchange="toggleGastoCredito()">
-        <option value="contado">💵 Contado</option>
+        <option value="contado">💵 Contado (efectivo)</option>
+        <option value="transferencia">🏦 Transferencia</option>
+        <option value="fondo_admin">💰 Fondo Administrativo</option>
         <option value="credito">📋 Crédito</option>
       </select>
     </div>
@@ -3679,6 +3681,93 @@ function guardarGasto(){
 
   if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
 
+  var esFondo = tipoPago==='fondo_admin';
+
+  // FONDO ADMINISTRATIVO: verificar saldo y descontar
+  if(esFondo){
+    if(currentUser.role!=='admin'){toast('Solo el administrador puede usar el Fondo','#e94560');return;}
+    // Registrar egreso en fondoAdmin y descontar
+    window.FB.getAll('fondoAdmin').then(function(movs){
+      var totalIngresos=movs.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+      var totalEgresos=movs.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
+      var saldoActual=totalIngresos-totalEgresos;
+      if(monto>saldoActual){
+        toast('⚠️ Fondo insuficiente. Saldo disponible: '+fmt(saldoActual),'#e94560');
+        return;
+      }
+      var movFondo={
+        id:'fa_'+Date.now(),
+        tipo:'egreso',
+        concepto:'Gasto: '+desc+(terceroNombre?' — '+terceroNombre:''),
+        valor:monto,
+        fecha:fecha,
+        timestamp:new Date().toISOString(),
+        usuario:currentUser.name,
+        origen:'gasto'
+      };
+      window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
+        _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,false);
+        toast('💰 Gasto registrado desde Fondo Administrativo — Saldo restante: '+fmt(saldoActual-monto),'#3aaa6a');
+      });
+    }).catch(function(){ toast('Error verificando saldo del fondo','#e94560'); });
+    return; // esperar la Promise
+  }
+
+  _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,true);
+}
+
+function _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,mostrarToast){
+  var gasto={
+    id:'g'+Date.now(),
+    fecha:fecha,desc:desc,cat:cat,monto:monto,
+    tipoPago:tipoPago,vence:vence,
+    terceroNombre:terceroNombre||'—',
+    terceroId:terceroId||'—',
+    por:currentUser.name,
+    pagado:tipoPago==='contado'||tipoPago==='transferencia'||tipoPago==='fondo_admin',
+    desdeFondo:tipoPago==='fondo_admin'
+  };
+  var gastos=LS.g('gastos')||[];
+  gastos.unshift(gasto);
+  LS.set('gastos',gastos);
+  try{window.FB.set('gastos',gasto.id,gasto);}catch(e){}
+
+  if(tipoPago==='credito'&&monto>0){
+    var deuda={
+      id:'d'+Date.now(),
+      acreedor:terceroNombre||desc,
+      concepto:'Gasto: '+desc,
+      monto:monto,montoPagado:0,
+      fecha:fecha,vence:vence,
+      pagada:false,origen:'gasto',terceroId:terceroId
+    };
+    var deudas=LS.g('deudas')||[];
+    deudas.unshift(deuda);
+    LS.set('deudas',deudas);
+    try{window.FB.set('deudas',deuda.id,deuda);}catch(e){}
+    updateDeudasBadge();
+    if(typeof renderDeudas==='function') renderDeudas();
+  }
+
+  document.getElementById('g-desc').value='';
+  document.getElementById('g-monto').value='';
+  document.getElementById('g-tercero-nombre').value='';
+  document.getElementById('g-tercero-id').value='';
+  document.getElementById('g-vence-wrap').style.display='none';
+  document.getElementById('g-tipo-pago').value='contado';
+
+  logAction('admin','Registró gasto: '+desc+' a '+terceroNombre,fmt(monto)+' - '+tipoPago);
+  closeM('gasto');
+  renderGastos();
+  if(mostrarToast) toast('Gasto registrado ✓'+(tipoPago==='credito'?' — Deuda creada':''),'#3aaa6a');
+}
+
+
+  var terceroNombre=document.getElementById('g-tercero-nombre').value.trim();
+  var terceroId=document.getElementById('g-tercero-id').value.trim();
+
+  if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
+
   var gasto={
     id:'g'+Date.now(),
     fecha:fecha,
@@ -4845,7 +4934,7 @@ function _abrirCierreTurnoInterno(){
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
   var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
-    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+    return g.tipoPago==='contado' && !g.desdeFondo && (g.fecha||'').startsWith(hoy);
   }).reduce(function(s,g){return s+(g.monto||0);},0);
 
   var totalEgresos = egresosEfectivo + gastosEfe;
@@ -4910,7 +4999,7 @@ function calcCierre(){
   }).reduce(function(s,m){return s+(m.monto||0);},0);
   // Gastos en efectivo de hoy
   var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
-    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+    return g.tipoPago==='contado' && !g.desdeFondo && (g.fecha||'').startsWith(hoy);
   }).reduce(function(s,g){return s+(g.monto||0);},0);
   var totalEgresos = egresosMovCaja + gastosEfe;
   var esperado = BASE + efe - totalEgresos;
@@ -4964,7 +5053,7 @@ function confirmarCierreTurno(){
   }).reduce(function(s,m){return s+(m.monto||0);},0);
 
   var gastosEfe = (LS.g('gastos')||[]).filter(function(g){
-    return g.tipoPago==='contado' && (g.fecha||'').startsWith(hoy);
+    return g.tipoPago==='contado' && !g.desdeFondo && (g.fecha||'').startsWith(hoy);
   }).reduce(function(s,g){return s+(g.monto||0);},0);
 
   var totalEgresos = egresosEfectivo + gastosEfe;
