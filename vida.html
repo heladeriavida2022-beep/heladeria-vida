@@ -3762,53 +3762,6 @@ function _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,te
   if(mostrarToast) toast('Gasto registrado ✓'+(tipoPago==='credito'?' — Deuda creada':''),'#3aaa6a');
 }
 
-
-  var terceroNombre=document.getElementById('g-tercero-nombre').value.trim();
-  var terceroId=document.getElementById('g-tercero-id').value.trim();
-
-  if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
-
-  var gasto={
-    id:'g'+Date.now(),
-    fecha:fecha,
-    desc:desc,
-    cat:cat,
-    monto:monto,
-    tipoPago:tipoPago,
-    vence:vence,
-    terceroNombre:terceroNombre||'—',
-    terceroId:terceroId||'—',
-    por:currentUser.name,
-    pagado:tipoPago==='contado'
-  };
-
-  var gastos=LS.g('gastos')||[];
-  gastos.unshift(gasto);
-  LS.set('gastos',gastos);
-
-  // Si es crédito, registrar como deuda
-  if(tipoPago==='credito'&&monto>0){
-    var deuda={
-      id:'d'+Date.now(),
-      acreedor:terceroNombre||desc,
-      concepto:'Gasto: '+desc,
-      monto:monto,
-      montoPagado:0,
-      fecha:fecha,
-      vence:vence,
-      pagada:false,
-      origen:'gasto',
-      terceroId:terceroId
-    };
-    var deudas=LS.g('deudas')||[];
-    deudas.unshift(deuda);
-    LS.set('deudas',deudas);
-    try{window.FB.set('deudas',deuda.id,deuda);}catch(e){}
-    updateDeudasBadge();
-    if(typeof renderDeudas==='function') renderDeudas();
-  }
-
-
 function renderGastos(){
   var gastos=LS.g('gastos')||[];
   var buscar=(document.getElementById('gasto-buscar')?.value||'').toLowerCase();
