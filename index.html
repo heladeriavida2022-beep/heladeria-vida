@@ -781,6 +781,8 @@ try{
             <!-- Filtro por tercero -->
             <div style="display:flex;gap:8px;margin-bottom:10px;align-items:center">
               <input class="finput" id="gasto-buscar" placeholder="🔍 Buscar por tercero o concepto..." oninput="renderGastos()" style="flex:1;font-size:12px">
+              <input class="finput" type="date" id="gasto-desde" onchange="renderGastos()" style="width:130px;font-size:12px" title="Desde">
+              <input class="finput" type="date" id="gasto-hasta" onchange="renderGastos()" style="width:130px;font-size:12px" title="Hasta">
               <select class="finput" id="gasto-filtro-cat" onchange="renderGastos()" style="width:150px;font-size:12px">
                 <option value="ALL">Todas las categorías</option>
                 <option>Materia prima</option>
@@ -3736,11 +3738,17 @@ function renderGastos(){
   var buscar=(document.getElementById('gasto-buscar')?.value||'').toLowerCase();
   var filtCat=document.getElementById('gasto-filtro-cat')?.value||'ALL';
   var filtPago=document.getElementById('gasto-filtro-pago')?.value||'ALL';
+  var desde=document.getElementById('gasto-desde')?.value||'';
+  var hasta=document.getElementById('gasto-hasta')?.value||'';
 
   var filtrados=gastos.filter(function(g){
     var matchBuscar=!buscar||(g.terceroNombre||'').toLowerCase().includes(buscar)||(g.desc||'').toLowerCase().includes(buscar)||(g.terceroId||'').includes(buscar);
     var matchCat=filtCat==='ALL'||g.cat===filtCat;
     var matchPago=filtPago==='ALL'||g.tipoPago===filtPago;
+    var matchDesde=!desde||(g.fecha||'')>=desde;
+    var matchHasta=!hasta||(g.fecha||'')<=hasta;
+    return matchBuscar&&matchCat&&matchPago&&matchDesde&&matchHasta;
+  }).sort(function(a,b){return (b.fecha||'')>(a.fecha||'')?1:-1;});
     return matchBuscar&&matchCat&&matchPago;
   });
 
