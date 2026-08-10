@@ -4478,6 +4478,33 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function corregirFechaGasto(){
+  try{
+    var gastos = await window.FB.getAll('gastos');
+    var g = gastos.find(function(x){
+      return x.concepto && x.concepto.includes('MONEDA DE CHOCOLATE') && x.fecha==='2026-08-09';
+    });
+    if(g){
+      g.fecha = '2026-08-08';
+      await window.FB.set('gastos', g.id, g);
+      // También corregir en localStorage
+      var lstGastos = LS.g('gastos')||[];
+      var lg = lstGastos.find(function(x){
+        return x.concepto && x.concepto.includes('MONEDA DE CHOCOLATE');
+      });
+      if(lg){ lg.fecha='2026-08-08'; LS.set('gastos',lstGastos); }
+      console.log('✅ Fecha gasto Casa del Pastelero corregida a 08/08/2026');
+    } else {
+      console.log('ℹ️ Gasto no encontrado en Firebase, buscando en localStorage...');
+      var lstGastos2 = LS.g('gastos')||[];
+      var lg2 = lstGastos2.find(function(x){
+        return (x.concepto||'').includes('MONEDA') && x.fecha==='2026-08-09';
+      });
+      if(lg2){ lg2.fecha='2026-08-08'; LS.set('gastos',lstGastos2); console.log('✅ Corregido en localStorage'); }
+    }
+  }catch(e){ console.warn('corregirFechaGasto:', e); }
+}
+
 async function corregirRetiroCierre(){
   try{
     var cierres = await window.FB.getAll('cierresTurno');
@@ -5657,6 +5684,8 @@ async function fbCargarTodo(){
     await crearDeudaFruver();
     // Corregir retiro cierre T1 Erika 08/08
     await corregirRetiroCierre();
+    // Corregir fecha gasto Casa del Pastelero
+    await corregirFechaGasto();
 
     // Cargar compras desde Firebase
     try{
