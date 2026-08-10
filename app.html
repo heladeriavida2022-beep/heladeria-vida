@@ -3808,19 +3808,6 @@ function _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,te
     if(typeof renderDeudas==='function') renderDeudas();
   }
 
-  // Limpiar campos
-  document.getElementById('g-desc').value='';
-  document.getElementById('g-monto').value='';
-  document.getElementById('g-tercero-nombre').value='';
-  document.getElementById('g-tercero-id').value='';
-  document.getElementById('g-vence-wrap').style.display='none';
-  document.getElementById('g-tipo-pago').value='contado';
-
-  logAction('admin','Registró gasto: '+desc+' a '+terceroNombre,fmt(monto)+' - '+tipoPago);
-  closeM('gasto');
-  renderGastos();
-  toast('Gasto registrado ✓'+(tipoPago==='credito'?' — Deuda creada':''),'#3aaa6a');
-}
 
 function renderGastos(){
   var gastos=LS.g('gastos')||[];
