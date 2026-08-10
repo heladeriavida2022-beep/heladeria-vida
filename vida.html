@@ -799,7 +799,7 @@ try{
             </div>
             <div class="card">
               <div class="tw"><table>
-                <thead><tr><th>Fecha</th><th>Tercero</th><th>NIT/Cédula</th><th>Concepto</th><th>Categoría</th><th>Tipo pago</th><th>Monto</th><th>Vence</th></tr></thead>
+                <thead><tr><th>Fecha</th><th>Tercero</th><th>NIT/Cédula</th><th>Concepto</th><th>Categoría</th><th>Tipo pago</th><th>Monto</th><th>Vence</th><th></th></tr></thead>
                 <tbody id="gastos-tbl"></tbody>
               </table></div>
             </div>
@@ -3763,6 +3763,7 @@ function renderGastos(){
     return;
   }
 
+  var isAdmin = currentUser && currentUser.role === 'admin';
   tbl.innerHTML=filtrados.map(function(g){
     return `<tr>
       <td style="font-size:11px">${g.fecha||'—'}</td>
@@ -3773,14 +3774,43 @@ function renderGastos(){
       <td><span class="badge ${g.tipoPago==='contado'?'bg':'by'}" style="font-size:9.5px">${g.tipoPago==='contado'?'💵 Contado':'📋 Crédito'}</span></td>
       <td style="color:var(--acc);font-weight:700">${fmt(g.monto)}</td>
       <td style="font-size:11px;color:var(--text2)">${g.vence||'—'}</td>
+      <td>${isAdmin?`<button class="btn btn-ghost btn-sm" onclick="editarFechaGasto('${g.id}')" style="font-size:10px;padding:2px 6px" title="Editar fecha">📅</button><button class="btn btn-ghost btn-sm" onclick="eliminarGasto('${g.id}')" style="font-size:10px;padding:2px 6px;color:#e94560" title="Eliminar">🗑️</button>`:'—'}</td>
     </tr>`;
   }).join('');
 }
 
 
-// ══════════════════════════════════════════════
-// PROVEEDORES
-// ══════════════════════════════════════════════
+function editarFechaGasto(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo administrador','#e94560');return;}
+  var gastos=LS.g('gastos')||[];
+  var g=gastos.find(function(x){return x.id===id;});
+  if(!g){toast('Gasto no encontrado','#e94560');return;}
+  var nuevaFecha=prompt('Editar fecha del gasto:\n'+g.desc+' — '+fmt(g.monto)+'\n\nFecha actual: '+g.fecha+'\n\nNueva fecha (YYYY-MM-DD):',g.fecha);
+  if(!nuevaFecha||nuevaFecha===g.fecha)return;
+  if(!nuevaFecha.match(/^\d{4}-\d{2}-\d{2}$/)){toast('Formato incorrecto. Use YYYY-MM-DD','#e94560');return;}
+  g.fecha=nuevaFecha;
+  LS.set('gastos',gastos);
+  try{window.FB.set('gastos',g.id,g);}catch(e){}
+  logAction('admin','Editó fecha gasto '+id,nuevaFecha);
+  renderGastos();
+  toast('✅ Fecha actualizada: '+nuevaFecha,'#3aaa6a');
+}
+
+function eliminarGasto(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo administrador','#e94560');return;}
+  var gastos=LS.g('gastos')||[];
+  var g=gastos.find(function(x){return x.id===id;});
+  if(!g){toast('Gasto no encontrado','#e94560');return;}
+  if(!confirm('¿Eliminar gasto?\n'+g.desc+' — '+fmt(g.monto)+'\nFecha: '+g.fecha+'\n\nEsta acción no se puede deshacer.'))return;
+  var nuevosGastos=gastos.filter(function(x){return x.id!==id;});
+  LS.set('gastos',nuevosGastos);
+  try{if(typeof fbDel==='function')fbDel('gastos',id);}catch(e){}
+  logAction('admin','Eliminó gasto '+id,g.desc+' '+fmt(g.monto));
+  renderGastos();
+  toast('🗑️ Gasto eliminado','#e94560');
+}
+
+
 function renderSuppliers(){
   const el=document.getElementById('sup-list');if(!el)return;
   if(!suppliers.length){
