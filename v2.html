@@ -3749,8 +3749,6 @@ function renderGastos(){
     var matchHasta=!hasta||(g.fecha||'')<=hasta;
     return matchBuscar&&matchCat&&matchPago&&matchDesde&&matchHasta;
   }).sort(function(a,b){return (b.fecha||'')>(a.fecha||'')?1:-1;});
-    return matchBuscar&&matchCat&&matchPago;
-  });
 
   // Actualizar stats
   var hoy=new Date().toISOString().split('T')[0];
