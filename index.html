@@ -1040,11 +1040,11 @@ try{
 
 <!-- Ingreso stock -->
 <!-- MODAL PEDIDO PENDIENTE - DETALLE Y COBRO -->
-<div class="ov" id="ov-pedido-pend"><div class="modal" style="max-width:500px">
+<div class="ov" id="ov-pedido-pend"><div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto">
   <button class="mx" onclick="closeM('pedido-pend')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-clock" style="color:#e94560"></i>Pedido pendiente</div>
-  <div id="pend-detalle-header" style="background:#fff5f5;border:1.5px solid #e94560;border-radius:10px;padding:10px;margin-bottom:12px"></div>
-  <div id="pend-detalle-items" style="margin-bottom:12px"></div>
+  <div id="pend-detalle-header" style="background:#fff5f5;border:1.5px solid #e94560;border-radius:10px;padding:12px;margin-bottom:12px"></div>
+  <div id="pend-detalle-items" style="margin-bottom:12px;max-height:200px;overflow-y:auto"></div>
   <!-- Agregar más productos -->
   <div style="border-top:1px solid var(--border);padding-top:10px;margin-bottom:10px">
     <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:6px">Agregar más productos:</div>
@@ -1053,48 +1053,49 @@ try{
     </div>
   </div>
   <!-- Cobrar -->
-  <div style="border-top:2px solid var(--border);padding-top:10px">
-    <div style="font-size:14px;font-weight:800;display:flex;justify-content:space-between;margin-bottom:10px">
-      <span>Total a cobrar:</span><span id="pend-cobrar-total" style="color:#3aaa6a"></span>
+  <div style="border-top:2px solid var(--border);padding-top:12px">
+    <div style="font-size:16px;font-weight:800;display:flex;justify-content:space-between;margin-bottom:12px;background:#edfaf2;padding:10px;border-radius:8px">
+      <span>💰 Total a cobrar:</span><span id="pend-cobrar-total" style="color:#3aaa6a"></span>
     </div>
-    <div id="pend-metodos-pago" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px"></div>
+    <div style="font-size:12px;font-weight:700;color:var(--text2);margin-bottom:8px">Selecciona forma de pago:</div>
+    <div id="pend-metodos-pago" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px"></div>
     <!-- Botón pago mixto -->
-    <button onclick="selectPendPago('Mixto')" id="pend-btn-mixto" style="width:100%;padding:7px;border:2px solid #8b5cf6;background:rgba(139,92,246,.08);border-radius:8px;cursor:pointer;font-size:11px;font-weight:700;color:#7c3aed;font-family:var(--font-body);margin-bottom:8px">💜 Pago Mixto (Efectivo + Digital)</button>
+    <button onclick="selectPendPago('Mixto')" id="pend-btn-mixto" style="width:100%;padding:10px;border:2px solid #8b5cf6;background:rgba(139,92,246,.08);border-radius:8px;cursor:pointer;font-size:12px;font-weight:700;color:#7c3aed;font-family:var(--font-body);margin-bottom:10px">💜 Pago Mixto (Efectivo + Digital)</button>
     <!-- Campos pago mixto pedido -->
-    <div id="pend-mixto-fields" style="display:none;margin-bottom:8px;background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:10px">
-      <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">💜 PAGO MIXTO</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">
+    <div id="pend-mixto-fields" style="display:none;margin-bottom:10px;background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:12px">
+      <div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:8px">💜 PAGO MIXTO</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <div>
-          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">💵 Efectivo</div>
-          <input class="finput" id="pend-mixto-efectivo" type="number" placeholder="$0" oninput="calcMixtoP()" style="font-size:13px;padding:6px 9px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">💵 Efectivo</div>
+          <input class="finput" id="pend-mixto-efectivo" type="number" placeholder="$0" oninput="calcMixtoP()" style="font-size:14px;padding:8px">
         </div>
         <div>
-          <div style="font-size:10px;color:var(--text2);margin-bottom:3px">📱 Digital</div>
-          <select class="finput" id="pend-mixto-tipo-digital" style="font-size:12px;padding:6px 9px">
+          <div style="font-size:11px;color:var(--text2);margin-bottom:4px">📱 Digital</div>
+          <select class="finput" id="pend-mixto-tipo-digital" style="font-size:12px;padding:8px">
             <option value="Nequi/Daviplata">Nequi/Daviplata</option>
             <option value="Transferencia">Transferencia</option>
             <option value="Tarjeta">Tarjeta</option>
           </select>
         </div>
       </div>
-      <div id="pend-mixto-resumen" style="margin-top:8px;font-size:12px;text-align:center;color:#7c3aed;font-weight:700"></div>
+      <div id="pend-mixto-resumen" style="margin-top:10px;font-size:13px;text-align:center;color:#7c3aed;font-weight:700;background:#fff;padding:8px;border-radius:6px"></div>
     </div>
     <input type="hidden" id="pend-pago-sel" value="Efectivo">
     <!-- Calculadora cambio efectivo -->
-    <div id="pend-cambio-wrap" style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:10px;padding:10px;margin-bottom:8px">
-      <div style="font-size:10px;font-weight:700;color:#3aaa6a;margin-bottom:6px">💵 Dinero recibido</div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-bottom:6px">
-        <button onclick="setPendRecibido(10000)" class="btn-cambio">$10.000</button>
-        <button onclick="setPendRecibido(20000)" class="btn-cambio">$20.000</button>
-        <button onclick="setPendRecibido(50000)" class="btn-cambio">$50.000</button>
-        <button onclick="setPendRecibido(100000)" class="btn-cambio">$100.000</button>
+    <div id="pend-cambio-wrap" style="background:#edfaf2;border:1.5px solid #3aaa6a;border-radius:10px;padding:12px;margin-bottom:10px">
+      <div style="font-size:11px;font-weight:700;color:#3aaa6a;margin-bottom:8px">💵 Dinero recibido</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+        <button onclick="setPendRecibido(10000)" class="btn-cambio" style="padding:8px;font-size:13px">$10.000</button>
+        <button onclick="setPendRecibido(20000)" class="btn-cambio" style="padding:8px;font-size:13px">$20.000</button>
+        <button onclick="setPendRecibido(50000)" class="btn-cambio" style="padding:8px;font-size:13px">$50.000</button>
+        <button onclick="setPendRecibido(100000)" class="btn-cambio" style="padding:8px;font-size:13px">$100.000</button>
       </div>
-      <input id="pend-efectivo-recibido" type="number" placeholder="Otro valor..." oninput="calcCambioPend()" style="width:100%;padding:6px 9px;border:1.5px solid #3aaa6a;border-radius:7px;font-size:13px;font-weight:700;background:#fff;box-sizing:border-box;margin-bottom:7px">
-      <div id="pend-cambio-resultado" style="font-size:13px;font-weight:700;text-align:center;padding:6px;border-radius:7px;background:#fff;border:1.5px solid var(--border)">Ingresa el valor recibido</div>
+      <input id="pend-efectivo-recibido" type="number" placeholder="Otro valor..." oninput="calcCambioPend()" style="width:100%;padding:8px 10px;border:1.5px solid #3aaa6a;border-radius:7px;font-size:14px;font-weight:700;background:#fff;box-sizing:border-box;margin-bottom:8px">
+      <div id="pend-cambio-resultado" style="font-size:14px;font-weight:700;text-align:center;padding:10px;border-radius:7px;background:#fff;border:1.5px solid var(--border)">Ingresa el valor recibido</div>
     </div>
-    <div style="display:flex;gap:7px">
-      <button class="btn btn-acc" style="flex:1;background:#3aaa6a;border-color:#3aaa6a" onclick="cobrarPendiente()"><i class="ti ti-cash"></i> Cobrar y cerrar pedido</button>
-      <button class="btn btn-ghost" style="color:#e94560;border-color:#e94560" onclick="cancelarPedidoPendiente()"><i class="ti ti-trash"></i></button>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-acc" style="flex:1;background:#3aaa6a;border-color:#3aaa6a;padding:12px;font-size:14px" onclick="cobrarPendiente()"><i class="ti ti-cash"></i> Cobrar y cerrar pedido</button>
+      <button class="btn btn-ghost" style="color:#e94560;border-color:#e94560;padding:12px" onclick="cancelarPedidoPendiente()"><i class="ti ti-trash"></i></button>
     </div>
   </div>
 </div></div>
