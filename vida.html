@@ -2461,8 +2461,51 @@ function abrirPedidoPendiente(id){
 function abrirCarritoParaPendiente(){
   closeM('pedido-pend');
   var p=pedidosPendientes.find(function(x){return x.id===_pendActivoId;});
-  if(p&&p.tipo) setPOSMode(p.tipo);
-  toast('Agrega productos y usa "Dejar pendiente" para agregarlos al pedido de '+((p&&p.mesa)||''),'#f0a500');
+  if(!p){toast('Pedido no encontrado','#e94560');return;}
+  window._modoAgregarAPedido=p.id;
+  if(p.tipo) setPOSMode(p.tipo);
+  cartItems=[];renderCart();
+  var banner=document.getElementById('banner-agregar-pedido');
+  if(!banner){
+    banner=document.createElement('div');
+    banner.id='banner-agregar-pedido';
+    banner.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);z-index:9999;background:#f0a500;color:#1a1a2e;padding:10px 18px;border-radius:10px;font-size:13px;font-weight:700;font-family:var(--font-body);box-shadow:0 4px 16px rgba(0,0,0,.2);display:flex;align-items:center;gap:10px;white-space:nowrap';
+    banner.innerHTML='<span>➕ Agregando a pedido: <b>'+(p.mesa||'')+'</b></span>'+
+      '<button onclick="confirmarAgregarAPedido()" style="background:#1a1a2e;color:#fff;border:none;padding:6px 12px;border-radius:6px;cursor:pointer;font-weight:700;font-family:var(--font-body);font-size:12px">✅ Confirmar</button>'+
+      '<button onclick="cancelarAgregarAPedido()" style="background:rgba(0,0,0,.2);color:#1a1a2e;border:none;padding:6px 10px;border-radius:6px;cursor:pointer;font-family:var(--font-body);font-size:12px">✖ Cancelar</button>';
+    document.body.appendChild(banner);
+  } else {
+    banner.style.display='flex';
+    banner.querySelector('span').innerHTML='➕ Agregando a pedido: <b>'+(p.mesa||'')+'</b>';
+  }
+  toast('Selecciona productos y toca ✅ Confirmar para agregarlos al pedido','#f0a500');
+}
+
+function confirmarAgregarAPedido(){
+  var id=window._modoAgregarAPedido;
+  var p=pedidosPendientes.find(function(x){return x.id===id;});
+  if(!p){toast('Pedido no encontrado','#e94560');return;}
+  if(!cartItems.length){toast('Agrega al menos un producto','#e94560');return;}
+  cartItems.forEach(function(ci){
+    var existe=p.items.find(function(i){return i.id===ci.id;});
+    if(existe) existe.qty+=ci.qty;
+    else p.items.push({id:ci.id,name:ci.name,price:ci.price,qty:ci.qty});
+  });
+  p.total=p.items.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  try{window.FB.set('pedidosPendientes',p.id,p);}catch(e){}
+  var idx=pedidosPendientes.findIndex(function(x){return x.id===id;});
+  if(idx>=0) pedidosPendientes[idx]=p;
+  LS.set('pendientes',pedidosPendientes);
+  cancelarAgregarAPedido();
+  toast('✅ Productos agregados al pedido de '+(p.mesa||''),'#3aaa6a');
+  setTimeout(function(){abrirPedidoPendiente(p.id);},400);
+}
+
+function cancelarAgregarAPedido(){
+  window._modoAgregarAPedido=null;
+  var banner=document.getElementById('banner-agregar-pedido');
+  if(banner) banner.style.display='none';
+  cartItems=[];renderCart();
 }
 
 function selectPendPago(m,btn){
