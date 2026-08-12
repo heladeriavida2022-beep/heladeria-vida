@@ -5072,6 +5072,46 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function sincronizarDeudasCompras(){
+  try{
+    var deudas = await window.FB.getAll('deudas');
+    var deudasIds = deudas.map(function(d){ return d.id; });
+
+    // Compras a crédito pendientes que no tienen deuda registrada
+    var comprasPendientes = purchases.filter(function(c){
+      return c.tipoPago==='credito' && !c.pagada;
+    });
+
+    for(var comp of comprasPendientes){
+      var deudasComp = 'd_compra_'+comp.id;
+      if(deudasIds.indexOf(deudasComp) >= 0) continue; // ya existe
+
+      var deudaComp = {
+        id: deudasComp,
+        acreedor: comp.prov||'—',
+        concepto: 'Compra: '+(comp.detalle?comp.detalle.slice(0,2).map(function(p){return p.name;}).join(', '):'productos'),
+        monto: comp.total||0,
+        montoPagado: 0,
+        abonos: [],
+        fecha: comp.fecha||'—',
+        vence: comp.vence||'—',
+        pagada: false,
+        origen: 'compra',
+        compraId: comp.id,
+        tipoPago: 'credito'
+      };
+      await window.FB.set('deudas', deudaComp.id, deudaComp);
+      deudas.push(deudaComp);
+      console.log('✅ Deuda creada:', comp.prov, '$'+comp.total);
+    }
+
+    // Actualizar localStorage
+    LS.set('deudas', deudas);
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+  }catch(e){ console.warn('sincronizarDeudasCompras:', e); }
+}
+
 async function unificarComprasOlga(){
   try{
     // Verificar si ya se hizo la unificación
@@ -6350,8 +6390,10 @@ async function fbCargarTodo(){
     await corregirRetiroCierre();
     // Corregir fecha gasto Casa del Pastelero
     await corregirFechaGasto();
-    // Unificar compras Olga Lucia Paz 03/08 en una sola deuda
+    // Crear deuda Olga unificada 03/08 si no existe
     await unificarComprasOlga();
+    // Sincronizar deudas de compras a crédito pendientes
+    await sincronizarDeudasCompras();
 
     // Cargar compras desde Firebase
     try{
