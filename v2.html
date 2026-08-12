@@ -5072,6 +5072,75 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function unificarComprasOlga(){
+  try{
+    // Verificar si ya se hizo la unificación
+    var deudas = await window.FB.getAll('deudas');
+    var yaUnificada = deudas.find(function(d){
+      return d.id==='d_olga_20260803_unificada';
+    });
+    if(yaUnificada){ console.log('ℹ️ Olga ya unificada'); return; }
+
+    // Buscar las 9 compras individuales de Olga 03/08
+    var comprasOlga = purchases.filter(function(c){
+      return (c.prov||'').includes('OLGA LUCIA PAZ') &&
+             (c.fecha||'').includes('2026-08-03') &&
+             c.tipoPago === 'credito';
+    });
+
+    if(comprasOlga.length === 0){ console.log('ℹ️ No hay compras Olga para unificar'); return; }
+
+    // Calcular total
+    var totalOlga = comprasOlga.reduce(function(s,c){ return s+(c.total||0); },0);
+    console.log('Unificando '+comprasOlga.length+' compras Olga: $'+totalOlga);
+
+    // Eliminar las compras individuales de Firebase
+    for(var comp of comprasOlga){
+      try{ await window.FB.del('compras', comp.id); }catch(e){}
+      // También del array local
+      var idx = purchases.findIndex(function(p){ return p.id===comp.id; });
+      if(idx>=0) purchases.splice(idx,1);
+    }
+    LS.set('compras', purchases);
+
+    // Eliminar deuda anterior de Olga si existe
+    var deudaOldOlga = deudas.find(function(d){
+      return d.acreedor && d.acreedor.includes('OLGA LUCIA PAZ') && !d.id.includes('unificada');
+    });
+    if(deudaOldOlga){
+      try{ await window.FB.del('deudas', deudaOldOlga.id); }catch(e){}
+    }
+
+    // Crear deuda unificada
+    var deudaUnificada = {
+      id: 'd_olga_20260803_unificada',
+      acreedor: 'OLGA LUCIA PAZ',
+      concepto: 'Compra helados y desechables (9 productos)',
+      monto: 375988,
+      montoPagado: 0,
+      abonos: [],
+      fecha: '2026-08-03',
+      vence: '2026-08-11',
+      pagada: false,
+      origen: 'compra',
+      tipoPago: 'credito'
+    };
+    await window.FB.set('deudas', deudaUnificada.id, deudaUnificada);
+
+    // Actualizar localStorage deudas
+    var deudasLS = LS.g('deudas')||[];
+    // Remover la vieja si existe
+    deudasLS = deudasLS.filter(function(d){ return !d.acreedor||!d.acreedor.includes('OLGA LUCIA PAZ')||d.id==='d_olga_20260803_unificada'; });
+    deudasLS.unshift(deudaUnificada);
+    LS.set('deudas', deudasLS);
+
+    console.log('✅ Compras Olga unificadas en deuda $375.988');
+    try{renderDeudas();}catch(e){}
+    try{renderComprasTable();}catch(e){}
+    updateDeudasBadge();
+  }catch(e){ console.warn('unificarComprasOlga:', e); }
+}
+
 async function corregirFechaGasto(){
   try{
     var gastos = await window.FB.getAll('gastos');
@@ -6281,6 +6350,8 @@ async function fbCargarTodo(){
     await corregirRetiroCierre();
     // Corregir fecha gasto Casa del Pastelero
     await corregirFechaGasto();
+    // Unificar compras Olga Lucia Paz 03/08 en una sola deuda
+    await unificarComprasOlga();
 
     // Cargar compras desde Firebase
     try{
