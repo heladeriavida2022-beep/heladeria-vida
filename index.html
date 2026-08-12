@@ -4608,17 +4608,13 @@ function eliminarVenta(id){
   var venta=sales.find(function(s){return s.id===id;});
   if(!venta){toast('Venta no encontrada','#e94560');return;}
   if(!confirm('⚠️ ¿ELIMINAR esta venta?\n\nID: '+id+'\nHora: '+venta.time+'\nTotal: '+fmt(venta.total)+'\nEmpleado: '+venta.emp+'\n\nEsta acción NO se puede deshacer.'))return;
-  // Marcar como eliminada (no borrar físicamente para auditoría)
-  venta.eliminada=true;
-  venta.eliminadaPor=currentUser.name;
-  venta.timestampEliminacion=new Date().toISOString();
   // Remover del array local
   var idx=sales.findIndex(function(s){return s.id===id;});
   if(idx>=0) sales.splice(idx,1);
   LS.set('sales',sales);
   // Eliminar de Firebase
   try{
-    if(typeof fbDel==='function') fbDel('ventas',id);
+    window.FB.del('ventas',id);
   }catch(e){ console.warn('eliminar Firebase:',e); }
   logAction('admin','Eliminó venta '+id,fmt(venta.total)+' | '+venta.emp);
   renderSalesTable();
