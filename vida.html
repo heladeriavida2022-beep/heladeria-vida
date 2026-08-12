@@ -6017,13 +6017,17 @@ onSnapshot(collection(db,'pedidosPendientes'), snap => {
 // Ventas en tiempo real (sincronización entre dispositivos)
 onSnapshot(query(collection(db,'ventas'), orderBy('timestamp','desc'), limit(200)), snap => {
   snap.docChanges().forEach(ch => {
-    if(ch.type === 'removed') return;
     var d = ch.doc.data(); delete d._ts;
+    if(ch.type === 'removed'){
+      // Eliminar del array local cuando se borra de Firebase
+      var ri = sales.findIndex(s => s.id === d.id);
+      if(ri >= 0) sales.splice(ri, 1);
+      return;
+    }
     var idx = sales.findIndex(s => s.id === d.id);
     if(idx >= 0){ Object.assign(sales[idx], d); }
     else { sales.unshift(d); }
   });
-  // Ordenar por timestamp
   sales.sort((a,b) => (b.timestamp||'') > (a.timestamp||'') ? 1 : -1);
   LS.set('sales', sales);
   try{ renderSalesTable(); }catch(e){}
