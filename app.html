@@ -4608,19 +4608,30 @@ function eliminarVenta(id){
   var venta=sales.find(function(s){return s.id===id;});
   if(!venta){toast('Venta no encontrada','#e94560');return;}
   if(!confirm('⚠️ ¿ELIMINAR esta venta?\n\nID: '+id+'\nHora: '+venta.time+'\nTotal: '+fmt(venta.total)+'\nEmpleado: '+venta.emp+'\n\nEsta acción NO se puede deshacer.'))return;
+  // Restaurar stock de productos que descuentan inventario
+  if(venta.detalle && venta.detalle.length){
+    venta.detalle.forEach(function(item){
+      var p=gP(item.id)||prods.find(function(x){return x.name===item.name;});
+      if(p && p.descuenta){
+        p.stock=(p.stock||0)+(item.qty||1);
+        LS.updProd(p.id,{stock:p.stock});
+        try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});}catch(e){}
+      }
+    });
+  }
   // Remover del array local
   var idx=sales.findIndex(function(s){return s.id===id;});
   if(idx>=0) sales.splice(idx,1);
   LS.set('sales',sales);
   // Eliminar de Firebase
-  try{
-    window.FB.del('ventas',id);
-  }catch(e){ console.warn('eliminar Firebase:',e); }
+  try{ window.FB.del('ventas',id); }catch(e){ console.warn('eliminar Firebase:',e); }
   logAction('admin','Eliminó venta '+id,fmt(venta.total)+' | '+venta.emp);
   renderSalesTable();
   try{renderCaja();}catch(e){}
   try{renderDashboard();}catch(e){}
-  toast('🗑️ Venta eliminada: '+fmt(venta.total),'#e94560');
+  try{renderInv();}catch(e){}
+  updateBadges();
+  toast('🗑️ Venta eliminada y stock restaurado','#e94560');
 }
 
 
