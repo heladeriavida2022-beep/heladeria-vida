@@ -3315,7 +3315,10 @@ function toggleIngCredito(){
   var wrap=document.getElementById('ing-vence-wrap');
   if(wrap)wrap.style.display=tipo==='credito'?'':'none';
   var fondoWrap=document.getElementById('ing-fondo-medio-wrap');
-  if(fondoWrap)fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
+  if(fondoWrap){
+    fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
+    if(tipo==='fondo_admin') mostrarSaldosFondo('ing-fondo-medio-wrap','ing-fondo-medio');
+  }
   if(tipo==='credito'){
     var provName=document.getElementById('ing-prov').value;
     var sup=suppliers.find(s=>s.name===provName);
@@ -3371,6 +3374,12 @@ function guardarIngreso(){
   // FONDO ADMINISTRATIVO → descontar del fondo, NO de caja del turno
   if(esFondo && totalCompra>0){
     var medioFondoCompra = document.getElementById('ing-fondo-medio')?.value || 'Efectivo';
+    // Verificar saldo disponible del medio seleccionado
+    var saldoDisponible = getSaldoFondo(medioFondoCompra);
+    if(totalCompra > saldoDisponible){
+      toast('⚠️ Saldo insuficiente en '+medioFondoCompra+'. Disponible: '+fmt(saldoDisponible),'#e94560');
+      return;
+    }
     var movFondoCompra={
       id:'fa_'+now.getTime(),
       tipo:'egreso',
@@ -3382,7 +3391,11 @@ function guardarIngreso(){
       usuario:currentUser?currentUser.name:'—',
       compraId:compraId
     };
-    try{window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);}catch(e){}
+    try{
+      window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);
+      if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+      window._fondoAdminMovs.push(movFondoCompra);
+    }catch(e){}
   }
 
   // Crear UNA sola compra con detalle
@@ -3488,8 +3501,58 @@ function pagarDeuda(id){
   var deudas=LS.g('deudas')||[];
   var d=deudas.find(x=>x.id===id);
   if(!d)return;
-  if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+'?'))return;
-  // Registrar salida de caja
+
+  // Si es admin, ofrecer pagar desde fondo
+  if(currentUser&&currentUser.role==='admin'){
+    var sEfe=getSaldoFondo('Efectivo');
+    var sNequi=getSaldoFondo('Nequi/Daviplata');
+    var sTrans=getSaldoFondo('Transferencia');
+    var opcion=prompt(
+      '¿Cómo deseas pagar '+fmt(d.monto)+' a '+d.acreedor+'?\n\n'+
+      '1 = 💵 Caja del turno (efectivo)\n'+
+      '2 = 💰 Fondo Efectivo (disponible: '+fmt(sEfe)+')\n'+
+      '3 = 📱 Fondo Nequi/Daviplata (disponible: '+fmt(sNequi)+')\n'+
+      '4 = 🏦 Fondo Transferencia (disponible: '+fmt(sTrans)+')\n\n'+
+      'Ingresa el número:'
+    );
+    if(!opcion)return;
+    if(opcion==='2'||opcion==='3'||opcion==='4'){
+      var medios={'2':'Efectivo','3':'Nequi/Daviplata','4':'Transferencia'};
+      var medioSeleccionado=medios[opcion];
+      var saldoMedio={'2':sEfe,'3':sNequi,'4':sTrans}[opcion];
+      if(d.monto>saldoMedio){
+        toast('⚠️ Saldo insuficiente en '+medioSeleccionado+'. Disponible: '+fmt(saldoMedio),'#e94560');
+        return;
+      }
+      var movFondoDeuda={
+        id:'fa_'+Date.now(),
+        tipo:'egreso',
+        medioPago:medioSeleccionado,
+        concepto:'Pago deuda: '+d.acreedor+' — '+d.concepto,
+        valor:d.monto,
+        fecha:new Date().toISOString().split('T')[0],
+        timestamp:new Date().toISOString(),
+        usuario:currentUser.name,
+        origen:'deuda'
+      };
+      window.FB.set('fondoAdmin',movFondoDeuda.id,movFondoDeuda).then(function(){
+        if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+        window._fondoAdminMovs.push(movFondoDeuda);
+        // Marcar deuda como pagada (sin afectar caja)
+        d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
+        d.metodoPago='Fondo '+medioSeleccionado;
+        LS.set('deudas',deudas);
+        try{window.FB.set('deudas',d.id,d);}catch(e){}
+        updateDeudasBadge();
+        if(typeof renderDeudas==='function')renderDeudas();
+        toast('✅ Deuda pagada desde Fondo '+medioSeleccionado+' — Saldo restante: '+fmt(saldoMedio-d.monto),'#3aaa6a');
+      }).catch(function(){ toast('Error guardando en fondo','#e94560'); });
+      return;
+    }
+  }
+
+  // Pago normal desde caja
+  if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+' desde caja del turno?'))return;
   var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:d.monto,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
   movCaja.unshift(mov);LS.set('movCaja',movCaja);
   if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
@@ -3734,7 +3797,10 @@ function toggleGastoCredito(){
   var wrap=document.getElementById('g-vence-wrap');
   if(wrap) wrap.style.display=tipo==='credito'?'':'none';
   var fondoWrap=document.getElementById('g-fondo-medio-wrap');
-  if(fondoWrap) fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
+  if(fondoWrap){
+    fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
+    if(tipo==='fondo_admin') mostrarSaldosFondo('g-fondo-medio-wrap','g-fondo-medio');
+  }
 }
 
 function guardarGasto(){
@@ -3754,31 +3820,29 @@ function guardarGasto(){
   // FONDO ADMINISTRATIVO: verificar saldo y descontar
   if(esFondo){
     if(currentUser.role!=='admin'){toast('Solo el administrador puede usar el Fondo','#e94560');return;}
-    // Registrar egreso en fondoAdmin y descontar
-    window.FB.getAll('fondoAdmin').then(function(movs){
-      var totalIngresos=movs.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-      var totalEgresos=movs.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-      var saldoActual=totalIngresos-totalEgresos;
-      if(monto>saldoActual){
-        toast('⚠️ Fondo insuficiente. Saldo disponible: '+fmt(saldoActual),'#e94560');
-        return;
-      }
-      var movFondo={
-        id:'fa_'+Date.now(),
-        tipo:'egreso',
-        medioPago: document.getElementById('g-fondo-medio')?.value || 'Efectivo',
-        concepto:'Gasto: '+desc+(terceroNombre?' — '+terceroNombre:''),
-        valor:monto,
-        fecha:fecha,
-        timestamp:new Date().toISOString(),
-        usuario:currentUser.name,
-        origen:'gasto'
-      };
-      window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
-        _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,false);
-        toast('💰 Gasto registrado desde Fondo Administrativo — Saldo restante: '+fmt(saldoActual-monto),'#3aaa6a');
-      });
-    }).catch(function(){ toast('Error verificando saldo del fondo','#e94560'); });
+    var medioFondoGasto = document.getElementById('g-fondo-medio')?.value || 'Efectivo';
+    var saldoMedioGasto = getSaldoFondo(medioFondoGasto);
+    if(monto > saldoMedioGasto){
+      toast('⚠️ Saldo insuficiente en '+medioFondoGasto+'. Disponible: '+fmt(saldoMedioGasto),'#e94560');
+      return;
+    }
+    var movFondo={
+      id:'fa_'+Date.now(),
+      tipo:'egreso',
+      medioPago: medioFondoGasto,
+      concepto:'Gasto: '+desc+(terceroNombre?' — '+terceroNombre:''),
+      valor:monto,
+      fecha:fecha,
+      timestamp:new Date().toISOString(),
+      usuario:currentUser.name,
+      origen:'gasto'
+    };
+    window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
+      if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+      window._fondoAdminMovs.push(movFondo);
+      _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,false);
+      toast('💰 Gasto desde Fondo ('+medioFondoGasto+') — Saldo restante: '+fmt(saldoMedioGasto-monto),'#3aaa6a');
+    }).catch(function(){ toast('Error guardando en fondo','#e94560'); });
     return; // esperar la Promise
   }
 
@@ -4391,8 +4455,81 @@ function getPagoTotals(){
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
-// FONDO ADMINISTRATIVO
+// FONDO ADMINISTRATIVO — HELPERS
 // ══════════════════════════════════════════════
+function getSaldoFondo(medio){
+  // Calcula saldo disponible de un medio específico del fondo
+  var fondoMovs = window._fondoAdminMovs || [];
+  var fechaInicio = '2026-08-07';
+
+  if(medio === 'Efectivo'){
+    // Efectivo = retiros de cierres - egresos efectivo
+    var retiros = 0;
+    (cierresTurno||[]).forEach(function(c){
+      if((c.timestamp||'') < fechaInicio) return;
+      var r = c.dineroRetirado !== undefined ? c.dineroRetirado : Math.max(0,(c.contado||0)-100000);
+      retiros += r;
+    });
+    var egresosEfe = fondoMovs.filter(function(m){
+      return m.tipo==='egreso' && (m.medioPago||'Efectivo')==='Efectivo';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
+    return retiros - egresosEfe;
+  }
+
+  if(medio === 'Nequi/Daviplata'){
+    var ventasNequi = sales.filter(function(s){
+      var f=getFechaDeVenta(s); return f&&f>=fechaInicio;
+    }).reduce(function(acc,s){
+      if(s.pago==='Nequi/Daviplata') return acc+(s.total||0);
+      if(s.pago==='Mixto'&&s.pagoMixto&&s.pagoMixto.tipoDigital==='Nequi/Daviplata') return acc+(s.pagoMixto.digital||0);
+      return acc;
+    },0);
+    var egresosNequi = fondoMovs.filter(function(m){
+      return m.tipo==='egreso' && m.medioPago==='Nequi/Daviplata';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
+    return ventasNequi - egresosNequi;
+  }
+
+  if(medio === 'Transferencia'){
+    var ventasTrans = sales.filter(function(s){
+      var f=getFechaDeVenta(s); return f&&f>=fechaInicio;
+    }).reduce(function(acc,s){
+      if(s.pago==='Transferencia') return acc+(s.total||0);
+      if(s.pago==='Mixto'&&s.pagoMixto&&s.pagoMixto.tipoDigital==='Transferencia') return acc+(s.pagoMixto.digital||0);
+      return acc;
+    },0);
+    var egresosTrans = fondoMovs.filter(function(m){
+      return m.tipo==='egreso' && m.medioPago==='Transferencia';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
+    return ventasTrans - egresosTrans;
+  }
+  return 0;
+}
+
+function mostrarSaldosFondo(wrapId, selectId){
+  // Muestra los saldos disponibles bajo el selector de medio
+  var wrap = document.getElementById(wrapId);
+  if(!wrap) return;
+  var saldoDiv = wrap.querySelector('.saldos-fondo-info');
+  if(!saldoDiv){
+    saldoDiv = document.createElement('div');
+    saldoDiv.className = 'saldos-fondo-info';
+    saldoDiv.style.cssText = 'margin-top:6px;background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px;font-size:11px';
+    wrap.appendChild(saldoDiv);
+  }
+  var sEfe = getSaldoFondo('Efectivo');
+  var sNequi = getSaldoFondo('Nequi/Daviplata');
+  var sTrans = getSaldoFondo('Transferencia');
+  saldoDiv.innerHTML =
+    '<div style="font-weight:700;color:#7c3aed;margin-bottom:4px">Saldos disponibles:</div>'+
+    '<div style="display:flex;flex-direction:column;gap:3px">'+
+    '<div>💵 Efectivo: <b style="color:#3aaa6a">'+fmt(sEfe)+'</b></div>'+
+    '<div>📱 Nequi/Daviplata: <b style="color:#9b72cf">'+fmt(sNequi)+'</b></div>'+
+    '<div>🏦 Transferencia: <b style="color:#3b82f6">'+fmt(sTrans)+'</b></div>'+
+    '</div>';
+}
+
+
 
 function diagnosticoMedioPago(){
   var div=document.getElementById('fondo-diagnostico');
@@ -6083,6 +6220,10 @@ async function fbCargarTodo(){
     console.log('🔥 Firebase: todo cargado correctamente');
     // Aplicar precios del catálogo DESPUÉS de cargar Firebase
     if(typeof aplicarPreciosCatalogo === 'function') aplicarPreciosCatalogo();
+    // Cargar movimientos del fondo en memoria para getSaldoFondo()
+    try{
+      window._fondoAdminMovs = await window.FB.getAll('fondoAdmin');
+    }catch(e){ window._fondoAdminMovs = []; }
 
     // Verificar versión — solo informativo, no bloquea nada
     try{
