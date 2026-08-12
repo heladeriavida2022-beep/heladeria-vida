@@ -913,8 +913,9 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
-              <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px">🔍 Ver IDs de cierres</button>
-              <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace"></div>
+              <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
+              <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
+              <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
           </div>
@@ -4392,6 +4393,66 @@ function getPagoTotals(){
 // ══════════════════════════════════════════════
 // FONDO ADMINISTRATIVO
 // ══════════════════════════════════════════════
+
+function diagnosticoMedioPago(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='Calculando...';
+  var fechaInicio='2026-08-07';
+  var ventasFiltradas=sales.filter(function(s){
+    var f=getFechaDeVenta(s);return f&&f>=fechaInicio;
+  });
+  var porFecha={};
+  ventasFiltradas.forEach(function(s){
+    var f=getFechaDeVenta(s)||'Sin fecha';
+    if(!porFecha[f])porFecha[f]={Efectivo:0,'Nequi/Daviplata':0,Transferencia:0,Tarjeta:0,total:0};
+    if(s.pago==='Mixto'&&s.pagoMixto){
+      porFecha[f].Efectivo+=s.pagoMixto.efectivo||0;
+      var td=s.pagoMixto.tipoDigital||'Nequi/Daviplata';
+      porFecha[f][td]=(porFecha[f][td]||0)+(s.pagoMixto.digital||0);
+    } else {
+      var pago=s.pago||'Efectivo';
+      porFecha[f][pago]=(porFecha[f][pago]||0)+(s.total||0);
+    }
+    porFecha[f].total+=(s.total||0);
+  });
+  var totEfe=0,totNequi=0,totTrans=0,totTarj=0,totTotal=0;
+  var html='DIAGNÓSTICO POR MEDIO DE PAGO\nDesde: 07/08/2026\n'+'═'.repeat(50)+'\n';
+  Object.keys(porFecha).sort().forEach(function(f){
+    var d=porFecha[f];
+    html+='\n📅 '+f+'\n';
+    html+='  💵 Efectivo:        '+fmt(d.Efectivo)+'\n';
+    html+='  📱 Nequi/Daviplata: '+fmt(d['Nequi/Daviplata']||0)+'\n';
+    html+='  🏦 Transferencia:   '+fmt(d.Transferencia||0)+'\n';
+    html+='  💳 Tarjeta:         '+fmt(d.Tarjeta||0)+'\n';
+    html+='  💰 TOTAL:           '+fmt(d.total)+'\n';
+    totEfe+=d.Efectivo;totNequi+=d['Nequi/Daviplata']||0;
+    totTrans+=d.Transferencia||0;totTarj+=d.Tarjeta||0;totTotal+=d.total;
+  });
+  html+='\n'+'═'.repeat(50)+'\n';
+  html+='TOTALES ACUMULADOS\n';
+  html+='  💵 Efectivo:        '+fmt(totEfe)+'\n';
+  html+='  📱 Nequi/Daviplata: '+fmt(totNequi)+'\n';
+  html+='  🏦 Transferencia:   '+fmt(totTrans)+'\n';
+  html+='  💳 Tarjeta:         '+fmt(totTarj)+'\n';
+  html+='  💰 TOTAL VENTAS:    '+fmt(totTotal)+'\n';
+  html+='\n'+'═'.repeat(50)+'\nRETIROS POR CIERRE\n';
+  var totalRetiros=0;
+  (cierresTurno||[]).forEach(function(c){
+    var ts=c.timestamp||'';if(ts<'2026-08-07')return;
+    var retirado=c.dineroRetirado!==undefined?c.dineroRetirado:Math.max(0,(c.contado||0)-100000);
+    html+='  '+(c.fecha||'—')+' T'+(c.turno||'?')+' '+(c.usuario||'—')+': '+fmt(retirado)+'\n';
+    totalRetiros+=retirado;
+  });
+  html+='  TOTAL RETIROS: '+fmt(totalRetiros)+'\n';
+  html+='\n'+'═'.repeat(50)+'\n';
+  html+='FONDO REPORTADO:    $1.394.555\n';
+  html+='RETIROS CALCULADOS: '+fmt(totalRetiros)+'\n';
+  var egresosUsados=totalRetiros-1394555;
+  html+='EGRESOS DEL FONDO:  '+fmt(egresosUsados)+'\n';
+  div.innerHTML=html;
+}
 
 function diagnosticoFondo(){
   var div=document.getElementById('fondo-diagnostico');
