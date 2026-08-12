@@ -6376,7 +6376,11 @@ async function fbCargarTodo(){
 
     // 6. Deudas
     var fbDeudas = await fbGetAll('deudas');
-    if(fbDeudas.length > 0) LS.set('deudas', fbDeudas);
+    if(fbDeudas.length > 0){
+      LS.set('deudas', fbDeudas);
+      try{renderDeudas();}catch(e){}
+      updateDeudasBadge();
+    }
 
     // 7. Caja
     var fbCaja = await fbGetAll('caja');
