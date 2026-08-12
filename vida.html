@@ -4544,31 +4544,53 @@ async function renderFondoAdmin(){
     // Ordenar por timestamp
     historial.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
 
-    // 4. Calcular totales globales y por medio de pago
-    var totalRetiros=historial.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-    var totalEgresados=historial.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
-    var saldo=totalRetiros-totalEgresados;
+    // 4. Calcular FONDO EFECTIVO (solo retiros de caja - egresos en efectivo)
+    var totalRetiros = historial.filter(function(m){
+      return m.tipo==='ingreso';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
 
-    // Saldos por medio de pago
-    var medios=['Efectivo','Nequi/Daviplata','Transferencia'];
-    var saldoMedio={};
-    medios.forEach(function(med){
-      var ing=historial.filter(function(m){return m.tipo==='ingreso'&&(m.medioPago||'Efectivo')===med;}).reduce(function(s,m){return s+(m.valor||0);},0);
-      var egr=historial.filter(function(m){return m.tipo==='egreso'&&(m.medioPago||'Efectivo')===med;}).reduce(function(s,m){return s+(m.valor||0);},0);
-      saldoMedio[med]=ing-egr;
-    });
+    var egresosFondoEfe = historial.filter(function(m){
+      return m.tipo==='egreso' && (m.medioPago||'Efectivo')==='Efectivo';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
 
-    // 5. Actualizar stats con desglose por medio
+    var saldoEfectivo = totalRetiros - egresosFondoEfe;
+
+    // Saldo Nequi/Daviplata = ventas Nequi - egresos Nequi desde fondo
+    var ventasNequi = sales.filter(function(s){
+      var f=getFechaDeVenta(s); return f&&f>='2026-08-07';
+    }).reduce(function(acc,s){
+      if(s.pago==='Nequi/Daviplata') return acc+(s.total||0);
+      if(s.pago==='Mixto'&&s.pagoMixto&&s.pagoMixto.tipoDigital==='Nequi/Daviplata') return acc+(s.pagoMixto.digital||0);
+      return acc;
+    },0);
+    var egresosFondoNequi=historial.filter(function(m){
+      return m.tipo==='egreso'&&m.medioPago==='Nequi/Daviplata';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
+    var saldoNequi=ventasNequi-egresosFondoNequi;
+
+    // Saldo Transferencia = ventas transferencia - egresos transferencia desde fondo
+    var ventasTrans = sales.filter(function(s){
+      var f=getFechaDeVenta(s); return f&&f>='2026-08-07';
+    }).reduce(function(acc,s){
+      if(s.pago==='Transferencia') return acc+(s.total||0);
+      if(s.pago==='Mixto'&&s.pagoMixto&&s.pagoMixto.tipoDigital==='Transferencia') return acc+(s.pagoMixto.digital||0);
+      return acc;
+    },0);
+    var egresosFondoTrans=historial.filter(function(m){
+      return m.tipo==='egreso'&&m.medioPago==='Transferencia';
+    }).reduce(function(s,m){return s+(m.valor||0);},0);
+    var saldoTrans=ventasTrans-egresosFondoTrans;
+
+    // 5. Actualizar stats con saldos separados
     var st=document.getElementById('fondo-stats');
     if(st) st.innerHTML=
-      '<div class="stat"><div class="slb">💵 Efectivo</div><div class="sval" style="color:#3aaa6a">'+fmt(saldoMedio['Efectivo']||0)+'</div></div>'+
-      '<div class="stat"><div class="slb">📱 Nequi/Daviplata</div><div class="sval" style="color:#9b72cf">'+fmt(saldoMedio['Nequi/Daviplata']||0)+'</div></div>'+
-      '<div class="stat"><div class="slb">🏦 Transferencia</div><div class="sval" style="color:#3b82f6">'+fmt(saldoMedio['Transferencia']||0)+'</div></div>'+
-      '<div class="stat"><div class="slb">💰 TOTAL FONDO</div><div class="sval" style="color:'+(saldo>=0?'#3aaa6a':'#e94560')+'">'+fmt(saldo)+'</div></div>';
+      '<div class="stat"><div class="slb">💵 Fondo Efectivo</div><div class="sval" style="color:#3aaa6a">'+fmt(saldoEfectivo)+'</div></div>'+
+      '<div class="stat"><div class="slb">📱 Nequi/Daviplata</div><div class="sval" style="color:#9b72cf">'+fmt(saldoNequi)+'</div></div>'+
+      '<div class="stat"><div class="slb">🏦 Transferencia</div><div class="sval" style="color:#3b82f6">'+fmt(saldoTrans)+'</div></div>';
 
-    // 6. Saldo principal
+    // 6. Saldo principal = solo efectivo
     var sv=document.getElementById('fondo-saldo-valor');
-    if(sv){sv.textContent=fmt(saldo);sv.style.color=saldo>=0?'#3aaa6a':'#e94560';}
+    if(sv){sv.textContent=fmt(saldoEfectivo);sv.style.color=saldoEfectivo>=0?'#3aaa6a':'#e94560';}
 
     // 7. Tabla historial
     if(!tbl)return;
