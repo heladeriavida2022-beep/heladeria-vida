@@ -1174,6 +1174,43 @@ try{
 </div></div>
 
 <!-- Ajuste -->
+<!-- MODAL ABONO DESDE FONDO -->
+<div class="ov" id="ov-abono"><div class="modal" style="max-width:440px">
+  <button class="mx" onclick="closeM('abono')"><i class="ti ti-x"></i></button>
+  <div class="mt"><i class="ti ti-cash" style="color:#7c3aed"></i>💰 Abono desde Fondo</div>
+  <input type="hidden" id="abono-doc-id">
+  <input type="hidden" id="abono-doc-origen">
+  <div style="background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
+      <div><div style="color:var(--text2);font-size:10px">Total</div><div id="abono-total" style="font-weight:700;font-size:14px"></div></div>
+      <div><div style="color:var(--text2);font-size:10px">Pagado</div><div id="abono-pagado" style="font-weight:700;font-size:14px;color:#3aaa6a"></div></div>
+      <div><div style="color:var(--text2);font-size:10px">Pendiente</div><div id="abono-pendiente" style="font-weight:700;font-size:14px;color:#e94560"></div></div>
+    </div>
+    <div style="margin-top:8px;height:6px;background:#e5e7eb;border-radius:3px;overflow:hidden">
+      <div id="abono-barra" style="height:100%;background:#3aaa6a;border-radius:3px;transition:.3s"></div>
+    </div>
+  </div>
+  <div class="fg"><label class="fgrp-label" style="font-weight:700">Valor del abono</label>
+    <input class="finput" type="number" id="abono-valor" placeholder="Ingresa el valor a abonar" oninput="calcAbono()" style="font-size:15px;font-weight:700">
+  </div>
+  <div class="fg"><label class="fgrp-label" style="font-weight:700;color:#7c3aed">Medio de pago del Fondo</label>
+    <select class="finput" id="abono-medio" onchange="calcAbono()" style="border-color:#8b5cf6">
+      <option value="Efectivo">💵 Efectivo</option>
+      <option value="Nequi/Daviplata">📱 Nequi/Daviplata</option>
+      <option value="Transferencia">🏦 Transferencia</option>
+    </select>
+  </div>
+  <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px;font-size:11px;margin-bottom:8px">
+    <div style="font-weight:700;color:#7c3aed;margin-bottom:4px">Saldo disponible:</div>
+    <div id="abono-saldo-detalle"></div>
+  </div>
+  <div id="abono-aviso" style="display:none;background:#fff5f5;border:1.5px solid #e94560;border-radius:6px;padding:8px;font-size:11px;color:#e94560;font-weight:700;margin-bottom:8px"></div>
+  <div style="display:flex;gap:8px">
+    <button class="btn btn-acc" onclick="confirmarAbono()" style="flex:1;background:#7c3aed;border-color:#7c3aed">✅ Confirmar abono</button>
+    <button class="btn btn-ghost" onclick="closeM('abono')">Cancelar</button>
+  </div>
+</div></div>
+
 <div class="ov" id="ov-ajuste"><div class="modal">
   <button class="mx" onclick="closeM('ajuste')"><i class="ti ti-x"></i></button>
   <div class="mt"><i class="ti ti-adjustments" style="color:var(--acc4)"></i>Ajuste manual de stock</div>
@@ -3618,10 +3655,11 @@ function renderDeudas(){
       <td style="font-size:11.5px">${d.concepto}</td>
       <td style="color:${colorMonto};font-weight:700">${esFiado?'+':'-'}${fmt(d.monto)}</td>
       <td style="font-size:11.5px;color:var(--text2)">${d.vence||'—'}</td>
-      <td><span class="badge ${cls}">${estado}</span></td>
-      <td>${d.pagada
+      <td><span class="badge ${cls}">${estado}</span>${!d.pagada&&d.montoPagado>0?`<br><span style="font-size:9px;color:#7c3aed">Abonado: ${fmt(d.montoPagado)}</span>`:''}</td>
+      <td style="display:flex;gap:4px;flex-wrap:wrap">${d.pagada
         ?`<span style="font-size:10px;color:var(--acc3)">✓ ${d.fechaPago||''}</span>`
-        :`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">${esFiado?'Cobrar':'Pagar'}</button>`
+        :`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">${esFiado?'Cobrar':'Pagar'}</button>`+
+         (!esFiado&&isAdmin?`<button class="btn btn-ghost btn-sm" onclick="abrirModalAbono('${d.id}','deuda')" style="font-size:10px;color:#7c3aed;border-color:#8b5cf6">💰 Abonar</button>`:'')
       }</td>
     </tr>`;
   }).join('');
@@ -3683,6 +3721,7 @@ function renderComprasTable(){
       '<td style="display:flex;gap:4px">'+
         (tieneDetalle?'<button class="btn btn-ghost btn-sm" onclick="verDetalleCompra(\''+c.id+'\')" style="font-size:10px">👁 Detalle</button>':'')+
         (isAdmin?'<button class="btn btn-ghost btn-sm" onclick="corregirPagoCompra(\''+c.id+'\')" style="font-size:10px">✏️</button>':'')+
+        (isAdmin&&c.tipoPago==='credito'&&!c.pagada?'<button class="btn btn-ghost btn-sm" onclick="abrirModalAbono(\''+c.id+'\',\'compra\')" style="font-size:10px;color:#7c3aed;border-color:#8b5cf6">💰 Abonar</button>':'')+
       '</td>'+
     '</tr>';
   }).join('');
@@ -4455,8 +4494,150 @@ function getPagoTotals(){
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
 // ══════════════════════════════════════════════
-// FONDO ADMINISTRATIVO — HELPERS
+// ABONOS DESDE FONDO ADMINISTRATIVO
 // ══════════════════════════════════════════════
+
+function abrirModalAbono(id, origen){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador','#e94560');return;}
+  var doc = null;
+  if(origen==='deuda'){
+    var deudas=LS.g('deudas')||[];
+    doc=deudas.find(function(d){return d.id===id;});
+  } else if(origen==='compra'){
+    doc=purchases.find(function(c){return c.id==id;});
+  }
+  if(!doc){toast('Documento no encontrado','#e94560');return;}
+
+  var monto = doc.monto || doc.total || 0;
+  var pagado = doc.montoPagado || 0;
+  var pendiente = monto - pagado;
+
+  if(pendiente <= 0){toast('Este documento ya está pagado','#3aaa6a');return;}
+
+  document.getElementById('abono-doc-id').value = id;
+  document.getElementById('abono-doc-origen').value = origen;
+  document.getElementById('abono-total').textContent = fmt(monto);
+  document.getElementById('abono-pagado').textContent = fmt(pagado);
+  document.getElementById('abono-pendiente').textContent = fmt(pendiente);
+  document.getElementById('abono-barra').style.width = (pagado/monto*100)+'%';
+  document.getElementById('abono-valor').value = '';
+  document.getElementById('abono-aviso').style.display = 'none';
+  calcAbono();
+  openM('abono');
+}
+
+function calcAbono(){
+  var medio = document.getElementById('abono-medio').value;
+  var sEfe = getSaldoFondo('Efectivo');
+  var sNequi = getSaldoFondo('Nequi/Daviplata');
+  var sTrans = getSaldoFondo('Transferencia');
+  var saldos = {'Efectivo':sEfe,'Nequi/Daviplata':sNequi,'Transferencia':sTrans};
+
+  document.getElementById('abono-saldo-detalle').innerHTML =
+    '<div>💵 Efectivo: <b style="color:#3aaa6a">'+fmt(sEfe)+'</b></div>'+
+    '<div>📱 Nequi/Daviplata: <b style="color:#9b72cf">'+fmt(sNequi)+'</b></div>'+
+    '<div>🏦 Transferencia: <b style="color:#3b82f6">'+fmt(sTrans)+'</b></div>';
+
+  var abono = parseFloat(document.getElementById('abono-valor').value)||0;
+  var pendiente = parseFloat(document.getElementById('abono-pendiente').textContent.replace(/[^0-9]/g,''))||0;
+  var aviso = document.getElementById('abono-aviso');
+  var saldo = saldos[medio]||0;
+
+  aviso.style.display='none';
+  if(abono > 0){
+    if(abono > pendiente){
+      aviso.style.display='block';
+      aviso.textContent='⚠️ El abono ($'+fmt(abono)+') supera el saldo pendiente ('+fmt(pendiente)+')';
+    } else if(abono > saldo){
+      aviso.style.display='block';
+      aviso.textContent='⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldo);
+    }
+  }
+}
+
+function confirmarAbono(){
+  var id = document.getElementById('abono-doc-id').value;
+  var origen = document.getElementById('abono-doc-origen').value;
+  var medio = document.getElementById('abono-medio').value;
+  var abono = parseFloat(document.getElementById('abono-valor').value)||0;
+
+  if(!abono||abono<=0){toast('Ingresa un valor de abono','#e94560');return;}
+
+  // Obtener documento
+  var doc = null;
+  var deudas = LS.g('deudas')||[];
+  if(origen==='deuda') doc=deudas.find(function(d){return d.id===id;});
+  else if(origen==='compra') doc=purchases.find(function(c){return c.id==id;});
+  if(!doc){toast('Documento no encontrado','#e94560');return;}
+
+  var monto = doc.monto || doc.total || 0;
+  var pagadoAnterior = doc.montoPagado || 0;
+  var pendiente = monto - pagadoAnterior;
+  var saldoMedio = getSaldoFondo(medio);
+
+  // Validaciones
+  if(abono > pendiente){toast('⚠️ El abono supera el saldo pendiente: '+fmt(pendiente),'#e94560');return;}
+  if(abono > saldoMedio){toast('⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldoMedio),'#e94560');return;}
+  if(!confirm('¿Confirmar abono de '+fmt(abono)+' desde Fondo '+medio+'?'))return;
+
+  var now = new Date();
+  var nuevoPagado = pagadoAnterior + abono;
+  var nuevoPendiente = monto - nuevoPagado;
+  var esPagadoTotal = nuevoPendiente <= 0;
+
+  // Registro del abono individual
+  var registroAbono = {
+    fecha: now.toISOString().split('T')[0],
+    hora: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    valor: abono,
+    medioPago: medio,
+    usuario: currentUser.name,
+    timestamp: now.toISOString()
+  };
+
+  // Actualizar documento
+  doc.montoPagado = nuevoPagado;
+  doc.abonos = [...(doc.abonos||[]), registroAbono];
+  if(esPagadoTotal){ doc.pagada=true; doc.fechaPago=registroAbono.fecha; }
+
+  // Guardar en localStorage y Firebase
+  if(origen==='deuda'){
+    LS.set('deudas', deudas);
+    try{window.FB.set('deudas', doc.id, doc);}catch(e){}
+    if(typeof renderDeudas==='function') renderDeudas();
+    updateDeudasBadge();
+  } else if(origen==='compra'){
+    LS.set('compras', purchases);
+    try{window.FB.set('compras', doc.id, doc);}catch(e){}
+    if(typeof renderComprasTable==='function') renderComprasTable();
+  }
+
+  // Guardar egreso en fondoAdmin
+  var movFondoAbono = {
+    id: 'fa_'+now.getTime(),
+    tipo: 'egreso',
+    medioPago: medio,
+    concepto: 'Abono '+(origen==='deuda'?'deuda':'compra')+': '+(doc.acreedor||doc.prov||'—'),
+    valor: abono,
+    fecha: registroAbono.fecha,
+    timestamp: now.toISOString(),
+    usuario: currentUser.name,
+    documentoId: id,
+    origen: origen
+  };
+  window.FB.set('fondoAdmin', movFondoAbono.id, movFondoAbono).then(function(){
+    if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+    window._fondoAdminMovs.push(movFondoAbono);
+    closeM('abono');
+    var msg = esPagadoTotal
+      ? '✅ Pago completado — '+( origen==='deuda'?'Deuda':'Compra')+' marcada como PAGADA'
+      : '✅ Abono registrado — Pendiente: '+fmt(nuevoPendiente);
+    toast(msg, esPagadoTotal?'#3aaa6a':'#7c3aed');
+    if(typeof renderFondoAdmin==='function') renderFondoAdmin();
+  }).catch(function(){ toast('Error guardando en Firebase','#e94560'); });
+}
+
+
 function getSaldoFondo(medio){
   // Calcula saldo disponible de un medio específico del fondo
   var fondoMovs = window._fondoAdminMovs || [];
