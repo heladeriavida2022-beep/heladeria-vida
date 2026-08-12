@@ -915,7 +915,7 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px">🔍 Ver IDs de cierres</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace"></div>
-              <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="5" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
+              <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
           </div>
 
@@ -1140,6 +1140,16 @@ try{
         <option value="credito">📋 Crédito (factura pendiente)</option>
       </select>
     </div>
+    <!-- Selector medio de pago del fondo — solo visible cuando se selecciona Fondo -->
+    <div id="ing-fondo-medio-wrap" style="display:none">
+      <div class="fg"><label class="fgrp-label" style="color:#7c3aed;font-weight:700">💰 Medio de pago del Fondo Administrativo</label>
+        <select class="finput" id="ing-fondo-medio" style="border-color:#8b5cf6">
+          <option value="Efectivo">💵 Efectivo</option>
+          <option value="Nequi/Daviplata">📱 Nequi/Daviplata</option>
+          <option value="Transferencia">🏦 Transferencia</option>
+        </select>
+      </div>
+    </div>
     <div class="fg" id="ing-vence-wrap" style="display:none">
       <label class="fgrp-label">Fecha vencimiento</label>
       <input class="finput" type="date" id="ing-vence">
@@ -1221,7 +1231,15 @@ try{
         <option value="credito">📋 Crédito</option>
       </select>
     </div>
-    <div class="fg"><label class="fgrp-label">Fecha</label><input class="finput" type="date" id="g-fecha"></div>
+    <div id="g-fondo-medio-wrap" style="display:none">
+      <div class="fg"><label class="fgrp-label" style="color:#7c3aed;font-weight:700">💰 Medio de pago del Fondo Administrativo</label>
+        <select class="finput" id="g-fondo-medio" style="border-color:#8b5cf6">
+          <option value="Efectivo">💵 Efectivo</option>
+          <option value="Nequi/Daviplata">📱 Nequi/Daviplata</option>
+          <option value="Transferencia">🏦 Transferencia</option>
+        </select>
+      </div>
+    </div>
   </div>
   <div id="g-vence-wrap" style="display:none">
     <div class="fg"><label class="fgrp-label">Fecha vencimiento</label><input class="finput" type="date" id="g-vence"></div>
@@ -3295,8 +3313,9 @@ function toggleIngCredito(){
   var tipo=document.getElementById('ing-tipo-pago').value;
   var wrap=document.getElementById('ing-vence-wrap');
   if(wrap)wrap.style.display=tipo==='credito'?'':'none';
+  var fondoWrap=document.getElementById('ing-fondo-medio-wrap');
+  if(fondoWrap)fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
   if(tipo==='credito'){
-    // sugerir vencimiento según días crédito del proveedor
     var provName=document.getElementById('ing-prov').value;
     var sup=suppliers.find(s=>s.name===provName);
     if(sup&&sup.credit>0){
@@ -3350,9 +3369,11 @@ function guardarIngreso(){
 
   // FONDO ADMINISTRATIVO → descontar del fondo, NO de caja del turno
   if(esFondo && totalCompra>0){
+    var medioFondoCompra = document.getElementById('ing-fondo-medio')?.value || 'Efectivo';
     var movFondoCompra={
       id:'fa_'+now.getTime(),
       tipo:'egreso',
+      medioPago: medioFondoCompra,
       concepto:'Compra a '+prov+' ('+productosNombres.slice(0,2).join(', ')+(productosNombres.length>2?'...':'')+')',
       valor:totalCompra,
       fecha:getFechaHoy(),
@@ -3711,6 +3732,8 @@ function toggleGastoCredito(){
   var tipo=document.getElementById('g-tipo-pago').value;
   var wrap=document.getElementById('g-vence-wrap');
   if(wrap) wrap.style.display=tipo==='credito'?'':'none';
+  var fondoWrap=document.getElementById('g-fondo-medio-wrap');
+  if(fondoWrap) fondoWrap.style.display=tipo==='fondo_admin'?'block':'none';
 }
 
 function guardarGasto(){
@@ -3742,6 +3765,7 @@ function guardarGasto(){
       var movFondo={
         id:'fa_'+Date.now(),
         tipo:'egreso',
+        medioPago: document.getElementById('g-fondo-medio')?.value || 'Efectivo',
         concepto:'Gasto: '+desc+(terceroNombre?' — '+terceroNombre:''),
         valor:monto,
         fecha:fecha,
@@ -4459,17 +4483,27 @@ async function renderFondoAdmin(){
     // Ordenar por timestamp
     historial.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
 
-    // 4. Calcular totales
+    // 4. Calcular totales globales y por medio de pago
     var totalRetiros=historial.filter(function(m){return m.tipo==='ingreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
     var totalEgresados=historial.filter(function(m){return m.tipo==='egreso';}).reduce(function(s,m){return s+(m.valor||0);},0);
     var saldo=totalRetiros-totalEgresados;
 
-    // 5. Actualizar stats
+    // Saldos por medio de pago
+    var medios=['Efectivo','Nequi/Daviplata','Transferencia'];
+    var saldoMedio={};
+    medios.forEach(function(med){
+      var ing=historial.filter(function(m){return m.tipo==='ingreso'&&(m.medioPago||'Efectivo')===med;}).reduce(function(s,m){return s+(m.valor||0);},0);
+      var egr=historial.filter(function(m){return m.tipo==='egreso'&&(m.medioPago||'Efectivo')===med;}).reduce(function(s,m){return s+(m.valor||0);},0);
+      saldoMedio[med]=ing-egr;
+    });
+
+    // 5. Actualizar stats con desglose por medio
     var st=document.getElementById('fondo-stats');
     if(st) st.innerHTML=
-      '<div class="stat"><div class="slb">💰 Total retirado</div><div class="sval" style="color:#3aaa6a">'+fmt(totalRetiros)+'</div></div>'+
-      '<div class="stat"><div class="slb">💸 Pagado desde fondo</div><div class="sval" style="color:#e94560">'+fmt(totalEgresados)+'</div></div>'+
-      '<div class="stat"><div class="slb">📋 Cierres</div><div class="sval">'+cierres.length+'</div></div>';
+      '<div class="stat"><div class="slb">💵 Efectivo</div><div class="sval" style="color:#3aaa6a">'+fmt(saldoMedio['Efectivo']||0)+'</div></div>'+
+      '<div class="stat"><div class="slb">📱 Nequi/Daviplata</div><div class="sval" style="color:#9b72cf">'+fmt(saldoMedio['Nequi/Daviplata']||0)+'</div></div>'+
+      '<div class="stat"><div class="slb">🏦 Transferencia</div><div class="sval" style="color:#3b82f6">'+fmt(saldoMedio['Transferencia']||0)+'</div></div>'+
+      '<div class="stat"><div class="slb">💰 TOTAL FONDO</div><div class="sval" style="color:'+(saldo>=0?'#3aaa6a':'#e94560')+'">'+fmt(saldo)+'</div></div>';
 
     // 6. Saldo principal
     var sv=document.getElementById('fondo-saldo-valor');
@@ -4493,6 +4527,7 @@ async function renderFondoAdmin(){
         '<td style="font-size:11px">'+m.fecha+'</td>'+
         '<td style="font-size:11px;color:var(--text2)">'+m.concepto+'</td>'+
         '<td>'+badge+'</td>'+
+        '<td style="font-size:10px;color:var(--text2)">'+(m.medioPago||'—')+'</td>'+
         '<td style="font-weight:700;color:'+color+'">'+signo+fmt(m.valor||0)+'</td>'+
         '<td style="font-weight:800;color:'+(saldoAcum>=0?'#3aaa6a':'#e94560')+'">'+fmt(saldoAcum)+'</td>'+
       '</tr>';
@@ -5092,6 +5127,7 @@ function confirmarCierreTurno(){
     var movFondo = {
       id: 'fa_'+Date.now(),
       tipo: 'ingreso',
+      medioPago: 'Efectivo',
       concepto: 'Retiro cierre '+turno+' — '+now.toLocaleDateString('es-CO'),
       valor: dineroRetirado,
       fecha: getFechaHoy(),
