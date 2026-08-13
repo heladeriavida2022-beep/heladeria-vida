@@ -3613,14 +3613,19 @@ function updateDeudasBadge(){
 
 function renderDeudas(){
   var deudas=(LS.g('deudas')||[]);
-  // Si localStorage está vacío, cargar desde Firebase
+  var tbl=document.getElementById('deudas-tbl');
+
+  // Si localStorage está vacío, mostrar cargando y esperar Firebase
   if(!deudas.length){
+    if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">⏳ Cargando deudas...</td></tr>';
     window.FB.getAll('deudas').then(function(fbDeudas){
-      if(fbDeudas.length){
+      if(fbDeudas && fbDeudas.length){
         LS.set('deudas', fbDeudas);
-        renderDeudas();
       }
-    }).catch(function(){});
+      renderDeudas();
+    }).catch(function(e){
+      if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:#e94560;padding:16px">Error cargando deudas</td></tr>';
+    });
     return;
   }
   var pendientes=deudas.filter(d=>!d.pagada);
