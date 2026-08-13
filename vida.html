@@ -3385,9 +3385,9 @@ function guardarIngreso(){
     var p3=gP(String(it.pid));
     console.log('  pid='+it.pid+' parseInt(pid)='+parseInt(it.pid)+' | gP(int)='+(p1?p1.name:'NULL')+'| gP(str)='+(p3?p3.name:'NULL'));
   });
-  var msg='DIAGNÓSTICO COMPRA:\nprov='+prov+'\nitems='+validos.length+'\ntipoPago='+tipoPago;
-  if(validos.length>0) msg+='\npid[0]='+validos[0].pid+'\ngP='+( gP(parseInt(validos[0].pid))?gP(parseInt(validos[0].pid)).name:'NULL ❌');
-  alert(msg);
+  var msg='DIAGNÓSTICO:\nprov='+prov+' items='+validos.length+' tipoPago='+tipoPago;
+  if(validos.length>0) msg+='\npid='+validos[0].pid+' gP='+(gP(parseInt(validos[0].pid))?gP(parseInt(validos[0].pid)).name:'NULL');
+  toast(msg,'#3b82f6');
   return; // SOLO DIAGNÓSTICO — NO GUARDA
 
   var ta=getTurnoActivo();
@@ -3903,7 +3903,7 @@ function guardarGasto(){
   console.log('  tipoPago:', tipoPago);
   console.log('  currentUser:', currentUser?currentUser.name:'NULL', '| role:', currentUser?currentUser.role:'NULL');
   console.log('  esFondo:', tipoPago==='fondo_admin');
-  alert('DIAGNÓSTICO GASTO:\ndesc='+desc+'\nmonto='+monto+'\ntipoPago='+tipoPago+'\nusuario='+(currentUser?currentUser.name:'NULL')+'\nrole='+(currentUser?currentUser.role:'NULL'));
+  toast('DIAGNÓSTICO GASTO: desc='+desc+' monto='+monto+' tipoPago='+tipoPago+' usuario='+(currentUser?currentUser.name+'/'+currentUser.role:'NULL'),'#3b82f6');
   return; // SOLO DIAGNÓSTICO — NO GUARDA
 
   if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
