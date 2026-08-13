@@ -914,7 +914,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
-              <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
+              <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
+              <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
@@ -5072,6 +5073,65 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function diagnosticoStockCarlosCaro(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='Consultando Firebase...';
+  try{
+    // Productos de la compra
+    var productosCompra=[
+      {nombre:'MEDIO LITRO DE HELADO', qty:15},
+      {nombre:'CUARTOS DE HELADO', qty:10},
+      {nombre:'PALETAS MANGO BICHE', qty:20},
+      {nombre:'PALETA DE COLORES', qty:10},
+      {nombre:'VASITO', qty:10}
+    ];
+
+    // Verificar compra en Firebase
+    var compras=await window.FB.getAll('compras');
+    var compraCC=compras.filter(function(c){
+      return (c.prov||'').includes('CARLOS CARO') && (c.fecha||'').includes('2026-08-12');
+    });
+
+    var inventarioFB=await window.FB.getAll('inventario');
+
+    var html='DIAGNÓSTICO STOCK — CARLOS CARO 12/08/2026\n'+'═'.repeat(50)+'\n';
+    html+='Compras CARLOS CARO 12/08 en Firebase: '+compraCC.length+'\n';
+    compraCC.forEach(function(c){
+      html+='  ID: '+c.id+' | Total: $'+c.total+'\n';
+    });
+
+    html+='\n'+'─'.repeat(50)+'\n';
+    html+='STOCK POR PRODUCTO:\n';
+    html+=('PRODUCTO').padEnd(25)+('EN CÓDIGO').padEnd(12)+('FIREBASE INV').padEnd(14)+('MEM (prods[])').padEnd(15)+('COMPRA').padEnd(8)+'\n';
+
+    var stockCodigo={
+      'MEDIO LITRO DE HELADO':14,
+      'CUARTOS DE HELADO':11,
+      'PALETAS MANGO BICHE':13,
+      'PALETA DE COLORES':11,
+      'VASITO':0
+    };
+
+    productosCompra.forEach(function(pc){
+      var p=prods.find(function(x){return x.name===pc.nombre;});
+      var stockMem=p?p.stock:'NO';
+      var fbInv=inventarioFB.find(function(i){return i.id&&prods.find(function(pp){return String(pp.id)===String(i.id)&&pp.name===pc.nombre;});});
+      var stockFB=fbInv?fbInv.stock:'NO REG';
+      var codigo=stockCodigo[pc.nombre]!==undefined?stockCodigo[pc.nombre]:'?';
+      html+=(pc.nombre).padEnd(25)+(String(codigo)).padEnd(12)+(String(stockFB)).padEnd(14)+(String(stockMem)).padEnd(15)+('+'+pc.qty).padEnd(8)+'\n';
+    });
+
+    html+='\n'+'─'.repeat(50)+'\n';
+    html+='Si Firebase NO tiene el stock correcto,\n';
+    html+='la suma de la compra NO fue aplicada.\n';
+    div.innerHTML=html;
+  }catch(e){
+    div.innerHTML='Error: '+e.message;
+  }
+}
+
 async function sincronizarDeudasCompras(){
   try{
     var deudas = await window.FB.getAll('deudas');
