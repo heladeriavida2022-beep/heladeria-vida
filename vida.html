@@ -3612,22 +3612,29 @@ function updateDeudasBadge(){
 }
 
 function renderDeudas(){
-  var deudas=(LS.g('deudas')||[]);
   var tbl=document.getElementById('deudas-tbl');
+  var deudas=(LS.g('deudas')||[]);
 
-  // Si localStorage está vacío, mostrar cargando y esperar Firebase
-  if(!deudas.length){
+  // Siempre refrescar desde Firebase en segundo plano
+  window.FB.getAll('deudas').then(function(fbDeudas){
+    if(fbDeudas && fbDeudas.length){
+      LS.set('deudas', fbDeudas);
+      deudas = fbDeudas;
+    }
+    _renderDeudasTabla(deudas, tbl);
+  }).catch(function(){
+    _renderDeudasTabla(deudas, tbl);
+  });
+
+  // Mostrar datos locales inmediatamente mientras carga Firebase
+  if(deudas.length){
+    _renderDeudasTabla(deudas, tbl);
+  } else {
     if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">⏳ Cargando deudas...</td></tr>';
-    window.FB.getAll('deudas').then(function(fbDeudas){
-      if(fbDeudas && fbDeudas.length){
-        LS.set('deudas', fbDeudas);
-      }
-      renderDeudas();
-    }).catch(function(e){
-      if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:#e94560;padding:16px">Error cargando deudas</td></tr>';
-    });
-    return;
   }
+}
+
+function _renderDeudasTabla(deudas, tbl){
   var pendientes=deudas.filter(d=>!d.pagada);
   var hoy=new Date();hoy.setHours(0,0,0,0);
 
