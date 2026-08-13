@@ -3615,18 +3615,19 @@ function renderDeudas(){
   var tbl=document.getElementById('deudas-tbl');
   var deudas=(LS.g('deudas')||[]);
 
-  // Siempre refrescar desde Firebase en segundo plano
+  // Siempre refrescar desde Firebase
   window.FB.getAll('deudas').then(function(fbDeudas){
     if(fbDeudas && fbDeudas.length){
       LS.set('deudas', fbDeudas);
-      deudas = fbDeudas;
+      _renderDeudasTabla(fbDeudas, tbl);
+    } else {
+      _renderDeudasTabla(deudas, tbl);
     }
-    _renderDeudasTabla(deudas, tbl);
   }).catch(function(){
     _renderDeudasTabla(deudas, tbl);
   });
 
-  // Mostrar datos locales inmediatamente mientras carga Firebase
+  // Mientras carga Firebase, mostrar datos locales o cargando
   if(deudas.length){
     _renderDeudasTabla(deudas, tbl);
   } else {
