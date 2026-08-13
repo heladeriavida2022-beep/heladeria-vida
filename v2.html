@@ -4480,25 +4480,20 @@ function getSalesHoy(){
   var hoy = getFechaHoy();
   var ta = getTurnoActivo();
 
-  // Si hay turno activo, incluir sus ventas aunque sean de ayer
-  var fechasValidas = [hoy];
-  if(ta && ta.fecha && ta.fecha !== hoy) fechasValidas.push(ta.fecha);
-
   // Usar último cierre como corte
   var ultCierreHoy = null;
   var todosLosCierres = cierresTurno||[];
   todosLosCierres.forEach(function(c){
     if(!c.timestamp) return;
     var fechaC = c.timestamp.substring(0,10);
-    if(fechasValidas.indexOf(fechaC)>=0){
+    if(fechaC === hoy){
       if(!ultCierreHoy || c.timestamp > ultCierreHoy) ultCierreHoy = c.timestamp;
     }
   });
 
   return sales.filter(function(s){
     var f = getFechaDeVenta(s);
-    if(!f) return false;
-    if(fechasValidas.indexOf(f)<0) return false;
+    if(!f || f !== hoy) return false;
     if(ultCierreHoy && s.timestamp && s.timestamp <= ultCierreHoy) return false;
     return true;
   });
