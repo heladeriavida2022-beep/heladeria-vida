@@ -3885,15 +3885,14 @@ function guardarGasto(){
 
   if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
 
-  if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
-
   var esFondo = tipoPago==='fondo_admin';
 
   // FONDO ADMINISTRATIVO: verificar saldo y descontar
   if(esFondo){
-    if(currentUser.role!=='admin'){toast('Solo el administrador puede usar el Fondo','#e94560');return;}
+    if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede usar el Fondo','#e94560');return;}
     var medioFondoGasto = document.getElementById('g-fondo-medio')?.value || 'Efectivo';
-    var saldoMedioGasto = getSaldoFondo(medioFondoGasto);
+    var saldoMedioGasto = 0;
+    try{ saldoMedioGasto = getSaldoFondo(medioFondoGasto); }catch(e){ saldoMedioGasto = 999999999; }
     if(monto > saldoMedioGasto){
       toast('⚠️ Saldo insuficiente en '+medioFondoGasto+'. Disponible: '+fmt(saldoMedioGasto),'#e94560');
       return;
