@@ -3373,22 +3373,8 @@ function guardarIngreso(){
   var tipoPago=document.getElementById('ing-tipo-pago').value;
   var vence=tipoPago==='credito'?(document.getElementById('ing-vence').value||''):'';
   var validos=ingItems.filter(function(it){return it.pid&&it.qty>0;});
-
-  // DIAGNÓSTICO TEMPORAL — NO modifica datos
-  console.log('🔍 guardarIngreso DIAGNÓSTICO:');
-  console.log('  prov:', prov);
-  console.log('  tipoPago:', tipoPago);
-  console.log('  ingItems total:', ingItems.length, 'validos:', validos.length);
-  validos.forEach(function(it){
-    var p1=gP(parseInt(it.pid));
-    var p2=gP(it.pid);
-    var p3=gP(String(it.pid));
-    console.log('  pid='+it.pid+' parseInt(pid)='+parseInt(it.pid)+' | gP(int)='+(p1?p1.name:'NULL')+'| gP(str)='+(p3?p3.name:'NULL'));
-  });
-  var msg='DIAGNÓSTICO:\nprov='+prov+' items='+validos.length+' tipoPago='+tipoPago;
-  if(validos.length>0) msg+='\npid='+validos[0].pid+' gP='+(gP(parseInt(validos[0].pid))?gP(parseInt(validos[0].pid)).name:'NULL');
-  toast(msg,'#3b82f6');
-  return; // SOLO DIAGNÓSTICO — NO GUARDA
+  if(!validos.length){toast('Agrega al menos un producto','var(--acc)');return;}
+  if(!prov){toast('Selecciona un proveedor','var(--acc)');return;}
 
   var ta=getTurnoActivo();
   var now=new Date();
@@ -3897,14 +3883,7 @@ function guardarGasto(){
   var terceroNombre=document.getElementById('g-tercero-nombre').value.trim();
   var terceroId=document.getElementById('g-tercero-id').value.trim();
 
-  // DIAGNÓSTICO TEMPORAL — NO modifica datos
-  console.log('🔍 guardarGasto DIAGNÓSTICO:');
-  console.log('  desc:', desc, '| monto:', monto);
-  console.log('  tipoPago:', tipoPago);
-  console.log('  currentUser:', currentUser?currentUser.name:'NULL', '| role:', currentUser?currentUser.role:'NULL');
-  console.log('  esFondo:', tipoPago==='fondo_admin');
-  toast('DIAGNÓSTICO GASTO: desc='+desc+' monto='+monto+' tipoPago='+tipoPago+' usuario='+(currentUser?currentUser.name+'/'+currentUser.role:'NULL'),'#3b82f6');
-  return; // SOLO DIAGNÓSTICO — NO GUARDA
+  if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
 
   if(!desc||!monto){toast('Completa descripción y monto','var(--acc)');return;}
 
