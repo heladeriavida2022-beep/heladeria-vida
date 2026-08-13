@@ -2293,12 +2293,24 @@ function confirmarVenta(){
   // Descontar stock + insumos de desechables
   cartItems.forEach(function(ci){
     var p=gP(ci.id);if(!p)return;
-    if(p.descuenta){p.stock=Math.max(0,p.stock-ci.qty);LS.updProd(p.id,{stock:p.stock});}
-    if(p.insumo){
-      var insumos=Array.isArray(p.insumo)?p.insumo:[p.insumo];
+    if(p.descuenta){
+      p.stock=Math.max(0,p.stock-ci.qty);
+      LS.updProd(p.id,{stock:p.stock});
+      try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
+          window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));}catch(e){}
+    }
+    // Soportar tanto p.insumo como p.ins
+    var campoInsumo = p.insumo || p.ins;
+    if(campoInsumo){
+      var insumos=Array.isArray(campoInsumo)?campoInsumo:[campoInsumo];
       insumos.forEach(function(insNombre){
         var ins=prods.find(function(x){return x.name===insNombre&&x.descuenta;});
-        if(ins){ins.stock=Math.max(0,ins.stock-ci.qty);LS.updProd(ins.id,{stock:ins.stock});}
+        if(ins){
+          ins.stock=Math.max(0,ins.stock-ci.qty);
+          LS.updProd(ins.id,{stock:ins.stock});
+          try{window.FB.set('inventario',String(ins.id),{id:String(ins.id),stock:ins.stock});
+              window.FB.set('productos',String(ins.id),Object.assign({},ins,{stock:ins.stock}));}catch(e){}
+        }
       });
     }
   });
