@@ -3399,7 +3399,11 @@ function guardarIngreso(){
     if(p.descuenta){
       p.stock+=qty;
       LS.updProd(p.id,{stock:p.stock});
-      if(typeof window.fbUpdateStock==='function') window.fbUpdateStock(p.id,p.stock);
+      // Sincronizar con Firebase — usar window.FB.set directamente
+      try{
+        window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
+        window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));
+      }catch(e){ console.warn('stock FB:', e); }
     }
   });
 
@@ -5073,6 +5077,40 @@ function eliminarVenta(id){
 
 
 // ══════════════════════════════════════════════
+async function aplicarStockCarlosCaro(){
+  try{
+    var ajustes=[
+      {nombre:'MEDIO LITRO DE HELADO', stockFinal:16},
+      {nombre:'CUARTOS DE HELADO', stockFinal:18},
+      {nombre:'PALETAS MANGO BICHE', stockFinal:20},
+      {nombre:'PALETA DE COLORES', stockFinal:22},
+      {nombre:'VASITO', stockFinal:11}
+    ];
+    // Verificar que no se haya aplicado ya
+    var compras=await window.FB.getAll('compras');
+    var ya=compras.find(function(c){return c.id==='comp_1786578118380'&&c.stockAplicado;});
+    if(ya){console.log('ℹ️ Stock ya aplicado');return;}
+
+    for(var aj of ajustes){
+      var p=prods.find(function(x){return x.name===aj.nombre;});
+      if(!p) continue;
+      p.stock=aj.stockFinal;
+      LS.updProd(p.id,{stock:p.stock});
+      try{
+        window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
+        window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));
+      }catch(e){}
+      console.log('✅ '+p.name+' → stock='+p.stock);
+    }
+    // Marcar compra como stock aplicado
+    var compra=compras.find(function(c){return c.id==='comp_1786578118380';});
+    if(compra){compra.stockAplicado=true;window.FB.set('compras',compra.id,compra);}
+    try{renderInv();}catch(e){}
+    updateBadges();
+    console.log('✅ Stock Carlos Caro aplicado correctamente');
+  }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
 async function diagnosticoStockCarlosCaro(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
@@ -6452,6 +6490,8 @@ async function fbCargarTodo(){
     await corregirFechaGasto();
     // Crear deuda Olga unificada 03/08 si no existe
     await unificarComprasOlga();
+    // Aplicar stock faltante compra Carlos Caro 12/08
+    await aplicarStockCarlosCaro();
     // Sincronizar deudas de compras a crédito pendientes
     await sincronizarDeudasCompras();
 
