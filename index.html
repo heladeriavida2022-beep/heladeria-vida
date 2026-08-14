@@ -5172,7 +5172,15 @@ async function diagnosticoVentasHoy(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Consultando Firebase y localStorage...';
+
+  // Esperar a que Firebase esté listo
+  if(!window.FB||!window.FB.getAll){
+    div.innerHTML='⏳ Firebase no listo aún, espera 3 segundos...';
+    setTimeout(diagnosticoVentasHoy, 3000);
+    return;
+  }
+
+  div.innerHTML='⏳ Consultando Firebase...';
   try{
     var hoy='2026-08-13';
     // 1. Ventas en Firebase
