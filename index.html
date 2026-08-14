@@ -916,7 +916,8 @@ try{
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
               <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
               <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
-              <button onclick="ajustarPulpaManual()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edf4ff;border-color:#3b82f6;color:#1d4ed8">🥤 Ajustar PULPA 44→43</button>
+              <button onclick="ajustarPulpaManual()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edf4ff;border-color:#3b82f6;color:#1d4ed8">🥤 Ajustar PULPA 44→43</button>
+              <button onclick="diagnosticoVentasHoy()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#7e22ce">📋 Diagnóstico ventas 13/08</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
@@ -5165,6 +5166,91 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function diagnosticoVentasHoy(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Consultando Firebase y localStorage...';
+  try{
+    var hoy='2026-08-13';
+    // 1. Ventas en Firebase
+    var ventasFB = await window.FB.getAll('ventas');
+    var ventasHoyFB = ventasFB.filter(function(v){
+      var f = v.fecha||v.date||(v.timestamp?v.timestamp.substring(0,10):'');
+      return f===hoy || (v.timestamp&&v.timestamp.startsWith(hoy));
+    });
+    // 2. Ventas en localStorage
+    var ventasLS = LS.g('sales')||[];
+    var ventasHoyLS = ventasLS.filter(function(v){
+      var f = getFechaDeVenta(v)||'';
+      return f===hoy;
+    });
+    // 3. Comparar IDs
+    var idsFB = new Set(ventasHoyFB.map(function(v){return v.id;}));
+    var idsLS = new Set(ventasHoyLS.map(function(v){return v.id;}));
+    var soloEnFB = ventasHoyFB.filter(function(v){return !idsLS.has(v.id);});
+    var soloEnLS = ventasHoyLS.filter(function(v){return !idsFB.has(v.id);});
+    // 4. Totales por medio de pago (usando Firebase como fuente)
+    var totales={Efectivo:0,'Nequi/Daviplata':0,Transferencia:0,Tarjeta:0,Mixto:0,Otro:0};
+    var totalDia=0;
+    ventasHoyFB.forEach(function(v){
+      var t=v.total||0;
+      totalDia+=t;
+      var p=v.pago||'Otro';
+      if(totales[p]!==undefined) totales[p]+=t;
+      else totales.Otro+=t;
+    });
+    // 5. Por turno
+    var porTurno={};
+    ventasHoyFB.forEach(function(v){
+      var tid=v.turnoId||v.turno||'Sin turno';
+      if(!porTurno[tid]) porTurno[tid]={count:0,total:0};
+      porTurno[tid].count++;
+      porTurno[tid].total+=(v.total||0);
+    });
+    // 6. Productos vendidos
+    var prodVendidos={};
+    ventasHoyFB.forEach(function(v){
+      if(v.detalle&&v.detalle.length){
+        v.detalle.forEach(function(d){
+          if(!prodVendidos[d.name]) prodVendidos[d.name]={qty:0,total:0};
+          prodVendidos[d.name].qty+=(d.qty||1);
+          prodVendidos[d.name].total+=(d.price||0)*(d.qty||1);
+        });
+      } else {
+        var n=v.name||'Sin nombre';
+        if(!prodVendidos[n]) prodVendidos[n]={qty:0,total:0};
+        prodVendidos[n].qty+=(v.qty||1);
+        prodVendidos[n].total+=(v.total||0);
+      }
+    });
+
+    var html='DIAGNÓSTICO VENTAS 13/08/2026\n'+'═'.repeat(45)+'\n';
+    html+='\nA. FIREBASE: '+ventasHoyFB.length+' ventas\n';
+    html+='B. LOCALSTORAGE: '+ventasHoyLS.length+' ventas\n';
+    html+='\nC. DIFERENCIAS:\n';
+    html+='  Solo en Firebase: '+soloEnFB.length+'\n';
+    soloEnFB.forEach(function(v){html+='    → '+v.id+' | '+(v.time||'')+'  $'+fmt(v.total||0)+'\n';});
+    html+='  Solo en localStorage: '+soloEnLS.length+'\n';
+    soloEnLS.forEach(function(v){html+='    → '+v.id+' | '+(v.time||'')+'  $'+fmt(v.total||0)+'\n';});
+    html+='\nD. VENTAS DUPLICADAS: ';
+    var dup=ventasHoyFB.filter(function(v,i,arr){return arr.findIndex(function(x){return x.id===v.id;})!==i;});
+    html+=dup.length===0?'Ninguna\n':dup.length+'\n';
+    html+='\nF. TOTAL DEL DÍA: '+fmt(totalDia)+'\n';
+    html+='\nG. POR MEDIO DE PAGO:\n';
+    Object.keys(totales).forEach(function(k){if(totales[k]>0)html+='  '+k+': '+fmt(totales[k])+'\n';});
+    html+='\nH. POR TURNO:\n';
+    Object.keys(porTurno).forEach(function(t){
+      html+='  Turno '+t+': '+porTurno[t].count+' ventas | '+fmt(porTurno[t].total)+'\n';
+    });
+    html+='\nI. PRODUCTOS VENDIDOS:\n';
+    Object.keys(prodVendidos).sort().forEach(function(n){
+      html+='  '+n+': '+prodVendidos[n].qty+'u | '+fmt(prodVendidos[n].total)+'\n';
+    });
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function ajustarPulpaManual(){
