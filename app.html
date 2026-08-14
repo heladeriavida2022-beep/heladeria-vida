@@ -6431,7 +6431,19 @@ const dc=document.createElement('div');dc.className='date-chip';dc.style.cssText
 
 
 <!-- ══ FIREBASE — FUENTE ÚNICA DE VERDAD ══ -->
-<script type="module">
+<script>
+window.onerror = function(msg, src, line, col, err){
+  var div = document.getElementById('js-error-banner');
+  if(!div){
+    div = document.createElement('div');
+    div.id = 'js-error-banner';
+    div.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#e94560;color:#fff;padding:10px 16px;font-size:12px;font-family:monospace';
+    document.body.appendChild(div);
+  }
+  div.innerHTML = '❌ ERROR JS: ' + msg + ' | Línea ' + line;
+  return false;
+};
+</script>
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
 import { getFirestore, doc, collection, setDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp, query, orderBy, limit }
   from "https://www.gstatic.com/firebasejs/11.9.0/firebase-firestore.js";
