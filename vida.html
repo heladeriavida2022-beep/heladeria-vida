@@ -2300,17 +2300,39 @@ function confirmarVenta(){
       try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
           window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));}catch(e){}
     }
-    // Soportar tanto p.insumo como p.ins
+
+    // Tabla fija de relaciones bebida → insumo
+    var tablaInsumos = {
+      'JUGO EN AGUA':       700,  // → PULPA
+      'JUGO EN LECHE':      700,  // → PULPA
+      'LIMONADA CEREZADA':  701,  // → PULPA CEREZA
+      'LIMONADA DE COCO':   702   // → PULPA COCO
+    };
+    var insumoId = tablaInsumos[p.name];
+    if(insumoId){
+      var ins = prods.find(function(x){return x.id===insumoId;});
+      if(ins && ins.stock > 0){
+        ins.stock = Math.max(0, ins.stock - ci.qty);
+        LS.updProd(ins.id, {stock: ins.stock});
+        try{
+          window.FB.set('inventario', String(ins.id), {id:String(ins.id), stock:ins.stock});
+          window.FB.set('productos',  String(ins.id), Object.assign({},ins,{stock:ins.stock}));
+        }catch(e){}
+      }
+    }
+
+    // Insumos genéricos (p.insumo || p.ins) para desechables
     var campoInsumo = p.insumo || p.ins;
     if(campoInsumo){
       var insumos=Array.isArray(campoInsumo)?campoInsumo:[campoInsumo];
       insumos.forEach(function(insNombre){
-        var ins=prods.find(function(x){return x.name===insNombre&&x.descuenta;});
-        if(ins){
-          ins.stock=Math.max(0,ins.stock-ci.qty);
-          LS.updProd(ins.id,{stock:ins.stock});
-          try{window.FB.set('inventario',String(ins.id),{id:String(ins.id),stock:ins.stock});
-              window.FB.set('productos',String(ins.id),Object.assign({},ins,{stock:ins.stock}));}catch(e){}
+        if(['PULPA','PULPA CEREZA','PULPA COCO'].indexOf(insNombre)>=0) return; // ya manejado arriba
+        var ins2=prods.find(function(x){return x.name===insNombre&&x.descuenta;});
+        if(ins2){
+          ins2.stock=Math.max(0,ins2.stock-ci.qty);
+          LS.updProd(ins2.id,{stock:ins2.stock});
+          try{window.FB.set('inventario',String(ins2.id),{id:String(ins2.id),stock:ins2.stock});
+              window.FB.set('productos',String(ins2.id),Object.assign({},ins2,{stock:ins2.stock}));}catch(e){}
         }
       });
     }
