@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="diagnosticoEmergencia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff0f0;border-color:#e94560;color:#e94560;font-weight:700">🚨 DIAGNÓSTICO EMERGENCIA</button>
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
               <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
               <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
@@ -5166,6 +5167,123 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function diagnosticoEmergencia(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.style.maxHeight='500px';
+  div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){
+    div.innerHTML='⏳ Esperando Firebase... reintentando en 3s';
+    setTimeout(diagnosticoEmergencia,3000);return;
+  }
+  div.innerHTML='⏳ Consultando Firebase (puede tardar 10-20 seg)...';
+  try{
+    var [ventasFB,invFB,prodsFB,cierresFB,turnosFB,comprasFB,gastosFB]=await Promise.all([
+      window.FB.getAll('ventas'),
+      window.FB.getAll('inventario'),
+      window.FB.getAll('productos'),
+      window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos'),
+      window.FB.getAll('compras'),
+      window.FB.getAll('gastos')
+    ]);
+
+    var fmt2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+    // Ventas por fecha
+    function ventasDia(dia){
+      return ventasFB.filter(function(v){
+        var f=v.fecha||v.date||(v.timestamp?v.timestamp.substring(0,10):'');
+        return f===dia||(v.timestamp&&v.timestamp.startsWith(dia));
+      });
+    }
+    var v13=ventasDia('2026-08-13');
+    var v14=ventasDia('2026-08-14');
+
+    function resumenVentas(ventas,dia){
+      var total=0,ef=0,nq=0,tr=0,otro=0;
+      ventas.forEach(function(v){total+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo')ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')nq+=(v.total||0);
+        else if(p==='Transferencia')tr+=(v.total||0);
+        else otro+=(v.total||0);
+      });
+      var html='📅 VENTAS '+dia+' ('+ventas.length+' registros)\n';
+      html+='  Total: '+fmt2(total)+'\n';
+      html+='  Efectivo: '+fmt2(ef)+' | Nequi: '+fmt2(nq)+' | Trans: '+fmt2(tr)+' | Otro: '+fmt2(otro)+'\n';
+      // Por empleado
+      var porEmp={};
+      ventas.forEach(function(v){var e=v.emp||'?';if(!porEmp[e])porEmp[e]=0;porEmp[e]+=(v.total||0);});
+      Object.keys(porEmp).forEach(function(e){html+='  '+e+': '+fmt2(porEmp[e])+'\n';});
+      // Detalle ventas
+      html+='  DETALLE:\n';
+      ventas.forEach(function(v){
+        html+='    '+v.id+' | '+(v.time||'')+'  '+fmt2(v.total||0)+' | '+(v.pago||'')+' | '+(v.emp||'')+'\n';
+        html+='      '+( v.name||'sin detalle')+'\n';
+      });
+      return html;
+    }
+
+    // Inventario: comparar inventario vs productos
+    function resumenInv(){
+      var html='📦 INVENTARIO ACTUAL\n';
+      html+='  Colección inventario ('+invFB.length+' docs):\n';
+      invFB.forEach(function(i){html+='    id:'+i.id+' stock:'+i.stock+'\n';});
+      html+='  Colección productos ('+prodsFB.length+' docs, stock>0):\n';
+      prodsFB.filter(function(p){return (p.stock||0)>0;}).forEach(function(p){
+        html+='    id:'+p.id+' '+p.name+' stock:'+p.stock+'\n';
+      });
+      return html;
+    }
+
+    // Cierres y turnos 13-14/08
+    function resumenCierres(){
+      var html='🔒 TURNOS Y CIERRES\n';
+      [turnosFB,cierresFB].forEach(function(col,ci){
+        var nombre=ci===0?'Turnos':'Cierres';
+        var filtrados=col.filter(function(t){
+          var f=(t.fecha||t.timestamp||'');
+          return f.includes('2026-08-13')||f.includes('2026-08-14');
+        });
+        html+='  '+nombre+' ('+filtrados.length+'):\n';
+        filtrados.forEach(function(t){
+          html+='    '+( t.fecha||t.timestamp||'?')+' T'+(t.turno||'?')+' '+( t.usuario||t.emp||'?')+
+                ' | contado:'+fmt2(t.contado||0)+' retirado:'+fmt2(t.dineroRetirado||0)+
+                ' estado:'+(t.estado||'?')+'\n';
+        });
+      });
+      return html;
+    }
+
+    // Compras y gastos 12-14/08
+    function resumenComprasGastos(){
+      var html='🛒 COMPRAS 12-14/08:\n';
+      comprasFB.filter(function(c){
+        return ['2026-08-12','2026-08-13','2026-08-14'].some(function(d){return (c.fecha||'').includes(d.substring(8));});
+      }).forEach(function(c){
+        html+='    '+c.fecha+' '+c.prov+' '+fmt2(c.total||0)+' '+c.tipoPago+'\n';
+      });
+      html+='💸 GASTOS 13-14/08:\n';
+      gastosFB.filter(function(g){
+        return ['2026-08-13','2026-08-14'].some(function(d){return (g.fecha||'').includes(d);});
+      }).forEach(function(g){
+        html+='    '+g.fecha+' '+g.desc+' '+fmt2(g.monto||0)+'\n';
+      });
+      return html;
+    }
+
+    var html='🚨 DIAGNÓSTICO EMERGENCIA HELADERÍA VIDA\n'+'═'.repeat(50)+'\n\n';
+    html+=resumenVentas(v13,'2026-08-13')+'\n';
+    html+=resumenVentas(v14,'2026-08-14')+'\n';
+    html+=resumenInv()+'\n';
+    html+=resumenCierres()+'\n';
+    html+=resumenComprasGastos();
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message+'\n'+e.stack;}
 }
 
 async function diagnosticoVentasHoy(){
