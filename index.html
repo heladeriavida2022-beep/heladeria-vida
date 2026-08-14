@@ -916,7 +916,7 @@ try{
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
               <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
               <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
-              <button onclick="diagnosticoPulpa()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edf4ff;border-color:#3b82f6;color:#1d4ed8">🥤 Diagnóstico PULPA hoy</button>
+              <button onclick="ajustarPulpaManual()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edf4ff;border-color:#3b82f6;color:#1d4ed8">🥤 Ajustar PULPA 44→43</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
@@ -5152,7 +5152,51 @@ async function aplicarStockCarlosCaro(){
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
 }
 
-function diagnosticoPulpa(){
+async function ajustarPulpaManual(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='Ejecutando ajuste...';
+  try{
+    // 1. Ajustar PULPA en colección inventario: 44 → 43
+    var invPulpa = {id:'700', stock:43};
+    await window.FB.set('inventario','700', invPulpa);
+
+    // 2. Actualizar en memoria local
+    var p = prods.find(function(x){return x.id===700||x.name==='PULPA';});
+    if(p){ p.stock=43; LS.updProd(700,{stock:43}); }
+
+    // 3. Verificar colección productos/700
+    var prodsFB = await window.FB.getAll('productos');
+    var prod700 = prodsFB.find(function(p){return String(p.id)==='700'||p.name==='PULPA';});
+
+    var html='AJUSTE PULPA COMPLETADO\n'+'═'.repeat(40)+'\n';
+    html+='\nPULPA ID 700 — colección inventario:\n';
+    html+='  Antes:  44\n';
+    html+='  Ajuste: -1 (venta JUGO EN AGUA 4:29pm)\n';
+    html+='  Después: 43 ✅\n';
+    html+='\nDIAGNÓSTICO colección productos/700:\n';
+    if(prod700){
+      html+='  ID: '+prod700.id+'\n';
+      html+='  Nombre: '+prod700.name+'\n';
+      html+='  Stock: '+prod700.stock+'\n';
+      html+='  Cat: '+prod700.cat+'\n';
+      html+='  descuenta: '+prod700.descuenta+'\n';
+    } else {
+      html+='  NO EXISTE documento 700 en colección productos\n';
+    }
+    html+='\nFUENTE OFICIAL DEL SISTEMA:\n';
+    html+='  El sistema lee stock desde colección "inventario"\n';
+    html+='  La colección "productos" se usa para productos creados desde la app\n';
+    html+='  Para PULPA (id:700, creada en código), "inventario" es la fuente oficial\n';
+
+    div.innerHTML=html;
+    try{renderInv();}catch(e){}
+    updateBadges();
+  }catch(e){
+    div.innerHTML='Error: '+e.message;
+  }
+}
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
