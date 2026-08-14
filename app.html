@@ -2297,16 +2297,15 @@ function confirmarVenta(){
     if(p.descuenta){
       p.stock=Math.max(0,p.stock-ci.qty);
       LS.updProd(p.id,{stock:p.stock});
-      try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
-          window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));}catch(e){}
+      try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});}catch(e){}
     }
 
     // Tabla fija de relaciones bebida → insumo
     var tablaInsumos = {
-      'JUGO EN AGUA':       700,  // → PULPA
-      'JUGO EN LECHE':      700,  // → PULPA
-      'LIMONADA CEREZADA':  701,  // → PULPA CEREZA
-      'LIMONADA DE COCO':   702   // → PULPA COCO
+      'JUGO EN AGUA':       700,
+      'JUGO EN LECHE':      700,
+      'LIMONADA CEREZADA':  701,
+      'LIMONADA DE COCO':   702
     };
     var insumoId = tablaInsumos[p.name];
     if(insumoId){
@@ -2314,25 +2313,21 @@ function confirmarVenta(){
       if(ins && ins.stock > 0){
         ins.stock = Math.max(0, ins.stock - ci.qty);
         LS.updProd(ins.id, {stock: ins.stock});
-        try{
-          window.FB.set('inventario', String(ins.id), {id:String(ins.id), stock:ins.stock});
-          window.FB.set('productos',  String(ins.id), Object.assign({},ins,{stock:ins.stock}));
-        }catch(e){}
+        try{window.FB.set('inventario', String(ins.id), {id:String(ins.id), stock:ins.stock});}catch(e){}
       }
     }
 
-    // Insumos genéricos (p.insumo || p.ins) para desechables
+    // Insumos genéricos para desechables (VASO, etc.)
     var campoInsumo = p.insumo || p.ins;
     if(campoInsumo){
       var insumos=Array.isArray(campoInsumo)?campoInsumo:[campoInsumo];
       insumos.forEach(function(insNombre){
-        if(['PULPA','PULPA CEREZA','PULPA COCO'].indexOf(insNombre)>=0) return; // ya manejado arriba
+        if(['PULPA','PULPA CEREZA','PULPA COCO'].indexOf(insNombre)>=0) return;
         var ins2=prods.find(function(x){return x.name===insNombre&&x.descuenta;});
         if(ins2){
           ins2.stock=Math.max(0,ins2.stock-ci.qty);
           LS.updProd(ins2.id,{stock:ins2.stock});
-          try{window.FB.set('inventario',String(ins2.id),{id:String(ins2.id),stock:ins2.stock});
-              window.FB.set('productos',String(ins2.id),Object.assign({},ins2,{stock:ins2.stock}));}catch(e){}
+          try{window.FB.set('inventario',String(ins2.id),{id:String(ins2.id),stock:ins2.stock});}catch(e){}
         }
       });
     }
@@ -3434,10 +3429,8 @@ function guardarIngreso(){
     if(p.descuenta){
       p.stock+=qty;
       LS.updProd(p.id,{stock:p.stock});
-      // Sincronizar con Firebase — usar window.FB.set directamente
       try{
         window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
-        window.FB.set('productos',String(p.id),Object.assign({},p,{stock:p.stock}));
       }catch(e){ console.warn('stock FB:', e); }
     }
   });
