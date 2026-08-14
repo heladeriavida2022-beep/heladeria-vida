@@ -915,7 +915,8 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
               <button onclick="diagnosticoMedioPago()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#edfaf2;border-color:#3aaa6a;color:#3aaa6a">📊 Diagnóstico por medio de pago</button>
-              <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
+              <button onclick="diagnosticoStockCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff8e1;border-color:#f0a500;color:#d48a00">📦 Diagnóstico stock Carlos Caro</button>
+              <button onclick="diagnosticoPulpa()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#edf4ff;border-color:#3b82f6;color:#1d4ed8">🥤 Diagnóstico PULPA hoy</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
             </div>
@@ -5149,6 +5150,80 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+function diagnosticoPulpa(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='Consultando Firebase...';
+
+  Promise.all([
+    window.FB.getAll('inventario'),
+    window.FB.getAll('productos'),
+    window.FB.getAll('ventas')
+  ]).then(function(results){
+    var invFB=results[0];
+    var prodsFB=results[1];
+    var ventasFB=results[2];
+
+    // Stock PULPA en Firebase inventario
+    var invPulpa=invFB.find(function(i){return String(i.id)==='700';});
+    var prodPulpa=prodsFB.find(function(p){return p.name==='PULPA'||String(p.id)==='700';});
+    var stockInv=invPulpa?invPulpa.stock:'NO REGISTRADO';
+    var stockProd=prodPulpa?prodPulpa.stock:'NO REGISTRADO';
+
+    // Stock PULPA en memoria local
+    var pulpaLocal=prods.find(function(p){return p.id===700||p.name==='PULPA';});
+    var stockLocal=pulpaLocal?pulpaLocal.stock:'NO EN MEMORIA';
+
+    // Ventas de HOY con JUGO EN AGUA
+    var hoy='2026-08-13';
+    var ventasJugo=ventasFB.filter(function(v){
+      return (v.fecha||'').includes('13') ||
+             (v.timestamp||'').startsWith('2026-08-13');
+    }).filter(function(v){
+      return (v.name||'').includes('JUGO EN AGUA') ||
+             (v.name||'').includes('JUGO');
+    });
+
+    var html='DIAGNÓSTICO PULPA — 13/08/2026\n'+'═'.repeat(45)+'\n';
+    html+='\nSTOCK PULPA (id:700):\n';
+    html+='  Firebase inventario: '+stockInv+'\n';
+    html+='  Firebase productos:  '+stockProd+'\n';
+    html+='  Memoria local:       '+stockLocal+'\n';
+
+    html+='\nVENTAS JUGO EN AGUA HOY:\n';
+    if(ventasJugo.length===0){
+      // Buscar en sales local
+      var salesJugoLocal=sales.filter(function(s){
+        return (getFechaDeVenta(s)||'').includes('2026-08-13') &&
+               (s.name||'').includes('JUGO');
+      });
+      html+='  En Firebase: 0\n';
+      html+='  En memoria local: '+salesJugoLocal.length+'\n';
+      salesJugoLocal.forEach(function(s){
+        html+='  → ID:'+s.id+' | '+s.time+' | '+s.name+' | qty:'+s.qty+'\n';
+      });
+    } else {
+      ventasJugo.forEach(function(v){
+        html+='  ID: '+v.id+'\n';
+        html+='  Hora: '+v.time+'\n';
+        html+='  Producto: '+v.name+'\n';
+        html+='  Qty: '+v.qty+'\n';
+        html+='  Empleado: '+v.emp+'\n';
+      });
+    }
+
+    html+='\nFIX p.ins publicado: después de la venta\n';
+    html+='Stock esperado (44-1): 43\n';
+    html+='Stock real Firebase inventario: '+stockInv+'\n';
+    html+=(stockInv===43||stockInv==='43'?'✅ Descuento aplicado correctamente':'⚠️ Descuento NO aplicado — stock incorrecto')+'\n';
+
+    div.innerHTML=html;
+  }).catch(function(e){
+    div.innerHTML='Error: '+e.message;
+  });
 }
 
 async function diagnosticoStockCarlosCaro(){
