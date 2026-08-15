@@ -3579,7 +3579,16 @@ function guardarDeuda(){
 function pagarDeuda(id){
   var deudas=LS.g('deudas')||[];
   var d=deudas.find(x=>x.id===id);
-  if(!d)return;
+  if(!d){
+    // Buscar en Firebase y reintentar
+    if(window.FB&&window.FB.getAll){
+      window.FB.getAll('deudas').then(function(fbDeudas){
+        if(fbDeudas&&fbDeudas.length){ LS.set('deudas',fbDeudas); pagarDeuda(id); }
+        else toast('Deuda no encontrada','#e94560');
+      });
+    } else toast('Deuda no encontrada','#e94560');
+    return;
+  }
 
   // Si es admin, ofrecer pagar desde fondo
   if(currentUser&&currentUser.role==='admin'){
