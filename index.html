@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="conciliacionForense()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff1f2;border-color:#e11d48;color:#9f1239;font-weight:700">🔬 CONCILIACIÓN FORENSE 12-14/08</button>
               <button onclick="auditoriaCompleta()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">📋 AUDITORÍA COMPLETA 12-14/08</button>
               <button onclick="auditoriaTurnos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">🔍 Auditoría Turnos 11-14/08</button>
               <button onclick="auditoriaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f4ff;border-color:#6366f1;color:#4338ca;font-weight:700">📊 Auditoría Cierres 13-15/08</button>
@@ -5172,6 +5173,219 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function conciliacionForense(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='750px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(conciliacionForense,3000);return;}
+  div.innerHTML='⏳ Leyendo Firebase (solo lectura, 20-30 seg)...';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos'),window.FB.getAll('gastos'),
+      window.FB.getAll('caja'),window.FB.getAll('fondoAdmin')
+    ]);
+    var ventasFB=res[0];var cierresFB=res[1];var turnosFB=res[2];
+    var gastosFB=res[3];var cajaFB=res[4];var fondoFB=res[5];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+    // Timestamp Colombia (UTC-5)
+    function ts2diaCO(v){
+      if(!v.timestamp) return (v.fecha||v.id||'').substring(0,10);
+      try{
+        var d=new Date(v.timestamp);
+        // Colombia UTC-5: restar 5 horas
+        var co=new Date(d.getTime()-0); // Firebase ya guarda en UTC
+        // Extraer fecha local Colombia
+        var s=d.toLocaleString('sv-SE',{timeZone:'America/Bogota'});
+        return s.substring(0,10);
+      }catch(e){return v.timestamp.substring(0,10);}
+    }
+    function ts2horaCO(v){
+      if(!v.timestamp) return v.time||'?';
+      try{
+        var d=new Date(v.timestamp);
+        return d.toLocaleTimeString('es-CO',{timeZone:'America/Bogota',hour:'2-digit',minute:'2-digit'});
+      }catch(e){return v.time||'?';}
+    }
+
+    var dias=['2026-08-12','2026-08-13','2026-08-14'];
+    var html='CONCILIACIÓN FORENSE DE CAJA\n12-14/08/2026\n⚠️ SOLO LECTURA\n'+'═'.repeat(55)+'\n\n';
+
+    // Buscar cierre del 11/08 para determinar base del 12
+    var cierre11=cierresFB.find(function(c){
+      var ts=c.timestamp||'';return ts.startsWith('2026-08-11');
+    });
+    var baseConfirmada={};
+    if(cierre11){
+      var ret11=cierre11.dineroRetirado!==undefined?cierre11.dineroRetirado:Math.max(0,(cierre11.contado||0)-100000);
+      baseConfirmada['2026-08-12']=100000;
+      html+='BASE 12/08: CONFIRMADA $100.000 (cierre 11/08 existente: '+cierre11.id+')\n';
+    } else {
+      html+='BASE 12/08: NO CONFIRMADA (no existe cierre del 11/08 en Firebase)\n';
+      html+='  ⚠️ Se asumirá $100.000 como base estándar pero NO está confirmado\n';
+      baseConfirmada['2026-08-12']=100000;
+    }
+
+    // Retiros de caja (movCaja tipo retiro)
+    var retirosPorDia={};
+    cajaFB.forEach(function(m){
+      if(m.tipo==='retiro'||m.tipo==='egreso'){
+        var f=(m.fecha||m.hora||'').substring(0,10);
+        if(!retirosPorDia[f])retirosPorDia[f]=0;
+        retirosPorDia[f]+=(m.monto||0);
+      }
+    });
+
+    var tabla=[];
+
+    dias.forEach(function(dia,idx){
+      var ventas=ventasFB.filter(function(v){return ts2diaCO(v)===dia;});
+      ventas.sort(function(a,b){return (a.timestamp||a.id)<(b.timestamp||b.id)?-1:1;});
+
+      // Totales por medio
+      var ef=0,nq=0,tr=0,tj=0,fi=0,totV=0;
+      ventas.forEach(function(v){
+        totV+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo')ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')nq+=(v.total||0);
+        else if(p==='Transferencia')tr+=(v.total||0);
+        else if(p==='Tarjeta')tj+=(v.total||0);
+        else if(p==='Fiado')fi+=(v.total||0);
+        else if(p==='Mixto'&&v.pagoMixto){
+          ef+=(v.pagoMixto.efectivo||0);
+          nq+=(v.pagoMixto.digital||0);
+        }
+      });
+
+      // Gastos solo en efectivo
+      var gastos=gastosFB.filter(function(g){return (g.fecha||'').includes(dia);});
+      var gEf=gastos.filter(function(g){
+        return !g.tipoPago||g.tipoPago==='contado'||g.tipoPago==='efectivo';
+      }).reduce(function(s,g){return s+(g.monto||0);},0);
+      var gFondo=gastos.filter(function(g){return g.tipoPago==='fondo_admin';}).reduce(function(s,g){return s+(g.monto||0);},0);
+
+      // Retiros confirmados
+      var retiros=retirosPorDia[dia]||0;
+
+      // Base del día
+      var base=baseConfirmada[dia]||100000;
+      var efEsp=base+ef-gEf-retiros;
+
+      // Detalle por usuario y grupos
+      var sinTurno=ventas.filter(function(v){return !v.turnoId||v.turnoId==='';});
+      var turnoOtroDia=ventas.filter(function(v){return v.turnoId&&!v.turnoId.includes(dia.replace('2026-',''));});
+      var conTurnoPropio=ventas.filter(function(v){return v.turnoId&&v.turnoId.includes(dia.replace('2026-',''));});
+
+      html+='\n'+'═'.repeat(55)+'\n📅 '+dia+'\n'+'═'.repeat(55)+'\n';
+
+      // Ventas por usuario
+      var porUser={};
+      ventas.forEach(function(v){
+        var u=v.emp||'?';
+        if(!porUser[u])porUser[u]={n:0,tot:0,ef:0,nq:0,tr:0,otros:0};
+        porUser[u].n++;porUser[u].tot+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo')porUser[u].ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')porUser[u].nq+=(v.total||0);
+        else if(p==='Transferencia')porUser[u].tr+=(v.total||0);
+        else porUser[u].otros+=(v.total||0);
+      });
+      html+='VENTAS POR USUARIO:\n';
+      Object.keys(porUser).forEach(function(u){
+        var d=porUser[u];
+        html+='  '+u+': '+d.n+'u | tot:'+f2(d.tot)+' | ef:'+f2(d.ef)+' | nq:'+f2(d.nq)+' | tr:'+f2(d.tr)+'\n';
+      });
+
+      html+='\nRESUMEN VENTAS:\n';
+      html+='  Total ventas: '+ventas.length+' | '+f2(totV)+'\n';
+      html+='  💵 Efectivo:  '+f2(ef)+'\n';
+      html+='  📱 Nequi:     '+f2(nq)+'\n';
+      html+='  🏦 Trans:     '+f2(tr)+'\n';
+      html+='  💳 Tarjeta:   '+f2(tj)+'\n';
+      html+='  📋 Fiado:     '+f2(fi)+'\n';
+      html+='  Electrónico total: '+f2(nq+tr+tj+fi)+'\n';
+
+      html+='\nGRUPOS:\n';
+      html+='  A (turno propio): '+conTurnoPropio.length+' | '+f2(conTurnoPropio.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      html+='  B (turno otro día): '+turnoOtroDia.length+' | '+f2(turnoOtroDia.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      turnoOtroDia.forEach(function(v){html+='    ⚠️ '+v.id+' turnoId:'+v.turnoId+'\n';});
+      html+='  C (sin turno): '+sinTurno.length+' | '+f2(sinTurno.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      sinTurno.forEach(function(v){
+        html+='    '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';
+      });
+
+      html+='\nGASTOS:\n';
+      if(!gastos.length)html+='  Ninguno\n';
+      gastos.forEach(function(g){
+        html+='  '+g.id+' | '+g.desc+' | '+f2(g.monto)+' | tipo:'+(g.tipoPago||'?')+' | medio:'+(g.medioPago||'?')+'\n';
+      });
+      html+='  Gastos efectivo: '+f2(gEf)+'\n';
+      html+='  Gastos fondo admin: '+f2(gFondo)+' (NO restan caja)\n';
+
+      html+='\nRETIROS DE CAJA: '+(retiros>0?f2(retiros):'$0 (no confirmados)')+'\n';
+
+      html+='\nCALCULO EFECTIVO ESPERADO:\n';
+      html+='  Base:               '+f2(base)+(baseConfirmada[dia]?' ✅':' ⚠️ NO CONFIRMADA')+'\n';
+      html+='  + Efectivo ventas:  '+f2(ef)+'\n';
+      html+='  - Gastos efectivo:  '+f2(gEf)+'\n';
+      html+='  - Retiros:          '+f2(retiros)+'\n';
+      html+='  = EFECTIVO ESPERADO: '+f2(efEsp)+'\n';
+
+      // Base del siguiente día
+      if(idx<2){
+        var diaSig=dias[idx+1];
+        // Buscar cierre de este día
+        var cierreDia=cierresFB.find(function(c){return (c.timestamp||'').startsWith(dia);});
+        if(cierreDia){
+          baseConfirmada[diaSig]=100000;
+          html+='  → Cierre de este día EXISTE: '+cierreDia.id+' | retirado:'+f2(cierreDia.dineroRetirado||0)+'\n';
+          html+='  → Base '+(diaSig)+': CONFIRMADA $100.000\n';
+        } else {
+          html+='  ⚠️ No hay cierre de este día — base siguiente NO DEMOSTRABLE\n';
+          html+='  ESCENARIO A (base reiniciada): '+diaSig+' parte con $100.000\n';
+          html+='  ESCENARIO B (caja continua): '+diaSig+' parte con '+f2(efEsp)+'\n';
+          baseConfirmada[diaSig]=100000; // usar estándar, pero advertido
+        }
+      }
+
+      tabla.push({dia:dia,n:ventas.length,totV:totV,ef:ef,nq:nq,tr:tr,tj:tj,fi:fi,gEf:gEf,retiros:retiros,base:base,efEsp:efEsp});
+    });
+
+    // TABLA FINAL
+    html+='\n'+'═'.repeat(55)+'\nCONCILIACIÓN FINAL DE CAJA\n'+'═'.repeat(55)+'\n';
+    tabla.forEach(function(r){
+      html+='\n'+r.dia+'\n';
+      html+='  Ventas totales:   '+f2(r.totV)+' ('+r.n+' ventas)\n';
+      html+='  Efectivo:         '+f2(r.ef)+'\n';
+      html+='  Electrónico:      '+f2(r.nq+r.tr+r.tj+r.fi)+' (nq:'+f2(r.nq)+' tr:'+f2(r.tr)+')\n';
+      html+='  Gastos efectivo:  '+f2(r.gEf)+'\n';
+      html+='  Retiros:          '+f2(r.retiros)+'\n';
+      html+='  Base:             '+f2(r.base)+'\n';
+      html+='  EFECTIVO ESPERADO:'+f2(r.efEsp)+'\n';
+    });
+
+    html+='\nFECHA    | BASE    | EF.VENTAS| GTS.EF  | RETIROS | EF.ESPERADO\n';
+    tabla.forEach(function(r){
+      html+=r.dia+' | '+f2(r.base).padEnd(7)+' | '+f2(r.ef).padEnd(8)+' | '+f2(r.gEf).padEnd(7)+' | '+f2(r.retiros).padEnd(7)+' | '+f2(r.efEsp)+'\n';
+    });
+    html+='\nFECHA    | NEQUI    | TRANS    | TARJETA  | FIADO\n';
+    tabla.forEach(function(r){
+      html+=r.dia+' | '+f2(r.nq).padEnd(8)+' | '+f2(r.tr).padEnd(8)+' | '+f2(r.tj).padEnd(8)+' | '+f2(r.fi)+'\n';
+    });
+
+    html+='\n'+'═'.repeat(55)+'\n';
+    html+='✅ Firebase NO fue modificado.\n';
+    html+='✅ Ninguna venta fue modificada.\n';
+    html+='✅ Ningún turno fue modificado.\n';
+    html+='✅ Ningún cierre fue creado o modificado.\n';
+    html+='✅ Ningún gasto fue modificado.\n';
+    html+='✅ Ningún turnoId fue cambiado.\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message+'\n'+e.stack;}
 }
 
 async function auditoriaCompleta(){
