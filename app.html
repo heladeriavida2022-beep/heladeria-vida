@@ -3590,53 +3590,38 @@ function pagarDeuda(id){
     return;
   }
 
-  // Si es admin, ofrecer pagar desde fondo
+  // Si es admin, mostrar modal para elegir forma de pago
   if(currentUser&&currentUser.role==='admin'){
     var sEfe=getSaldoFondo('Efectivo');
     var sNequi=getSaldoFondo('Nequi/Daviplata');
     var sTrans=getSaldoFondo('Transferencia');
-    var opcion=prompt(
-      '¿Cómo deseas pagar '+fmt(d.monto)+' a '+d.acreedor+'?\n\n'+
-      '1 = 💵 Caja del turno (efectivo)\n'+
-      '2 = 💰 Fondo Efectivo (disponible: '+fmt(sEfe)+')\n'+
-      '3 = 📱 Fondo Nequi/Daviplata (disponible: '+fmt(sNequi)+')\n'+
-      '4 = 🏦 Fondo Transferencia (disponible: '+fmt(sTrans)+')\n\n'+
-      'Ingresa el número:'
-    );
-    if(!opcion)return;
-    if(opcion==='2'||opcion==='3'||opcion==='4'){
-      var medios={'2':'Efectivo','3':'Nequi/Daviplata','4':'Transferencia'};
-      var medioSeleccionado=medios[opcion];
-      var saldoMedio={'2':sEfe,'3':sNequi,'4':sTrans}[opcion];
-      if(d.monto>saldoMedio){
-        toast('⚠️ Saldo insuficiente en '+medioSeleccionado+'. Disponible: '+fmt(saldoMedio),'#e94560');
-        return;
-      }
-      var movFondoDeuda={
-        id:'fa_'+Date.now(),
-        tipo:'egreso',
-        medioPago:medioSeleccionado,
-        concepto:'Pago deuda: '+d.acreedor+' — '+d.concepto,
-        valor:d.monto,
-        fecha:new Date().toISOString().split('T')[0],
-        timestamp:new Date().toISOString(),
-        usuario:currentUser.name,
-        origen:'deuda'
-      };
-      window.FB.set('fondoAdmin',movFondoDeuda.id,movFondoDeuda).then(function(){
-        if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
-        window._fondoAdminMovs.push(movFondoDeuda);
-        // Marcar deuda como pagada (sin afectar caja)
-        d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
-        d.metodoPago='Fondo '+medioSeleccionado;
-        LS.set('deudas',deudas);
-        try{window.FB.set('deudas',d.id,d);}catch(e){}
-        updateDeudasBadge();
-        if(typeof renderDeudas==='function')renderDeudas();
-        toast('✅ Deuda pagada desde Fondo '+medioSeleccionado+' — Saldo restante: '+fmt(saldoMedio-d.monto),'#3aaa6a');
-      }).catch(function(){ toast('Error guardando en fondo','#e94560'); });
-      return;
+    // Crear modal de pago
+    var moId='ov-pagar-deuda-modal';
+    var mo=document.getElementById(moId);
+    if(!mo){
+      mo=document.createElement('div');mo.className='ov';mo.id=moId;
+      document.body.appendChild(mo);
     }
+    mo.innerHTML='<div class="modal" style="max-width:420px">'+
+      '<button class="mx" onclick="closeM(\'pagar-deuda-modal\')"><i class="ti ti-x"></i></button>'+
+      '<div class="mt">💳 Pagar deuda</div>'+
+      '<div style="background:#f5f3ff;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px">'+
+        '<b>'+d.acreedor+'</b><br>'+d.concepto+'<br><b style="font-size:16px;color:#e94560">'+fmt(d.monto)+'</b>'+
+      '</div>'+
+      '<div style="display:flex;flex-direction:column;gap:8px">'+
+        '<button class="btn btn-acc" onclick="ejecutarPagoDeuda(\'caja\')" style="text-align:left">'+
+          '💵 Caja del turno (efectivo)</button>'+
+        '<button class="btn btn-ghost" onclick="ejecutarPagoDeuda(\'Efectivo\')" style="text-align:left;color:#3aaa6a;border-color:#3aaa6a">'+
+          '💰 Fondo Efectivo — disponible: '+fmt(sEfe)+'</button>'+
+        '<button class="btn btn-ghost" onclick="ejecutarPagoDeuda(\'Nequi/Daviplata\')" style="text-align:left;color:#9b72cf;border-color:#9b72cf">'+
+          '📱 Fondo Nequi — disponible: '+fmt(sNequi)+'</button>'+
+        '<button class="btn btn-ghost" onclick="ejecutarPagoDeuda(\'Transferencia\')" style="text-align:left;color:#3b82f6;border-color:#3b82f6">'+
+          '🏦 Fondo Transferencia — disponible: '+fmt(sTrans)+'</button>'+
+        '<button class="btn btn-ghost" onclick="closeM(\'pagar-deuda-modal\')">Cancelar</button>'+
+      '</div></div>';
+    window._deudaPagandoId=d.id;
+    openM('pagar-deuda-modal');
+    return;
   }
 
   // Pago normal desde caja
@@ -3649,6 +3634,53 @@ function pagarDeuda(id){
   LS.set('deudas',deudas);
   renderDeudas();updateDeudasBadge();renderCaja();
   toast('Pago registrado — salida de caja ✓','#3aaa6a');
+}
+
+function ejecutarPagoDeuda(medio){
+  closeM('pagar-deuda-modal');
+  var id=window._deudaPagandoId;
+  var deudas=LS.g('deudas')||[];
+  var d=deudas.find(function(x){return x.id===id;});
+  if(!d){toast('Deuda no encontrada','#e94560');return;}
+
+  if(medio==='caja'){
+    // Pago desde caja del turno
+    if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+' desde caja del turno?'))return;
+    var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:d.monto,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
+    movCaja.unshift(mov);LS.set('movCaja',movCaja);
+    if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
+    d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
+    d.metodoPago='Caja';
+    LS.set('deudas',deudas);
+    try{window.FB.set('deudas',d.id,d);}catch(e){}
+    renderDeudas();updateDeudasBadge();
+    try{renderCaja();}catch(e){}
+    toast('✅ Pago registrado — salida de caja','#3aaa6a');
+    return;
+  }
+
+  // Pago desde Fondo
+  var saldoMedio=getSaldoFondo(medio);
+  if(d.monto>saldoMedio){
+    toast('⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldoMedio),'#e94560');
+    return;
+  }
+  var movFondo={
+    id:'fa_'+Date.now(),tipo:'egreso',medioPago:medio,
+    concepto:'Pago deuda: '+d.acreedor+' — '+d.concepto,
+    valor:d.monto,fecha:new Date().toISOString().split('T')[0],
+    timestamp:new Date().toISOString(),usuario:currentUser.name,origen:'deuda'
+  };
+  window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
+    if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
+    window._fondoAdminMovs.push(movFondo);
+    d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
+    d.metodoPago='Fondo '+medio;
+    LS.set('deudas',deudas);
+    try{window.FB.set('deudas',d.id,d);}catch(e){}
+    renderDeudas();updateDeudasBadge();
+    toast('✅ Deuda pagada desde Fondo '+medio,'#3aaa6a');
+  }).catch(function(){toast('Error al guardar','#e94560');});
 }
 
 function updateDeudasBadge(){
