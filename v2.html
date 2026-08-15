@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="auditoriaCompleta()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">📋 AUDITORÍA COMPLETA 12-14/08</button>
               <button onclick="auditoriaTurnos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">🔍 Auditoría Turnos 11-14/08</button>
               <button onclick="auditoriaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f4ff;border-color:#6366f1;color:#4338ca;font-weight:700">📊 Auditoría Cierres 13-15/08</button>
               <button onclick="diagnosticoEmergencia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff0f0;border-color:#e94560;color:#e94560;font-weight:700">🚨 DIAGNÓSTICO EMERGENCIA</button>
@@ -5171,6 +5172,230 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function auditoriaCompleta(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='750px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(auditoriaCompleta,3000);return;}
+  div.innerHTML='⏳ Leyendo Firebase... (puede tardar 20 segundos)';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos'),window.FB.getAll('gastos'),window.FB.getAll('compras')
+    ]);
+    var ventasFB=res[0];var cierresFB=res[1];var turnosFB=res[2];
+    var gastosFB=res[3];var comprasFB=res[4];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var dias=['2026-08-12','2026-08-13','2026-08-14'];
+    var t11id='turno_T2_2026-08-11_1786478909856';
+    var t13id='turno_T2_2026-08-13_1786655595710';
+
+    function ts2fecha(v){return (v.timestamp||v.id||'').substring(0,10);}
+    function ts2hora(v){
+      if(v.timestamp&&v.timestamp.length>10){
+        // ISO → hora local Colombia (UTC-5)
+        try{
+          var d=new Date(v.timestamp);
+          return d.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'});
+        }catch(e){return v.timestamp.substring(11,16);}
+      }
+      return v.time||'?';
+    }
+
+    var html='AUDITORÍA COMPLETA 12-14/08/2026\n⚠️ SOLO LECTURA\n'+'═'.repeat(55)+'\n\n';
+
+    // ──────────────────────────────────────────────
+    // SECCIÓN 1: VENTAS POR DÍA (usando timestamp)
+    // ──────────────────────────────────────────────
+    dias.forEach(function(dia){
+      var ventas=ventasFB.filter(function(v){return ts2fecha(v)===dia;});
+      ventas.sort(function(a,b){return (a.timestamp||a.id)<(b.timestamp||b.id)?-1:1;});
+
+      var totV=0,ef=0,nq=0,tr=0,tj=0,fi=0;
+      ventas.forEach(function(v){
+        totV+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo'){ef+=(v.total||0);}
+        else if(p==='Nequi/Daviplata'){nq+=(v.total||0);}
+        else if(p==='Transferencia'){tr+=(v.total||0);}
+        else if(p==='Tarjeta'){tj+=(v.total||0);}
+        else if(p==='Fiado'){fi+=(v.total||0);}
+        else if(p==='Mixto'&&v.pagoMixto){
+          ef+=(v.pagoMixto.efectivo||0);
+          nq+=(v.pagoMixto.digital||0);
+        }
+      });
+
+      // Por usuario
+      var porUser={};
+      ventas.forEach(function(v){
+        var u=v.emp||'?';
+        if(!porUser[u])porUser[u]={n:0,tot:0,ef:0,nq:0,tr:0,otros:0};
+        porUser[u].n++;porUser[u].tot+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo')porUser[u].ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')porUser[u].nq+=(v.total||0);
+        else if(p==='Transferencia')porUser[u].tr+=(v.total||0);
+        else porUser[u].otros+=(v.total||0);
+      });
+
+      var conTurno=ventas.filter(function(v){return v.turnoId&&v.turnoId!=='';});
+      var sinTurno=ventas.filter(function(v){return !v.turnoId||v.turnoId==='';});
+      var turnoOtroDia=ventas.filter(function(v){
+        return v.turnoId&&!v.turnoId.includes(dia.replace('2026-',''));
+      });
+
+      html+='📅 '+dia+'\n'+'═'.repeat(50)+'\n';
+      html+='VENTAS: '+ventas.length+' | Total: '+f2(totV)+'\n';
+      html+='  💵 Efectivo:  '+f2(ef)+'\n';
+      html+='  📱 Nequi:     '+f2(nq)+'\n';
+      html+='  🏦 Trans:     '+f2(tr)+'\n';
+      html+='  💳 Tarjeta:   '+f2(tj)+'\n';
+      html+='  📋 Fiado:     '+f2(fi)+'\n';
+
+      html+='\nPOR USUARIO:\n';
+      Object.keys(porUser).forEach(function(u){
+        var d=porUser[u];
+        html+='  '+u+': '+d.n+' ventas | '+f2(d.tot)+' | ef:'+f2(d.ef)+' | nq:'+f2(d.nq)+' | tr:'+f2(d.tr)+'\n';
+      });
+
+      html+='\nVENTAS CON TURNO: '+conTurno.length+' | '+f2(conTurno.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      html+='VENTAS SIN TURNO: '+sinTurno.length+' | '+f2(sinTurno.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      html+='VENTAS CON TURNO OTRO DÍA: '+turnoOtroDia.length+' | '+f2(turnoOtroDia.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+
+      // Detalle ventas sin turno
+      if(sinTurno.length){
+        html+='\n  Detalle sin turno:\n';
+        sinTurno.forEach(function(v){
+          html+='    '+v.id+' | '+ts2hora(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';
+        });
+      }
+
+      // Gastos del día
+      var gastos=gastosFB.filter(function(g){return (g.fecha||'').includes(dia);});
+      var totG=gastos.reduce(function(s,g){return s+(g.monto||0);},0);
+      var totGEf=gastos.filter(function(g){return !g.tipoPago||g.tipoPago==='contado';}).reduce(function(s,g){return s+(g.monto||0);},0);
+      html+='\nGASTOS ('+gastos.length+'): '+f2(totG)+' (efectivo: '+f2(totGEf)+')\n';
+      gastos.forEach(function(g){
+        html+='  '+g.id+' | '+(g.fecha||'?')+' | '+(g.timestamp||'?')+' | '+g.desc+' | '+f2(g.monto)+' | '+(g.tipoPago||'?')+' | '+(g.medioPago||'?')+' | '+(g.usuario||'?')+'\n';
+      });
+
+      // Compras del día
+      var compras=comprasFB.filter(function(c){return (c.fecha||'').includes(dia);});
+      html+='\nCOMPRAS ('+compras.length+'):\n';
+      compras.forEach(function(c){
+        html+='  '+(c.fecha||'?')+' | '+(c.prov||'?')+' | '+f2(c.total||0)+' | '+(c.tipoPago||'?')+'\n';
+      });
+
+      // Reconstrucción matemática
+      var base=100000;
+      var efEsperado=base+ef-totGEf;
+      html+='\nRECONSTRUCCIÓN MATEMÁTICA:\n';
+      html+='  Base:              '+f2(base)+'\n';
+      html+='  + Efectivo ventas: '+f2(ef)+'\n';
+      html+='  - Gastos efectivo: '+f2(totGEf)+'\n';
+      html+='  = Ef.esperado:     '+f2(efEsperado)+'\n';
+      html+='  Nequi disponible:  '+f2(nq)+'\n';
+      html+='  Trans disponible:  '+f2(tr)+'\n';
+      html+='  Total ventas:      '+f2(totV)+'\n';
+
+      // Grupos A/B/C
+      html+='\nGRUPO A (claramente del día): '+conTurno.filter(function(v){return v.turnoId&&v.turnoId.includes(dia.replace('2026-',''));}).length+' ventas\n';
+      html+='GRUPO B (turno de otro día): '+turnoOtroDia.length+' ventas\n';
+      html+='GRUPO C (sin turno — requiere decisión): '+sinTurno.length+' ventas\n';
+
+      html+='\n';
+    });
+
+    // ──────────────────────────────────────────────
+    // SECCIÓN 2: TURNOS ESPECÍFICOS
+    // ──────────────────────────────────────────────
+    html+='═'.repeat(55)+'\nTURNOS ESPECÍFICOS\n'+'═'.repeat(55)+'\n';
+    [t11id,t13id].forEach(function(tid){
+      var t=turnosFB.find(function(x){return x.id===tid;});
+      var cierre=cierresFB.find(function(c){return c.turnoId===tid;});
+      var vt=ventasFB.filter(function(v){return v.turnoId===tid;});
+      vt.sort(function(a,b){return (a.timestamp||a.id)<(b.timestamp||b.id)?-1:1;});
+      html+='\nturnoId: '+tid+'\n';
+      if(t){
+        html+='  fecha: '+(t.fecha||'?')+' | estado: '+(t.estado||'?')+'\n';
+        html+='  usuario: '+(t.usuario||t.user||'?')+'\n';
+        html+='  apertura: '+(t.horaApertura||t.hora||'?')+'\n';
+        html+='  timestamp apertura: '+(t.timestamp||t.timestampApertura||'?')+'\n';
+        html+='  base: '+f2(t.base||t.baseInicial||100000)+'\n';
+      } else {
+        html+='  ⚠️ TURNO REFERENCIADO POR VENTAS PERO AUSENTE EN COLECCIÓN TURNOS\n';
+      }
+      html+='  cierre: '+(cierre?'✅ '+cierre.id+' | '+cierre.timestamp:'❌ NO EXISTE')+'\n';
+      html+='  ventas asociadas: '+vt.length+'\n';
+      if(vt.length){
+        html+='  primera: '+(vt[0].timestamp||'?')+' '+ts2hora(vt[0])+'\n';
+        html+='  última:  '+(vt[vt.length-1].timestamp||'?')+' '+ts2hora(vt[vt.length-1])+'\n';
+        var fechasDistintas={};
+        vt.forEach(function(v){fechasDistintas[ts2fecha(v)]=1;});
+        html+='  fechas en que tuvo ventas: '+Object.keys(fechasDistintas).join(', ')+'\n';
+      }
+    });
+
+    // ──────────────────────────────────────────────
+    // SECCIÓN 3: CIERRES EXISTENTES
+    // ──────────────────────────────────────────────
+    html+='\n'+'═'.repeat(55)+'\nCIERRES EXISTENTES (12-14/08)\n'+'═'.repeat(55)+'\n';
+    var cierresPeriodo=cierresFB.filter(function(c){
+      var ts=c.timestamp||c.fecha||'';
+      return ts.includes('2026-08-12')||ts.includes('2026-08-13')||ts.includes('2026-08-14');
+    });
+    if(!cierresPeriodo.length) html+='❌ NO HAY CIERRES REGISTRADOS PARA 12-14/08\n';
+    cierresPeriodo.forEach(function(c){
+      html+='\n  ID: '+c.id+'\n';
+      html+='  fecha: '+(c.fecha||'?')+' | timestamp: '+(c.timestamp||'?')+'\n';
+      html+='  usuario: '+(c.usuario||'?')+' | turnoId: '+(c.turnoId||'?')+'\n';
+      html+='  contado: '+f2(c.contado||0)+' | retirado: '+f2(c.dineroRetirado||0)+'\n';
+    });
+
+    // ──────────────────────────────────────────────
+    // SECCIÓN 4: DUPLICADOS
+    // ──────────────────────────────────────────────
+    html+='\n'+'═'.repeat(55)+'\nDUPLICADOS\n'+'═'.repeat(55)+'\n';
+    var idsVistos={};var duplicados=[];
+    ventasFB.forEach(function(v){
+      if(idsVistos[v.id])duplicados.push(v);
+      else idsVistos[v.id]=v;
+    });
+    if(!duplicados.length)html+='✅ Sin duplicados por ID\n';
+    duplicados.forEach(function(v){html+='  ⚠️ MISMO ID: '+v.id+'\n';});
+
+    // ──────────────────────────────────────────────
+    // TABLA FINAL
+    // ──────────────────────────────────────────────
+    html+='\n'+'═'.repeat(55)+'\nTABLA RESUMEN FINAL\n'+'═'.repeat(55)+'\n';
+    html+='FECHA    | VENTAS | TOTAL    | EF       | NEQUI    | TRANS    | GTS.EF  | BASE    | EF.ESP\n';
+    dias.forEach(function(dia){
+      var ventas=ventasFB.filter(function(v){return ts2fecha(v)===dia;});
+      var ef=0,nq=0,tr=0,totV=0;
+      ventas.forEach(function(v){
+        totV+=(v.total||0);var p=v.pago||'';
+        if(p==='Efectivo')ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')nq+=(v.total||0);
+        else if(p==='Transferencia')tr+=(v.total||0);
+        else if(p==='Mixto'&&v.pagoMixto){ef+=(v.pagoMixto.efectivo||0);nq+=(v.pagoMixto.digital||0);}
+      });
+      var gastos=gastosFB.filter(function(g){return (g.fecha||'').includes(dia);});
+      var gef=gastos.filter(function(g){return !g.tipoPago||g.tipoPago==='contado';}).reduce(function(s,g){return s+(g.monto||0);},0);
+      html+=dia+' | '+String(ventas.length).padEnd(6)+' | '+f2(totV).padEnd(8)+' | '+f2(ef).padEnd(8)+' | '+f2(nq).padEnd(8)+' | '+f2(tr).padEnd(8)+' | '+f2(gef).padEnd(7)+' | $100.000 | '+f2(100000+ef-gef)+'\n';
+    });
+
+    html+='\n'+'═'.repeat(55)+'\n';
+    html+='✅ Firebase NO fue modificado.\n';
+    html+='✅ Ninguna venta fue modificada.\n';
+    html+='✅ Ningún turno fue modificado.\n';
+    html+='✅ Ningún cierre fue creado o modificado.\n';
+    html+='✅ Ningún gasto fue modificado.\n';
+    html+='✅ localStorage no fue modificado.\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function auditoriaTurnos(){
