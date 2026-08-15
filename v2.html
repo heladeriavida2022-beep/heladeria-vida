@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="auditoriaTurnos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">🔍 Auditoría Turnos 11-14/08</button>
               <button onclick="auditoriaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f4ff;border-color:#6366f1;color:#4338ca;font-weight:700">📊 Auditoría Cierres 13-15/08</button>
               <button onclick="diagnosticoEmergencia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff0f0;border-color:#e94560;color:#e94560;font-weight:700">🚨 DIAGNÓSTICO EMERGENCIA</button>
               <button onclick="diagnosticoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px">🔍 Ver IDs de cierres</button>
@@ -5170,6 +5171,84 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function auditoriaTurnos(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='700px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(auditoriaTurnos,3000);return;}
+  div.innerHTML='⏳ Consultando Firebase (solo lectura)...';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),
+      window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos')
+    ]);
+    var ventasFB=res[0];var cierresFB=res[1];var turnosFB=res[2];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var t11id='turno_T2_2026-08-11_1786478909856';
+    var t13id='turno_T2_2026-08-13_1786655595710';
+
+    function mostrarTurno(tid,label){
+      var t=turnosFB.find(function(x){return x.id===tid;});
+      var cierre=cierresFB.find(function(c){return c.turnoId===tid;});
+      var ventasTurno=ventasFB.filter(function(v){return v.turnoId===tid;});
+      ventasTurno.sort(function(a,b){return (a.timestamp||a.id)>(b.timestamp||b.id)?1:-1;});
+      var html='\n'+'═'.repeat(55)+'\n';
+      html+=label+'\n'+'─'.repeat(55)+'\n';
+      if(t){
+        html+='Estado: '+(t.estado||'?')+'\n';
+        html+='Usuario: '+(t.usuario||t.user||'?')+'\n';
+        html+='Apertura: '+(t.horaApertura||t.hora||'?')+'\n';
+        html+='Timestamp apertura: '+(t.timestamp||t.timestampApertura||'?')+'\n';
+        html+='Base: '+f2(t.base||t.baseInicial||100000)+'\n';
+      } else {
+        html+='⚠️ Turno NO encontrado en colección turnos\n';
+      }
+      html+='Cierre: '+(cierre?('✅ ID:'+cierre.id+' | '+cierre.timestamp+' | contado:'+f2(cierre.contado||0)+' | retirado:'+f2(cierre.dineroRetirado||0)):'❌ NO EXISTE')+'\n';
+      html+='\nVENTAS con este turnoId ('+ventasTurno.length+' total):\n';
+      if(!ventasTurno.length) html+='  Ninguna\n';
+      ventasTurno.forEach(function(v){
+        html+='  '+v.id+'\n';
+        html+='    timestamp: '+(v.timestamp||'?')+'\n';
+        html+='    hora: '+(v.time||'?')+' | fecha: '+(v.fecha||v.timestamp&&v.timestamp.substring(0,10)||'?')+'\n';
+        html+='    total: '+f2(v.total)+' | pago: '+(v.pago||'?')+' | usuario: '+(v.emp||'?')+'\n';
+      });
+      if(ventasTurno.length>0){
+        var primera=ventasTurno[0];var ultima=ventasTurno[ventasTurno.length-1];
+        html+='→ Primera venta: '+(primera.timestamp||primera.time||'?')+'\n';
+        html+='→ Última venta:  '+(ultima.timestamp||ultima.time||'?')+'\n';
+        html+='→ Duración aparente del turno: desde '+(primera.timestamp||'?').substring(0,10)+' hasta '+(ultima.timestamp||'?').substring(0,10)+'\n';
+      }
+      return html;
+    }
+
+    // Ventas sin turno 12-14/08
+    function ventasSinTurno(){
+      var sinTurno=ventasFB.filter(function(v){
+        var ts=v.timestamp||'';
+        var esPeriodo=ts.startsWith('2026-08-12')||ts.startsWith('2026-08-13')||ts.startsWith('2026-08-14');
+        var sinTid=!v.turnoId||v.turnoId===''||v.turnoId==='undefined';
+        return esPeriodo&&sinTid;
+      });
+      sinTurno.sort(function(a,b){return (a.timestamp||a.id)>(b.timestamp||b.id)?1:-1;});
+      var html='\n'+'═'.repeat(55)+'\nVENTAS SIN TURNO (12-14/08) — '+sinTurno.length+' ventas\n'+'─'.repeat(55)+'\n';
+      sinTurno.forEach(function(v){
+        html+='  '+v.id+'\n';
+        html+='    timestamp: '+(v.timestamp||'?')+'\n';
+        html+='    hora: '+(v.time||'?')+' | total: '+f2(v.total)+' | pago: '+(v.pago||'?')+' | usuario: '+(v.emp||'?')+'\n';
+      });
+      return html;
+    }
+
+    var html='AUDITORÍA CONTINUIDAD TURNOS 11-14/08/2026\n⚠️ SOLO LECTURA — ningún dato modificado\n';
+    html+=mostrarTurno(t11id,'🔵 TURNO T2 — 11/08 | ID: '+t11id);
+    html+=mostrarTurno(t13id,'🟢 TURNO T2 — 13/08 | ID: '+t13id);
+    html+=ventasSinTurno();
+    html+='\n'+'═'.repeat(55)+'\nNINGÚN DATO FUE MODIFICADO ✅\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function auditoriaCierres(){
