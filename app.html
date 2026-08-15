@@ -4069,7 +4069,18 @@ function editarGasto(id){
   if(!currentUser||currentUser.role!=='admin'){toast('Solo administrador','#e94560');return;}
   var gastos=LS.g('gastos')||[];
   var g=gastos.find(function(x){return x.id===id;});
-  if(!g){toast('Gasto no encontrado','#e94560');return;}
+  if(!g){
+    // Buscar en Firebase
+    if(window.FB&&window.FB.getAll){
+      window.FB.getAll('gastos').then(function(fbGastos){
+        LS.set('gastos',fbGastos);
+        var g2=fbGastos.find(function(x){return x.id===id;});
+        if(g2) editarGasto(id);
+        else toast('Gasto no encontrado','#e94560');
+      });
+    } else { toast('Gasto no encontrado','#e94560'); }
+    return;
+  }
   var mo=document.getElementById('ov-editar-gasto');
   if(!mo){
     mo=document.createElement('div');mo.className='ov';mo.id='ov-editar-gasto';
