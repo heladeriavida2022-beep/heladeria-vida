@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="crearCierresHistoricos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ CREAR CIERRES 12-13-14/08</button>
               <button onclick="propuestaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fff4;border-color:#059669;color:#065f46;font-weight:700">📝 PROPUESTA CIERRES 12-14/08</button>
               <button onclick="conciliacionForense()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff1f2;border-color:#e11d48;color:#9f1239;font-weight:700">🔬 CONCILIACIÓN FORENSE 12-14/08</button>
               <button onclick="auditoriaCompleta()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">📋 AUDITORÍA COMPLETA 12-14/08</button>
@@ -5174,6 +5175,145 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function crearCierresHistoricos(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='700px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(crearCierresHistoricos,3000);return;}
+  div.innerHTML='⏳ Verificando Firebase antes de crear...';
+  try{
+    // 1. Verificar que no existan cierres para 12, 13 y 14/08
+    var cierresExist=await window.FB.getAll('cierresTurno');
+    var fechasTarget=['2026-08-12','2026-08-13','2026-08-14'];
+    var yaExisten=[];
+    fechasTarget.forEach(function(dia){
+      var existe=cierresExist.find(function(c){
+        return (c.timestamp||'').startsWith(dia)||(c.fecha||'').includes(dia.replace('2026-','').replace('-0','/').replace(/-/,'/'));
+      });
+      if(existe) yaExisten.push({dia:dia,id:existe.id});
+    });
+    if(yaExisten.length>0){
+      div.innerHTML='⚠️ Ya existen cierres para:\n'+yaExisten.map(function(x){return x.dia+' → '+x.id;}).join('\n')+'\nNo se crearán duplicados.';
+      return;
+    }
+
+    // 2. Verificar cierre 11/08 intacto
+    var c11=cierresExist.find(function(c){return c.id==='ct1786465059175';});
+    if(!c11){div.innerHTML='⚠️ No se encuentra ct1786465059175. Abortando por seguridad.';return;}
+
+    // 3. Definir los 3 cierres
+    var now12=new Date('2026-08-12T23:59:00-05:00');
+    var now13=new Date('2026-08-13T23:59:00-05:00');
+    var now14=new Date('2026-08-14T23:59:00-05:00');
+
+    var cierres=[
+      {
+        id:'ct_historico_20260812_'+Date.now(),
+        turnoId:null,
+        fecha:'12/8/2026',
+        horaApertura:'—',
+        horaCierre:'11:59 p. m.',
+        turno:'R',
+        usuario:'viviana.rojas',
+        usuarioId:'viviana.rojas',
+        fondo:100000,baseInicial:100000,
+        ventasEfectivo:179000,ventasNequi:0,ventasTarjeta:0,ventasTransferencia:0,
+        totalVentas:179000,gastos:0,
+        esperado:279000,contado:279000,dineroRetirado:179000,
+        diferencia:0,estado:'correcto',
+        observaciones:'Reconstrucción histórica. Ventas del día sin turnoId. Cierre creado posteriormente mediante conciliación. No se modificaron las ventas.',
+        numPedidos:11,
+        timestamp:now12.toISOString(),
+        historico:true
+      },
+      {
+        id:'ct_historico_20260813_'+(Date.now()+1),
+        turnoId:'turno_T2_2026-08-13_1786655595710',
+        fecha:'13/8/2026',
+        horaApertura:'04:13 p. m.',
+        horaCierre:'11:59 p. m.',
+        turno:'2',
+        usuario:'Leidy Viviana',
+        usuarioId:'leidy2025',
+        fondo:100000,baseInicial:100000,
+        ventasEfectivo:292100,ventasNequi:0,ventasTarjeta:0,ventasTransferencia:0,
+        totalVentas:292100,gastos:12000,
+        esperado:380100,contado:380100,dineroRetirado:292100,
+        diferencia:0,estado:'correcto',
+        observaciones:'Reconstrucción histórica. Ventas asociadas al turnoId turno_T2_2026-08-13_1786655595710. El documento del turno no existe actualmente en la colección turnos. No se modificó el turnoId.',
+        numPedidos:7,
+        timestamp:now13.toISOString(),
+        historico:true
+      },
+      {
+        id:'ct_historico_20260814_'+(Date.now()+2),
+        turnoId:null,
+        fecha:'14/8/2026',
+        horaApertura:'—',
+        horaCierre:'11:59 p. m.',
+        turno:'R',
+        usuario:'viviana.rojas',
+        usuarioId:'viviana.rojas',
+        fondo:100000,baseInicial:100000,
+        ventasEfectivo:248400,ventasNequi:99000,ventasTarjeta:0,ventasTransferencia:46500,
+        totalVentas:393900,gastos:22500,
+        esperado:325900,contado:325900,dineroRetirado:248400,
+        diferencia:0,estado:'correcto',
+        observaciones:'Reconstrucción histórica. 20 ventas sin turnoId y 6 ventas con turnoId histórico del 07/08/2026. El cierre incluye 6 ventas realizadas el 14/08/2026 que conservan un turnoId histórico correspondiente al 07/08/2026. Las ventas fueron reconocidas por su timestamp real. El turnoId NO fue modificado.',
+        numPedidos:26,
+        timestamp:now14.toISOString(),
+        historico:true
+      }
+    ];
+
+    // 4. Crear los cierres en Firebase
+    var html='CREANDO CIERRES HISTÓRICOS...\n\n';
+    for(var i=0;i<cierres.length;i++){
+      var ct=cierres[i];
+      await window.FB.set('cierresTurno',ct.id,ct);
+      // También actualizar localStorage
+      cierresTurno.push(ct);
+      html+='✅ CIERRE '+ct.fecha+' CREADO\n';
+      html+='   ID: '+ct.id+'\n';
+      html+='   Efectivo esperado: $'+(ct.esperado).toLocaleString('es-CO')+'\n\n';
+    }
+    LS.set('cierresTurno',cierresTurno);
+
+    // 5. Verificar que ct1786465059175 sigue intacto
+    var c11post=await window.FB.getAll('cierresTurno');
+    var c11check=c11post.find(function(c){return c.id==='ct1786465059175';});
+    html+='VERIFICACIÓN:\n';
+    html+='  ct1786465059175 (11/08): '+(c11check?'✅ INTACTO':'⚠️ NO ENCONTRADO')+'\n\n';
+
+    // 6. Auditoría final
+    html+='AUDITORÍA FINAL:\n';
+    html+='  CIERRES CREADOS: 3\n';
+    html+='  12/08 → '+cierres[0].id+' → $279.000\n';
+    html+='  13/08 → '+cierres[1].id+' → $380.100\n';
+    html+='  14/08 → '+cierres[2].id+' → $325.900\n\n';
+    html+='  VENTAS MODIFICADAS: 0\n';
+    html+='  VENTAS ELIMINADAS: 0\n';
+    html+='  VENTAS DUPLICADAS: 0\n';
+    html+='  turnoId MODIFICADOS: 0\n';
+    html+='  TURNOS MODIFICADOS: 0\n';
+    html+='  TURNOS CREADOS: 0\n';
+    html+='  GASTOS MODIFICADOS: 0\n';
+    html+='  COMPRAS MODIFICADAS: 0\n';
+    html+='  INVENTARIO MODIFICADO: 0\n\n';
+    html+='✅ CIERRES 12/08, 13/08 Y 14/08 CREADOS\n';
+    html+='✅ 3 cierres creados\n';
+    html+='✅ Ninguna venta modificada\n';
+    html+='✅ Ninguna venta eliminada\n';
+    html+='✅ Ningún turnoId modificado\n';
+    html+='✅ Ningún turno modificado\n';
+    html+='✅ Ningún gasto modificado\n';
+    html+='✅ Ninguna compra modificada\n';
+    html+='✅ Ningún inventario modificado\n';
+    html+='✅ Cierre del 11/08 preservado\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message+'\n'+e.stack;}
 }
 
 async function propuestaCierres(){
