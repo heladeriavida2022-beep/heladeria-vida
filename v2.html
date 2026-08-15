@@ -5411,7 +5411,7 @@ async function diagnosticoEmergencia(){
   }
   div.innerHTML='⏳ Consultando Firebase (puede tardar 10-20 seg)...';
   try{
-    var [ventasFB,invFB,prodsFB,cierresFB,turnosFB,comprasFB,gastosFB]=await Promise.all([
+    var _re=await Promise.all([
       window.FB.getAll('ventas'),
       window.FB.getAll('inventario'),
       window.FB.getAll('productos'),
@@ -5420,6 +5420,7 @@ async function diagnosticoEmergencia(){
       window.FB.getAll('compras'),
       window.FB.getAll('gastos')
     ]);
+    var ventasFB=_re[0];var invFB=_re[1];var prodsFB=_re[2];var cierresFB=_re[3];var turnosFB=_re[4];var comprasFB=_re[5];var gastosFB=_re[6];
 
     var fmt2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
 
