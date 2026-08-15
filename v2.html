@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="propuestaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fff4;border-color:#059669;color:#065f46;font-weight:700">📝 PROPUESTA CIERRES 12-14/08</button>
               <button onclick="conciliacionForense()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff1f2;border-color:#e11d48;color:#9f1239;font-weight:700">🔬 CONCILIACIÓN FORENSE 12-14/08</button>
               <button onclick="auditoriaCompleta()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">📋 AUDITORÍA COMPLETA 12-14/08</button>
               <button onclick="auditoriaTurnos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">🔍 Auditoría Turnos 11-14/08</button>
@@ -5173,6 +5174,163 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function propuestaCierres(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='750px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(propuestaCierres,3000);return;}
+  div.innerHTML='⏳ Leyendo Firebase (solo lectura)...';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos'),window.FB.getAll('gastos'),window.FB.getAll('compras')
+    ]);
+    var ventasFB=res[0];var cierresFB=res[1];var turnosFB=res[2];
+    var gastosFB=res[3];var comprasFB=res[4];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+    function ts2diaCO(v){
+      if(!v.timestamp) return (v.fecha||v.id||'').substring(0,10);
+      try{var s=new Date(v.timestamp).toLocaleString('sv-SE',{timeZone:'America/Bogota'});return s.substring(0,10);}
+      catch(e){return v.timestamp.substring(0,10);}
+    }
+    function ts2horaCO(v){
+      if(!v.timestamp) return v.time||'?';
+      try{return new Date(v.timestamp).toLocaleTimeString('es-CO',{timeZone:'America/Bogota',hour:'2-digit',minute:'2-digit'});}
+      catch(e){return v.time||'?';}
+    }
+
+    var dias=['2026-08-12','2026-08-13','2026-08-14'];
+    var html='PROPUESTA FINAL DE CIERRES — HELADERÍA VIDA\n12-14/08/2026\n⚠️ SOLO LECTURA — PENDIENTE DE AUTORIZACIÓN\n'+'═'.repeat(55)+'\n\n';
+
+    var propuestas=[];
+
+    dias.forEach(function(dia){
+      var ventas=ventasFB.filter(function(v){return ts2diaCO(v)===dia;});
+      ventas.sort(function(a,b){return (a.timestamp||a.id)<(b.timestamp||b.id)?-1:1;});
+
+      var ef=0,nq=0,tr=0,tj=0,fi=0,totV=0;
+      ventas.forEach(function(v){
+        totV+=(v.total||0);
+        var p=v.pago||'';
+        if(p==='Efectivo')ef+=(v.total||0);
+        else if(p==='Nequi/Daviplata')nq+=(v.total||0);
+        else if(p==='Transferencia')tr+=(v.total||0);
+        else if(p==='Tarjeta')tj+=(v.total||0);
+        else if(p==='Fiado')fi+=(v.total||0);
+        else if(p==='Mixto'&&v.pagoMixto){ef+=(v.pagoMixto.efectivo||0);nq+=(v.pagoMixto.digital||0);}
+      });
+
+      var sinTurno=ventas.filter(function(v){return !v.turnoId||v.turnoId==='';});
+      var conTurnoOtro=ventas.filter(function(v){return v.turnoId&&!v.turnoId.includes(dia.replace('2026-',''));});
+      var conTurnoProp=ventas.filter(function(v){return v.turnoId&&v.turnoId.includes(dia.replace('2026-',''));});
+
+      var gastos=gastosFB.filter(function(g){return (g.fecha||'').includes(dia);});
+      var gEf=gastos.filter(function(g){
+        return !g.tipoPago||g.tipoPago==='contado'||g.tipoPago==='efectivo';
+      }).reduce(function(s,g){return s+(g.monto||0);},0);
+
+      var cierre=cierresFB.find(function(c){return (c.timestamp||'').startsWith(dia);});
+      var efEsp=100000+ef-gEf;
+      var elec=nq+tr+tj+fi;
+
+      // Turnos relacionados
+      var tids={};
+      ventas.forEach(function(v){if(v.turnoId)tids[v.turnoId]=1;});
+      var turnosRel=Object.keys(tids).map(function(tid){
+        var t=turnosFB.find(function(x){return x.id===tid;});
+        return {tid:tid,existe:!!t,usuario:t?t.usuario:'?'};
+      });
+
+      propuestas.push({dia:dia,ventas:ventas,totV:totV,ef:ef,nq:nq,tr:tr,tj:tj,fi:fi,
+        elec:elec,sinTurno:sinTurno,conTurnoOtro:conTurnoOtro,conTurnoProp:conTurnoProp,
+        gastos:gastos,gEf:gEf,efEsp:efEsp,cierre:cierre,turnosRel:turnosRel});
+
+      html+='\n'+'═'.repeat(55)+'\n📅 PROPUESTA DE CIERRE '+dia+'\n'+'═'.repeat(55)+'\n';
+      html+='Cierre existente: '+(cierre?'✅ '+cierre.id:'❌ NO EXISTE')+'\n\n';
+
+      // Ventas con turno propio
+      html+='VENTAS CON TURNO PROPIO ('+conTurnoProp.length+'): '+f2(conTurnoProp.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      conTurnoProp.forEach(function(v){
+        html+='  🟢 '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';
+      });
+
+      // Ventas sin turno
+      html+='\nVENTAS SIN TURNO ('+sinTurno.length+'): '+f2(sinTurno.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      sinTurno.forEach(function(v){
+        html+='  🔴 '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';
+      });
+
+      // Ventas con turno de otro día
+      html+='\nVENTAS CON TURNO DE OTRO DÍA ('+conTurnoOtro.length+'): '+f2(conTurnoOtro.reduce(function(s,v){return s+(v.total||0);},0))+'\n';
+      conTurnoOtro.forEach(function(v){
+        html+='  🟡 '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+' | turnoId:'+v.turnoId+'\n';
+      });
+
+      // Gastos
+      html+='\nGASTOS:\n';
+      if(!gastos.length) html+='  Ninguno\n';
+      gastos.forEach(function(g){
+        html+='  '+g.desc+' '+f2(g.monto)+' ['+(g.tipoPago||'?')+'] usuario:'+(g.usuario||'?')+'\n';
+      });
+
+      // Turnos relacionados
+      html+='\nTURNOS RELACIONADOS:\n';
+      turnosRel.forEach(function(t){
+        html+='  '+t.tid+'\n';
+        html+='  '+(t.existe?'✅ existe en colección turnos':'⚠️ HUÉRFANO — referenciado en ventas pero ausente en colección turnos')+'\n';
+      });
+
+      // Cálculo propuesto
+      html+='\nCÁLCULO PROPUESTO:\n';
+      html+='  Base:                $100.000\n';
+      html+='  + Efectivo ventas:   '+f2(ef)+'\n';
+      html+='  - Gastos efectivo:   '+f2(gEf)+'\n';
+      html+='  - Retiros:           $0\n';
+      html+='  = EFECTIVO ESPERADO: '+f2(efEsp)+'\n\n';
+      html+='  Nequi/Daviplata:     '+f2(nq)+' (no es efectivo físico)\n';
+      html+='  Transferencia:       '+f2(tr)+' (no es efectivo físico)\n';
+      html+='  Electrónico total:   '+f2(elec)+'\n';
+      html+='\n🟡 CIERRE PROPUESTO '+dia+': EFECTIVO ESPERADO = '+f2(efEsp)+'\n';
+      html+='🟡 PENDIENTE DE AUTORIZACIÓN\n';
+    });
+
+    // CONTINUIDAD
+    html+='\n'+'═'.repeat(55)+'\nCONTINUIDAD DE CAJA\n'+'═'.repeat(55)+'\n';
+    html+='ESCENARIO A (base diaria independiente de $100.000):\n';
+    propuestas.forEach(function(p){html+='  '+p.dia+': '+f2(p.efEsp)+'\n';});
+
+    html+='\nESCENARIO B (caja continua acumulada):\n';
+    var acumB=100000;
+    propuestas.forEach(function(p){
+      acumB=acumB+p.ef-p.gEf;
+      html+='  '+p.dia+': '+f2(acumB)+'\n';
+    });
+    html+='⚠️ NO ES POSIBLE CONFIRMAR CONTINUIDAD — Viviana debe decidir el escenario.\n';
+
+    // TABLA RESUMEN
+    html+='\n'+'═'.repeat(55)+'\nTABLA RESUMEN\n'+'═'.repeat(55)+'\n';
+    html+='FECHA    | BASE     | EF.VENTAS| GTS.EF  | RETIROS | EF.ESP   | ELEC     | TOT.VENTAS\n';
+    propuestas.forEach(function(p){
+      html+=p.dia+' | $100.000 | '+f2(p.ef).padEnd(8)+' | '+f2(p.gEf).padEnd(7)+' | $0      | '+f2(p.efEsp).padEnd(8)+' | '+f2(p.elec).padEnd(8)+' | '+f2(p.totV)+'\n';
+    });
+
+    html+='\n### CIERRES PROPUESTOS\n';
+    propuestas.forEach(function(p){
+      html+='  '+p.dia+' → EFECTIVO ESPERADO: '+f2(p.efEsp)+' 🟡 PENDIENTE DE AUTORIZACIÓN\n';
+    });
+
+    // VALIDACIÓN
+    html+='\n'+'═'.repeat(55)+'\nVALIDACIÓN\n'+'═'.repeat(55)+'\n';
+    html+='¿Venta duplicada? NO\n¿Venta eliminada? NO\n¿Venta modificada? NO\n';
+    html+='¿turnoId cambiado? NO\n¿Gasto modificado? NO\n¿Cierre creado? NO\n¿Firebase modificado? NO\n\n';
+    html+='✅ DIAGNÓSTICO SOLO LECTURA\n';
+    html+='✅ Firebase NO modificado\n✅ Ventas NO modificadas\n✅ Turnos NO modificados\n';
+    html+='✅ turnoId NO modificados\n✅ Gastos NO modificados\n✅ Cierres NO creados\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function conciliacionForense(){
