@@ -5239,21 +5239,11 @@ async function fijarRetiroT2_1508(){
   if(!div)return;
   div.style.display='block';
   if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(fijarRetiroT2_1508,3000);return;}
-  div.innerHTML='⏳ Actualizando...';
+  div.innerHTML='⏳ Aplicando corrección definitiva...';
   try{
-    var cierresFB=await window.FB.getAll('cierresTurno');
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
-    var ct=cierresFB.find(function(c){return c.id==='ct1786850588074';});
-    if(!ct){div.innerHTML='❌ Cierre no encontrado';return;}
 
-    // Verificar estado actual
-    var html='Estado actual en Firebase:\n';
-    html+='  gastos: '+f2(ct.gastos||0)+'\n';
-    html+='  esperado: '+f2(ct.esperado||0)+'\n';
-    html+='  contado: '+f2(ct.contado||0)+'\n';
-    html+='  dineroRetirado: '+f2(ct.dineroRetirado||0)+'\n\n';
-
-    // Fijar todos los valores correctos de una sola vez
+    // PASO 1: Fijar cierre ct1786850588074 con valores exactos
     var datos={
       id:'ct1786850588074',
       gastos:383884,
@@ -5266,24 +5256,71 @@ async function fijarRetiroT2_1508(){
       corregidoPor:'viviana.rojas',
       timestampCorreccion:new Date().toISOString()
     };
-
     await window.FB.set('cierresTurno','ct1786850588074', datos);
 
-    // Actualizar localStorage
+    // Actualizar localStorage cierresTurno
     var idx=cierresTurno.findIndex(function(c){return c.id==='ct1786850588074';});
-    if(idx>=0){
-      Object.assign(cierresTurno[idx], datos);
-      LS.set('cierresTurno',cierresTurno);
+    if(idx>=0){Object.assign(cierresTurno[idx], datos);LS.set('cierresTurno',cierresTurno);}
+
+    // PASO 2: Corregir el movimiento de $30.316 en fondoAdmin → $184.316
+    var fondoMovs=await window.FB.getAll('fondoAdmin');
+    var mov30=fondoMovs.find(function(m){
+      return (m.valor===30316||m.valor==='30316')&&
+             (m.concepto||'').toLowerCase().includes('cierre')&&
+             (m.concepto||'').toLowerCase().includes('erika');
+    });
+
+    var html='CORRECCIÓN DEFINITIVA T2 15/08\n'+'═'.repeat(45)+'\n\n';
+
+    // Paso 1 resultado
+    html+='PASO 1 — Cierre ct1786850588074:\n';
+    html+='  gastos:         $383.884 ✅\n';
+    html+='  esperado:       $284.316 ✅\n';
+    html+='  contado:        $284.316 ✅\n';
+    html+='  dineroRetirado: $184.316 ✅\n';
+    html+='  diferencia:     $0 ✅\n\n';
+
+    // Paso 2: corregir movimiento fondo
+    html+='PASO 2 — Movimiento Fondo Admin:\n';
+    if(mov30){
+      mov30.valor=184316;
+      mov30.observaciones='Corregido: retiro real $184.316 (cierre T2 15/08 ERIKA ZEA)';
+      await window.FB.set('fondoAdmin', mov30.id, mov30);
+      if(window._fondoAdminMovs){
+        var fi=window._fondoAdminMovs.findIndex(function(m){return m.id===mov30.id;});
+        if(fi>=0) window._fondoAdminMovs[fi]=mov30;
+      }
+      html+='  Movimiento '+mov30.id+' corregido:\n';
+      html+='  $30.316 → $184.316 ✅\n\n';
+    } else {
+      // Crear movimiento correcto si no existe
+      var movNuevo={
+        id:'fa_corr_t2_1508_'+Date.now(),
+        tipo:'ingreso',
+        medioPago:'Efectivo',
+        concepto:'Retiro cierre T2 — 15/8/2026 ERIKA ZEA (corregido)',
+        valor:184316,
+        fecha:'2026-08-15',
+        timestamp:new Date().toISOString(),
+        usuario:'viviana.rojas',
+        cierreId:'ct1786850588074',
+        observaciones:'Retiro correcto: $184.316 después de incluir pago Carlos Caro $154.000'
+      };
+      await window.FB.set('fondoAdmin', movNuevo.id, movNuevo);
+      if(window._fondoAdminMovs) window._fondoAdminMovs.push(movNuevo);
+      html+='  Movimiento $30.316 no encontrado — creado retiro correcto $184.316 ✅\n\n';
     }
 
-    html+='✅ VALORES FIJADOS:\n';
-    html+='  gastos:         $383.884\n';
-    html+='  esperado:       $284.316\n';
-    html+='  contado:        $284.316\n';
-    html+='  dineroRetirado: $184.316\n';
-    html+='  diferencia:     $0\n';
+    html+='✅ CORRECCIÓN DEFINITIVA COMPLETADA\n';
+    html+='✅ Cierre T2 fijado con ID exacto\n';
+    html+='✅ Fondo Admin actualizado\n';
+    html+='✅ Turno 1 intacto\n';
+    html+='✅ Ventas no modificadas\n';
+    html+='✅ Gastos no modificados\n';
+    html+='✅ Compra Carlos Caro no modificada\n';
     div.innerHTML=html;
-  }catch(e){div.innerHTML='Error: '+e.message;}
+    try{renderFondoAdmin();}catch(e){}
+  }catch(e){div.innerHTML='❌ Error: '+e.message+'\n'+e.stack;}
 }
 
 async function fijarCierreT2_1508(){
