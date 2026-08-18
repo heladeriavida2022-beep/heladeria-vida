@@ -913,7 +913,8 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
-              <button onclick="fijarCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔧 FIJAR CIERRE T2 15/08 (383.884)</button>
+              <button onclick="fijarRetiroT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔴 FIJAR TODO T2 15/08 (valores exactos)</button>
+              <button onclick="fijarCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f9fafb;border-color:#9ca3af;color:#6b7280;font-size:10px">🔧 FIJAR CIERRE T2 15/08 (383.884)</button>
               <button onclick="corregirCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f9fafb;border-color:#9ca3af;color:#6b7280;font-weight:400">⚡ CORREGIR CIERRE T2 15/08</button>
               <button onclick="reconstruirT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔬 Reconstruir T2 15/08</button>
               <button onclick="auditoriaForense15()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:700">🔎 AUDITORÍA FORENSE 15/08</button>
@@ -5231,6 +5232,58 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function fijarRetiroT2_1508(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(fijarRetiroT2_1508,3000);return;}
+  div.innerHTML='⏳ Actualizando...';
+  try{
+    var cierresFB=await window.FB.getAll('cierresTurno');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var ct=cierresFB.find(function(c){return c.id==='ct1786850588074';});
+    if(!ct){div.innerHTML='❌ Cierre no encontrado';return;}
+
+    // Verificar estado actual
+    var html='Estado actual en Firebase:\n';
+    html+='  gastos: '+f2(ct.gastos||0)+'\n';
+    html+='  esperado: '+f2(ct.esperado||0)+'\n';
+    html+='  contado: '+f2(ct.contado||0)+'\n';
+    html+='  dineroRetirado: '+f2(ct.dineroRetirado||0)+'\n\n';
+
+    // Fijar todos los valores correctos de una sola vez
+    var datos={
+      id:'ct1786850588074',
+      gastos:383884,
+      esperado:284316,
+      contado:284316,
+      diferencia:0,
+      estado:'correcto',
+      dineroRetirado:184316,
+      observaciones:'Corregido 15/08: pago efectivo $154.000 a Carlos Caro incluido en egresos.',
+      corregidoPor:'viviana.rojas',
+      timestampCorreccion:new Date().toISOString()
+    };
+
+    await window.FB.set('cierresTurno','ct1786850588074', datos);
+
+    // Actualizar localStorage
+    var idx=cierresTurno.findIndex(function(c){return c.id==='ct1786850588074';});
+    if(idx>=0){
+      Object.assign(cierresTurno[idx], datos);
+      LS.set('cierresTurno',cierresTurno);
+    }
+
+    html+='✅ VALORES FIJADOS:\n';
+    html+='  gastos:         $383.884\n';
+    html+='  esperado:       $284.316\n';
+    html+='  contado:        $284.316\n';
+    html+='  dineroRetirado: $184.316\n';
+    html+='  diferencia:     $0\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function fijarCierreT2_1508(){
