@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="corregirCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">⚡ CORREGIR CIERRE T2 15/08</button>
               <button onclick="reconstruirT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔬 Reconstruir T2 15/08</button>
               <button onclick="auditoriaForense15()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:700">🔎 AUDITORÍA FORENSE 15/08</button>
               <button onclick="crearCierresHistoricos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ CREAR CIERRES 12-13-14/08</button>
@@ -5229,6 +5230,86 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function corregirCierreT2_1508(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(corregirCierreT2_1508,3000);return;}
+  div.innerHTML='⏳ Buscando cierre T2 del 15/08...';
+  try{
+    var cierresFB=await window.FB.getAll('cierresTurno');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+    // Buscar el cierre T2 del 15/08 (ERIKA ZEA, 10:23pm)
+    var cierreT2=cierresFB.find(function(c){
+      var es15=(c.timestamp||'').startsWith('2026-08-15')||(c.fecha||'').includes('15/8');
+      var esT2=String(c.turno||'')==='2'||c.turno===2;
+      var esErika=(c.usuario||'').toUpperCase().includes('ERIKA');
+      return es15&&(esT2||esErika);
+    });
+
+    if(!cierreT2){
+      div.innerHTML='❌ No se encontró el cierre T2 del 15/08. Muéstrame el ID del cierre.';
+      return;
+    }
+
+    var html='CORRECCIÓN CIERRE T2 — 15/08/2026\n'+'═'.repeat(50)+'\n\n';
+    html+='Cierre encontrado: '+cierreT2.id+'\n';
+    html+='Usuario: '+(cierreT2.usuario||'?')+'\n';
+    html+='Turno: '+(cierreT2.turno||'?')+'\n';
+    html+='Timestamp: '+(cierreT2.timestamp||'?')+'\n\n';
+
+    html+='ANTES:\n';
+    html+='  gastos:    '+f2(cierreT2.gastos||0)+'\n';
+    html+='  esperado:  '+f2(cierreT2.esperado||0)+'\n';
+    html+='  contado:   '+f2(cierreT2.contado||0)+'\n';
+    html+='  retirado:  '+f2(cierreT2.dineroRetirado||0)+'\n\n';
+
+    // Aplicar corrección
+    var gastosNuevo = (cierreT2.gastos||229884) + 154000;
+    var esperadoNuevo = (cierreT2.esperado||438316) - 154000;
+    var contadoNuevo = esperadoNuevo; // contado = esperado (cuadrado)
+    var retiradoNuevo = Math.max(0, contadoNuevo - (cierreT2.fondo||100000));
+
+    // Guardar en Firebase — solo estos campos
+    await window.FB.set('cierresTurno', cierreT2.id, {
+      id: cierreT2.id,
+      gastos: gastosNuevo,
+      esperado: esperadoNuevo,
+      contado: contadoNuevo,
+      diferencia: 0,
+      dineroRetirado: retiradoNuevo,
+      observaciones: (cierreT2.observaciones||'')+' | Corregido 15/08: se agregó pago efectivo $154.000 a Carlos Caro.',
+      corregidoPor: currentUser?currentUser.name:'viviana.rojas',
+      timestampCorreccion: new Date().toISOString()
+    });
+
+    // Actualizar localStorage
+    var idx=cierresTurno.findIndex(function(c){return c.id===cierreT2.id;});
+    if(idx>=0){
+      cierresTurno[idx].gastos=gastosNuevo;
+      cierresTurno[idx].esperado=esperadoNuevo;
+      cierresTurno[idx].contado=contadoNuevo;
+      cierresTurno[idx].diferencia=0;
+      cierresTurno[idx].dineroRetirado=retiradoNuevo;
+      LS.set('cierresTurno',cierresTurno);
+    }
+
+    html+='DESPUÉS:\n';
+    html+='  gastos:    '+f2(gastosNuevo)+'\n';
+    html+='  esperado:  '+f2(esperadoNuevo)+'\n';
+    html+='  contado:   '+f2(contadoNuevo)+'\n';
+    html+='  retirado:  '+f2(retiradoNuevo)+'\n\n';
+
+    html+='✅ CIERRE T2 CORREGIDO\n';
+    html+='✅ Turno 1 NO modificado\n';
+    html+='✅ Ventas NO modificadas\n';
+    html+='✅ Gastos NO modificados\n';
+    html+='✅ Compra Carlos Caro NO modificada\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function reconstruirT2_1508(){
