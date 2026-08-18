@@ -6962,38 +6962,47 @@ async function diagnosticoStockCarlosCaro(){
 async function eliminarDeudasOlga03(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
-  div.style.display='block';
+  div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
   if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(eliminarDeudasOlga03,3000);return;}
-  div.innerHTML='⏳ Limpiando...';
+  div.innerHTML='⏳ Buscando en Firebase...';
   try{
     var deudas=await window.FB.getAll('deudas');
-    // Identificar las 9 individuales de Olga 03/08:
-    // - acreedor OLGA LUCIA PAZ
-    // - sin fecha de vencimiento
-    // - concepto "Compra: productos" o similar
-    // - NO es la deuda unificada d_olga_20260803_unificada
-    // - NO está pagada
-    var montos=[67800,26700,42396,19500,50496,24600,85000,17100,42396];
-    var aEliminar=deudas.filter(function(d){
-      return (d.acreedor||'').includes('OLGA')&&
-             !d.vence&&
-             !d.pagada&&
-             d.id!=='d_olga_20260803_unificada'&&
-             montos.indexOf(d.monto||0)>=0;
+    var html='DEUDAS OLGA EN FIREBASE:\n'+'─'.repeat(45)+'\n';
+
+    // Mostrar TODAS las deudas de Olga para identificar cuáles eliminar
+    var deudasOlga=deudas.filter(function(d){
+      return (d.acreedor||'').toUpperCase().includes('OLGA');
+    });
+    html+='Total deudas Olga: '+deudasOlga.length+'\n\n';
+    deudasOlga.forEach(function(d){
+      html+='ID: '+d.id+'\n';
+      html+='  monto:$'+(d.monto||0).toLocaleString('es-CO')+' | vence:'+(d.vence||'SIN FECHA')+' | pagada:'+(d.pagada?'SÍ':'NO')+'\n';
+      html+='  concepto:'+(d.concepto||'?')+'\n\n';
     });
 
-    var html='ELIMINACIÓN DEUDAS INDIVIDUALES OLGA 03/08\n'+'═'.repeat(45)+'\n';
-    html+='Deuda unificada $375.988: CONSERVADA ✅\n\n';
-    html+='A eliminar ('+aEliminar.length+'):\n';
+    // Eliminar las que NO tienen fecha de vencimiento y NO son la unificada
+    var aEliminar=deudasOlga.filter(function(d){
+      return d.id!=='d_olga_20260803_unificada' &&
+             (!d.vence||d.vence===''||d.vence==='—'||d.vence===null||d.vence===undefined) &&
+             !d.pagada;
+    });
+
+    html+='A ELIMINAR (sin fecha de vencimiento): '+aEliminar.length+'\n';
     aEliminar.forEach(function(d){
       html+='  ❌ '+d.id+' | $'+(d.monto||0).toLocaleString('es-CO')+'\n';
     });
+
+    if(aEliminar.length===0){
+      html+='\n⚠️ No se encontraron deudas sin fecha para eliminar.\n';
+      html+='Las deudas pueden tener fecha o el criterio necesita ajuste.\n';
+      div.innerHTML=html;
+      return;
+    }
 
     for(var i=0;i<aEliminar.length;i++){
       await window.FB.del('deudas', aEliminar[i].id);
     }
 
-    // Actualizar localStorage
     var deudasRestantes=deudas.filter(function(d){
       return !aEliminar.find(function(x){return x.id===d.id;});
     });
@@ -7001,9 +7010,8 @@ async function eliminarDeudasOlga03(){
     try{renderDeudas();}catch(e){}
     updateDeudasBadge();
 
-    html+='\n✅ '+aEliminar.length+' deudas individuales eliminadas\n';
-    html+='✅ Deuda unificada $375.988 conservada\n';
-    html+='✅ Ninguna otra deuda tocada\n';
+    html+='\n✅ '+aEliminar.length+' eliminadas\n';
+    html+='✅ d_olga_20260803_unificada ($375.988) conservada\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
