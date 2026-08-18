@@ -913,7 +913,8 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
-              <button onclick="corregirCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">⚡ CORREGIR CIERRE T2 15/08</button>
+              <button onclick="fijarCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔧 FIJAR CIERRE T2 15/08 (383.884)</button>
+              <button onclick="corregirCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f9fafb;border-color:#9ca3af;color:#6b7280;font-weight:400">⚡ CORREGIR CIERRE T2 15/08</button>
               <button onclick="reconstruirT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔬 Reconstruir T2 15/08</button>
               <button onclick="auditoriaForense15()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:700">🔎 AUDITORÍA FORENSE 15/08</button>
               <button onclick="crearCierresHistoricos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ CREAR CIERRES 12-13-14/08</button>
@@ -5230,6 +5231,62 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function fijarCierreT2_1508(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(fijarCierreT2_1508,3000);return;}
+  div.innerHTML='⏳ Corrigiendo...';
+  try{
+    var cierresFB=await window.FB.getAll('cierresTurno');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var cierreT2=cierresFB.find(function(c){
+      var es15=(c.timestamp||'').startsWith('2026-08-15')||(c.fecha||'').includes('15/8');
+      var esT2=String(c.turno||'')==='2'||c.turno===2;
+      var esErika=(c.usuario||'').toUpperCase().includes('ERIKA');
+      return es15&&(esT2||esErika);
+    });
+    if(!cierreT2){div.innerHTML='❌ Cierre T2 no encontrado';return;}
+
+    // Valores FIJOS correctos
+    var gastosCorr=383884;
+    var esperadoCorr=284316;
+    var contadoCorr=284316;
+    var retiradoCorr=184316;
+
+    await window.FB.set('cierresTurno', cierreT2.id, {
+      id: cierreT2.id,
+      gastos: gastosCorr,
+      esperado: esperadoCorr,
+      contado: contadoCorr,
+      diferencia: 0,
+      dineroRetirado: retiradoCorr,
+      observaciones: 'Corregido 15/08: pago efectivo $154.000 a Carlos Caro incluido en egresos.',
+      corregidoPor: currentUser?currentUser.name:'viviana.rojas',
+      timestampCorreccion: new Date().toISOString()
+    });
+
+    var idx=cierresTurno.findIndex(function(c){return c.id===cierreT2.id;});
+    if(idx>=0){
+      cierresTurno[idx].gastos=gastosCorr;
+      cierresTurno[idx].esperado=esperadoCorr;
+      cierresTurno[idx].contado=contadoCorr;
+      cierresTurno[idx].diferencia=0;
+      cierresTurno[idx].dineroRetirado=retiradoCorr;
+      cierresTurno[idx].observaciones='Corregido 15/08: pago efectivo $154.000 a Carlos Caro incluido en egresos.';
+      LS.set('cierresTurno',cierresTurno);
+    }
+
+    var html='✅ CIERRE T2 FIJADO CON VALORES CORRECTOS\n\n';
+    html+='  Gastos:   '+f2(gastosCorr)+'\n';
+    html+='  Esperado: '+f2(esperadoCorr)+'\n';
+    html+='  Contado:  '+f2(contadoCorr)+'\n';
+    html+='  Retirado: '+f2(retiradoCorr)+'\n';
+    html+='  Diferencia: $0\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function corregirCierreT2_1508(){
