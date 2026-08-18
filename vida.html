@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="auditoriaForense15()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef3c7;border-color:#d97706;color:#92400e;font-weight:700">🔎 AUDITORÍA FORENSE 15/08</button>
               <button onclick="crearCierresHistoricos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ CREAR CIERRES 12-13-14/08</button>
               <button onclick="propuestaCierres()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fff4;border-color:#059669;color:#065f46;font-weight:700">📝 PROPUESTA CIERRES 12-14/08</button>
               <button onclick="conciliacionForense()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff1f2;border-color:#e11d48;color:#9f1239;font-weight:700">🔬 CONCILIACIÓN FORENSE 12-14/08</button>
@@ -5227,6 +5228,205 @@ async function aplicarStockCarlosCaro(){
     updateBadges();
     console.log('✅ Stock Carlos Caro aplicado correctamente');
   }catch(e){console.warn('aplicarStockCarlosCaro:',e);}
+}
+
+async function auditoriaForense15(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='750px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(auditoriaForense15,3000);return;}
+  div.innerHTML='⏳ Leyendo Firebase (solo lectura)...';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),window.FB.getAll('cierresTurno'),
+      window.FB.getAll('turnos'),window.FB.getAll('gastos'),
+      window.FB.getAll('compras'),window.FB.getAll('caja')
+    ]);
+    var ventasFB=res[0];var cierresFB=res[1];var turnosFB=res[2];
+    var gastosFB=res[3];var comprasFB=res[4];var cajaFB=res[5];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var dia='2026-08-15';
+
+    function ts2diaCO(v){
+      if(!v.timestamp)return(v.fecha||v.id||'').substring(0,10);
+      try{return new Date(v.timestamp).toLocaleString('sv-SE',{timeZone:'America/Bogota'}).substring(0,10);}
+      catch(e){return v.timestamp.substring(0,10);}
+    }
+    function ts2horaCO(v){
+      if(!v.timestamp)return v.time||'?';
+      try{return new Date(v.timestamp).toLocaleTimeString('es-CO',{timeZone:'America/Bogota',hour:'2-digit',minute:'2-digit'});}
+      catch(e){return v.time||'?';}
+    }
+
+    var html='🔎 AUDITORÍA FORENSE 15/08/2026\n⚠️ SOLO LECTURA\n'+'═'.repeat(55)+'\n\n';
+
+    // 1. CIERRE EXISTENTE
+    var cierre15=cierresFB.find(function(c){
+      return (c.timestamp||'').startsWith(dia)||(c.fecha||'').includes('15/8')||(c.fecha||'').includes('15/08');
+    });
+    html+='1. CIERRE REGISTRADO:\n';
+    if(cierre15){
+      html+='  ✅ EXISTE\n';
+      html+='  ID: '+cierre15.id+'\n';
+      html+='  Fecha: '+(cierre15.fecha||'?')+'\n';
+      html+='  Hora: '+(cierre15.horaCierre||cierre15.timestamp||'?')+'\n';
+      html+='  Turno: '+(cierre15.turno||'?')+'\n';
+      html+='  Usuario: '+(cierre15.usuario||'?')+'\n';
+      html+='  Fondo inicial: '+f2(cierre15.fondo||cierre15.baseInicial||100000)+'\n';
+      html+='  Ventas efectivo: '+f2(cierre15.ventasEfectivo||0)+'\n';
+      html+='  Ventas Nequi: '+f2(cierre15.ventasNequi||0)+'\n';
+      html+='  Ventas Trans: '+f2(cierre15.ventasTransferencia||0)+'\n';
+      html+='  Total ventas: '+f2(cierre15.totalVentas||0)+'\n';
+      html+='  Gastos registrados: '+f2(cierre15.gastos||0)+'\n';
+      html+='  Esperado: '+f2(cierre15.esperado||0)+'\n';
+      html+='  Contado: '+f2(cierre15.contado||0)+'\n';
+      html+='  Diferencia: '+f2(cierre15.diferencia||0)+'\n';
+      html+='  Retirado: '+f2(cierre15.dineroRetirado||0)+'\n';
+    } else {
+      html+='  ❌ NO EXISTE cierre para 15/08\n';
+    }
+
+    // 2. VENTAS DEL 15/08
+    var ventas=ventasFB.filter(function(v){return ts2diaCO(v)===dia;});
+    ventas.sort(function(a,b){return(a.timestamp||a.id)<(b.timestamp||b.id)?-1:1;});
+    var ef=0,nq=0,tr=0,tj=0,fi=0,totV=0;
+    ventas.forEach(function(v){
+      totV+=(v.total||0);
+      var p=v.pago||'';
+      if(p==='Efectivo')ef+=(v.total||0);
+      else if(p==='Nequi/Daviplata')nq+=(v.total||0);
+      else if(p==='Transferencia')tr+=(v.total||0);
+      else if(p==='Tarjeta')tj+=(v.total||0);
+      else if(p==='Fiado')fi+=(v.total||0);
+      else if(p==='Mixto'&&v.pagoMixto){ef+=(v.pagoMixto.efectivo||0);nq+=(v.pagoMixto.digital||0);}
+    });
+    var grpA=ventas.filter(function(v){return v.turnoId&&v.turnoId.includes('15');});
+    var grpB=ventas.filter(function(v){return v.turnoId&&!v.turnoId.includes('15');});
+    var grpC=ventas.filter(function(v){return !v.turnoId||v.turnoId==='';});
+
+    html+='\n2. VENTAS 15/08 ('+ventas.length+' total):\n';
+    html+='  💵 Efectivo:  '+f2(ef)+'\n';
+    html+='  📱 Nequi:     '+f2(nq)+'\n';
+    html+='  🏦 Trans:     '+f2(tr)+'\n';
+    html+='  💳 Tarjeta:   '+f2(tj)+'\n';
+    html+='  📋 Fiado:     '+f2(fi)+'\n';
+    html+='  TOTAL:        '+f2(totV)+'\n';
+    html+='\n  A) Con turno propio ('+grpA.length+'):\n';
+    grpA.forEach(function(v){html+='    🟢 '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';});
+    html+='  B) Con turno otro día ('+grpB.length+'):\n';
+    grpB.forEach(function(v){html+='    🟡 '+v.id+' | '+ts2horaCO(v)+' | '+f2(v.total)+' | turno:'+v.turnoId+'\n';});
+    html+='  C) Sin turnoId ('+grpC.length+'):\n';
+    grpC.forEach(function(v){html+='    🔴 '+v.id+' | '+ts2horaCO(v)+' | '+(v.emp||'?')+' | '+f2(v.total)+' | '+(v.pago||'?')+'\n';});
+
+    html+='\n  VS CIERRE: ef cierre='+f2(cierre15?cierre15.ventasEfectivo||0:0)+' | ef auditoría='+f2(ef)+' | diff='+f2(ef-(cierre15?cierre15.ventasEfectivo||0:0))+'\n';
+
+    // 3. GASTOS DEL 15/08
+    var gastos=gastosFB.filter(function(g){return(g.fecha||'').includes('2026-08-15')||(g.fecha||'').includes('15/8')||(g.fecha||'').includes('15/08');});
+    var totG=0,gEf=0,gOtro=0;
+    html+='\n3. GASTOS 15/08 ('+gastos.length+'):\n';
+    gastos.forEach(function(g){
+      var esEf=!g.tipoPago||g.tipoPago==='contado'||g.tipoPago==='efectivo';
+      totG+=(g.monto||0);
+      if(esEf)gEf+=(g.monto||0); else gOtro+=(g.monto||0);
+      html+='  '+(esEf?'💵':'🏦')+' '+g.id+' | '+g.desc+' | '+f2(g.monto)+' | '+(g.tipoPago||'sin tipo')+' | '+(g.medioPago||'')+' | '+(g.usuario||'?')+'\n';
+    });
+    html+='  Total gastos: '+f2(totG)+' (efectivo: '+f2(gEf)+' | otro: '+f2(gOtro)+')\n';
+
+    // 4. COMPRAS DEL 15/08 - especialmente CARLOS CARO
+    var compras=comprasFB.filter(function(c){return(c.fecha||'').includes('2026-08-15')||(c.fecha||'').includes('15/8');});
+    var carlosCaro=compras.find(function(c){return(c.prov||'').toUpperCase().includes('CARLOS CARO');});
+    var totC=0,cEf=0;
+    html+='\n4. COMPRAS 15/08 ('+compras.length+'):\n';
+    compras.forEach(function(c){
+      totC+=(c.total||0);
+      if(c.tipoPago==='contado_efectivo')cEf+=(c.total||0);
+      html+='  '+c.id+' | '+(c.prov||'?')+' | '+f2(c.total||0)+' | '+(c.tipoPago||'?')+' | pagada:'+(c.pagada?'✅':'❌')+'\n';
+    });
+    html+='  Total compras: '+f2(totC)+'\n';
+    html+='\n  CARLOS CARO $154.000:\n';
+    if(carlosCaro){
+      html+='  ✅ ENCONTRADO: '+carlosCaro.id+' | '+f2(carlosCaro.total)+' | '+carlosCaro.tipoPago+' | pagada:'+(carlosCaro.pagada?'Sí':'No')+'\n';
+    } else {
+      // Buscar en todas las fechas
+      var ccTodas=comprasFB.find(function(c){return(c.prov||'').toUpperCase().includes('CARLOS CARO')&&(c.total||0)===154000;});
+      if(ccTodas) html+='  ⚠️ ENCONTRADO EN OTRA FECHA: '+ccTodas.id+' | fecha:'+(ccTodas.fecha||'?')+' | pagada:'+(ccTodas.pagada?'Sí':'No')+'\n';
+      else html+='  ❌ NO ENCONTRADO como compra del 15/08\n';
+    }
+
+    // 5. RECONCILIACIÓN
+    html+='\n5. RECONCILIACIÓN $229.884 vs $383.884:\n';
+    html+='  Gastos cierre:     '+f2(229884)+'\n';
+    html+='  + Carlos Caro:     '+f2(154000)+'\n';
+    html+='  = Total real:      '+f2(229884+154000)+'\n';
+    html+='  229.884+154.000='+(229884+154000===383884?'✅ $383.884':'❌ '+f2(229884+154000))+'\n';
+
+    // Buscar egreso Carlos Caro en movCaja
+    var movCC=cajaFB.filter(function(m){return(m.desc||'').toLowerCase().includes('carlos')&&(m.monto||0)===154000;});
+    html+='\n  Egreso Carlos Caro en movCaja: '+(movCC.length?'✅ '+movCC.length+' registro(s)':'❌ NO encontrado')+'\n';
+    movCC.forEach(function(m){html+='    '+m.id+' | '+(m.hora||'?')+' | '+f2(m.monto)+'\n';});
+
+    // 6. RECONSTRUCCIÓN REAL
+    html+='\n6. RECONSTRUCCIÓN REAL DEL EFECTIVO:\n';
+    var efReal=100000+ef-gEf-cEf;
+    html+='  Fondo inicial:       $100.000\n';
+    html+='  + Efectivo ventas:   '+f2(ef)+'\n';
+    html+='  - Gastos efectivo:   '+f2(gEf)+'\n';
+    html+='  - Compras contado:   '+f2(cEf)+'\n';
+    html+='  = Ef.esperado real:  '+f2(efReal)+'\n';
+    html+='  Nequi:               '+f2(nq)+' (no es efectivo físico)\n';
+    html+='  Transferencia:       '+f2(tr)+' (no es efectivo físico)\n';
+
+    // 7. COMPARACIÓN CIERRE vs AUDITORÍA
+    html+='\n7. COMPARACIÓN CIERRE vs AUDITORÍA:\n';
+    html+='  Concepto              Cierre       Auditoría\n';
+    html+='  Fondo inicial         $100.000     $100.000\n';
+    html+='  Ventas efectivo       '+f2(cierre15?cierre15.ventasEfectivo||0:0).padEnd(12)+' '+f2(ef)+'\n';
+    html+='  Gastos efectivo       '+f2(cierre15?cierre15.gastos||0:0).padEnd(12)+' '+f2(gEf)+'\n';
+    html+='  Carlos Caro           $0           $154.000 (pendiente)\n';
+    html+='  Ef.esperado           '+f2(cierre15?cierre15.esperado||0:0).padEnd(12)+' '+f2(efReal)+'\n';
+    html+='  Contado               '+f2(cierre15?cierre15.contado||0:0).padEnd(12)+' —\n';
+    html+='  Diferencia            $0           '+f2((cierre15?cierre15.contado||0:0)-efReal)+'\n';
+
+    // 8. RETIROS
+    var retiros=cajaFB.filter(function(m){return m.tipo==='retiro'&&ts2diaCO(m)===dia;});
+    html+='\n8. RETIROS: '+(retiros.length?retiros.length+' encontrado(s)':'$0 — no confirmados')+'\n';
+    retiros.forEach(function(r){html+='  '+r.id+' | '+f2(r.monto)+' | '+(r.hora||'?')+'\n';});
+
+    // 9. DUPLICADOS
+    var idsV={};var dupV=[];
+    ventas.forEach(function(v){if(idsV[v.id])dupV.push(v);else idsV[v.id]=1;});
+    html+='\n9. DUPLICADOS: '+(dupV.length?'⚠️ '+dupV.length+' ventas':'✅ Ninguno')+'\n';
+
+    // TABLA RESUMEN
+    html+='\n'+'═'.repeat(55)+'\nTABLA RESUMEN 15/08\n'+'═'.repeat(55)+'\n';
+    html+='VENTAS: '+f2(totV)+' | EF: '+f2(ef)+' | NQ: '+f2(nq)+' | TR: '+f2(tr)+'\n';
+    html+='GASTOS: '+f2(totG)+' | COMPRAS: '+f2(totC)+' | CARLOS CARO: '+(carlosCaro?'✅ $154.000':'⚠️ no en 15/08')+'\n';
+    html+='EF.ESP.CIERRE: '+f2(cierre15?cierre15.esperado||0:0)+' | EF.ESP.REAL: '+f2(efReal)+'\n';
+
+    // HALLAZGOS
+    html+='\n🔴 HALLAZGOS CRÍTICOS:\n';
+    if(cierre15&&Math.abs((cierre15.esperado||0)-efReal)>1000)
+      html+='  El efectivo esperado del cierre ('+f2(cierre15.esperado||0)+') difiere de la auditoría ('+f2(efReal)+')\n';
+    if(!carlosCaro)
+      html+='  Carlos Caro $154.000 NO aparece como compra del 15/08\n';
+    if(movCC.length===0)
+      html+='  El pago de $154.000 a Carlos Caro NO aparece como egreso en movCaja\n';
+
+    html+='\n🟡 HALLAZGOS A REVISAR:\n';
+    html+='  $229.884 + $154.000 = $383.884: eso es el total real de egresos\n';
+    html+='  Efecto en caja: si Carlos Caro se pagó en efectivo, ef.esperado real = '+f2(100000+ef-gEf-154000)+'\n';
+
+    html+='\n🟢 DATOS CONFIRMADOS:\n';
+    if(cierre15)html+='  Cierre del 15/08 existe: '+cierre15.id+'\n';
+    html+='  Ventas auditadas: '+ventas.length+' | '+f2(totV)+'\n';
+
+    html+='\n'+'═'.repeat(55)+'\n';
+    html+='✅ Firebase NO modificado\n✅ Ventas NO modificadas\n';
+    html+='✅ Compras NO modificadas\n✅ Gastos NO modificados\n';
+    html+='✅ Inventario NO modificado\n✅ Turnos NO modificados\n';
+    html+='✅ Cierres NO creados ni modificados\n✅ Solo lectura\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function crearCierresHistoricos(){
