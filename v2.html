@@ -913,6 +913,7 @@ try{
               </div>
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
+              <button onclick="limpiarDeudasDuplicadas()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412;font-weight:700">🧹 LIMPIAR DEUDAS DUPLICADAS</button>
               <button onclick="fijarRetiroT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔴 FIJAR TODO T2 15/08 (valores exactos)</button>
               <button onclick="fijarCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f9fafb;border-color:#9ca3af;color:#6b7280;font-size:10px">🔧 FIJAR CIERRE T2 15/08 (383.884)</button>
               <button onclick="corregirCierreT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f9fafb;border-color:#9ca3af;color:#6b7280;font-weight:400">⚡ CORREGIR CIERRE T2 15/08</button>
@@ -6957,6 +6958,82 @@ async function diagnosticoStockCarlosCaro(){
   }
 }
 
+async function limpiarDeudasDuplicadas(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(limpiarDeudasDuplicadas,3000);return;}
+  div.innerHTML='⏳ Analizando deudas en Firebase...';
+  try{
+    var deudas=await window.FB.getAll('deudas');
+    var html='LIMPIEZA DE DEUDAS DUPLICADAS\n'+'═'.repeat(45)+'\n';
+    html+='Total deudas antes: '+deudas.length+'\n\n';
+
+    // Identificar duplicados:
+    // 1. Deudas d_compra_comp_XXXX que tienen la misma compraId que otra deuda
+    // 2. Las 9 deudas individuales de Olga 03/08 (ya unificadas en d_olga_20260803_unificada)
+    var idsOlga03=['d_compra_comp_olga_0803','67800','26700','42396','19500','50496','24600','85000','17100'];
+    var eliminados=[];
+    var conservados=[];
+
+    // Agrupar por monto+acreedor para encontrar duplicados exactos
+    var grupos={};
+    deudas.forEach(function(d){
+      var key=(d.acreedor||'')+'_'+(d.monto||0);
+      if(!grupos[key]) grupos[key]=[];
+      grupos[key].push(d);
+    });
+
+    // Eliminar: d_compra_XXX cuando ya existe una deuda sin ese prefijo con mismos datos
+    var aEliminar=[];
+    var aConservar=[];
+
+    deudas.forEach(function(d){
+      // Eliminar las 9 individuales de Olga 03/08 (sin fecha de vencimiento)
+      var esOlga03=( d.acreedor||'').includes('OLGA')&&
+                    !d.vence&&
+                    d.id!=='d_olga_20260803_unificada'&&
+                    !d.pagada;
+
+      // Identificar duplicados: mismo acreedor+monto, preferir el que NO sea d_compra_
+      var key=(d.acreedor||'')+'_'+(d.monto||0);
+      var grupo=grupos[key]||[];
+      var esDuplicado=grupo.length>1&&d.id.startsWith('d_compra_');
+
+      if(esOlga03||esDuplicado){
+        aEliminar.push(d);
+      } else {
+        aConservar.push(d);
+      }
+    });
+
+    html+='A ELIMINAR ('+aEliminar.length+' duplicados):\n';
+    aEliminar.forEach(function(d){
+      html+='  ❌ '+d.id+' | '+(d.acreedor||'?')+' | $'+(d.monto||0).toLocaleString('es-CO')+'\n';
+    });
+
+    html+='\nA CONSERVAR ('+aConservar.length+'):\n';
+    aConservar.forEach(function(d){
+      html+='  ✅ '+d.id+' | '+(d.acreedor||'?')+' | $'+(d.monto||0).toLocaleString('es-CO')+' | '+(d.pagada?'PAGADA':'pendiente')+'\n';
+    });
+
+    // Eliminar duplicados de Firebase
+    for(var i=0;i<aEliminar.length;i++){
+      await window.FB.del('deudas', aEliminar[i].id);
+    }
+
+    // Actualizar localStorage
+    LS.set('deudas', aConservar);
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+
+    html+='\n✅ '+aEliminar.length+' duplicados eliminados\n';
+    html+='✅ '+aConservar.length+' deudas conservadas\n';
+    html+='✅ Ninguna deuda real eliminada\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
 async function sincronizarDeudasCompras(){
   try{
     var deudas = await window.FB.getAll('deudas');
@@ -8292,8 +8369,7 @@ async function fbCargarTodo(){
     await unificarComprasOlga();
     // Aplicar stock faltante compra Carlos Caro 12/08
     await aplicarStockCarlosCaro();
-    // Sincronizar deudas de compras a crédito pendientes
-    await sincronizarDeudasCompras();
+    // sincronizarDeudasCompras desactivada — causaba duplicados en deudas
 
     // Cargar compras desde Firebase
     try{
