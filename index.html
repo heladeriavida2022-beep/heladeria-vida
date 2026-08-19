@@ -6964,7 +6964,43 @@ async function eliminarDeudasOlga03(){
   if(!div)return;
   div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
   if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(eliminarDeudasOlga03,3000);return;}
-  div.innerHTML='⏳ Leyendo todas las deudas de Firebase...';
+  div.innerHTML='⏳ Leyendo Firebase...';
+  try{
+    var deudas=await window.FB.getAll('deudas');
+    var html='Total deudas en Firebase: '+deudas.length+'\n\n';
+
+    // Eliminar: d_compra_XXX de Olga (creadas por sincronizarDeudasCompras)
+    // Y deudas de Olga sin fecha de vencimiento que no sean la unificada
+    var aEliminar=deudas.filter(function(d){
+      var esOlga=(d.acreedor||'').toUpperCase().includes('OLGA');
+      var noEsUnificada=d.id!=='d_olga_20260803_unificada';
+      var esAutoCreada=d.id.indexOf('d_compra_')===0;
+      var sinFecha=!d.vence||d.vence===''||d.vence===null;
+      return esOlga && noEsUnificada && !d.pagada && (esAutoCreada||sinFecha);
+    });
+
+    html+='A eliminar: '+aEliminar.length+'\n';
+    aEliminar.forEach(function(d){
+      html+='  ID: '+d.id+' | $'+(d.monto||0).toLocaleString('es-CO')+'\n';
+    });
+
+    for(var i=0;i<aEliminar.length;i++){
+      try{await window.FB.del('deudas',aEliminar[i].id);}catch(e){}
+    }
+
+    // Refrescar desde Firebase
+    var nuevas=await window.FB.getAll('deudas');
+    LS.set('deudas',nuevas);
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+
+    html+='\n✅ '+aEliminar.length+' eliminadas\n';
+    html+='Deudas restantes: '+nuevas.length+'\n';
+    nuevas.filter(function(d){return (d.acreedor||'').toUpperCase().includes('OLGA');})
+      .forEach(function(d){html+='  ✅ Olga: '+d.id+' $'+(d.monto||0).toLocaleString('es-CO')+'\n';});
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
   try{
     var deudas=await window.FB.getAll('deudas');
     var html='TODAS LAS DEUDAS EN FIREBASE ('+deudas.length+'):\n'+'─'.repeat(50)+'\n\n';
