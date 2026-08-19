@@ -7010,56 +7010,7 @@ async function eliminarDeudasOlga03(){
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
-  try{
-    var deudas=await window.FB.getAll('deudas');
-    var html='DEUDAS OLGA EN FIREBASE:\n'+'─'.repeat(45)+'\n';
 
-    // Mostrar TODAS las deudas de Olga para identificar cuáles eliminar
-    var deudasOlga=deudas.filter(function(d){
-      return (d.acreedor||'').toUpperCase().includes('OLGA');
-    });
-    html+='Total deudas Olga: '+deudasOlga.length+'\n\n';
-    deudasOlga.forEach(function(d){
-      html+='ID: '+d.id+'\n';
-      html+='  monto:$'+(d.monto||0).toLocaleString('es-CO')+' | vence:'+(d.vence||'SIN FECHA')+' | pagada:'+(d.pagada?'SÍ':'NO')+'\n';
-      html+='  concepto:'+(d.concepto||'?')+'\n\n';
-    });
-
-    // Eliminar las que NO tienen fecha de vencimiento y NO son la unificada
-    var aEliminar=deudasOlga.filter(function(d){
-      return d.id!=='d_olga_20260803_unificada' &&
-             (!d.vence||d.vence===''||d.vence==='—'||d.vence===null||d.vence===undefined) &&
-             !d.pagada;
-    });
-
-    html+='A ELIMINAR (sin fecha de vencimiento): '+aEliminar.length+'\n';
-    aEliminar.forEach(function(d){
-      html+='  ❌ '+d.id+' | $'+(d.monto||0).toLocaleString('es-CO')+'\n';
-    });
-
-    if(aEliminar.length===0){
-      html+='\n⚠️ No se encontraron deudas sin fecha para eliminar.\n';
-      html+='Las deudas pueden tener fecha o el criterio necesita ajuste.\n';
-      div.innerHTML=html;
-      return;
-    }
-
-    for(var i=0;i<aEliminar.length;i++){
-      await window.FB.del('deudas', aEliminar[i].id);
-    }
-
-    var deudasRestantes=deudas.filter(function(d){
-      return !aEliminar.find(function(x){return x.id===d.id;});
-    });
-    LS.set('deudas', deudasRestantes);
-    try{renderDeudas();}catch(e){}
-    updateDeudasBadge();
-
-    html+='\n✅ '+aEliminar.length+' eliminadas\n';
-    html+='✅ d_olga_20260803_unificada ($375.988) conservada\n';
-    div.innerHTML=html;
-  }catch(e){div.innerHTML='Error: '+e.message;}
-}
 
 async function limpiarDeudasDuplicadas(){
   var div=document.getElementById('fondo-diagnostico');
