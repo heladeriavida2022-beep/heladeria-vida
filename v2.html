@@ -7008,52 +7008,46 @@ async function diagnosticoStockCarlosCaro(){
 async function corregirEstadoCompras(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
-  div.style.display='block';div.style.maxHeight='500px';div.style.overflow='auto';
+  div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
   if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(corregirEstadoCompras,3000);return;}
-  div.innerHTML='⏳ Buscando compras en Firebase...';
+  div.innerHTML='⏳ Buscando...';
   try{
     var compras=await window.FB.getAll('compras');
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var html='COMPRAS EN FIREBASE ('+compras.length+'):\n'+'─'.repeat(50)+'\n\n';
 
-    // Compras a marcar como pagadas
-    var aPagar=[
-      {prov:'CARLOS CARO', monto:154000, fecha:'2026-08-12'},
-      {prov:'DANIEL',      monto:47000,  fecha:'2026-08-08'}
-    ];
+    // Mostrar todas las compras pendientes para identificar las correctas
+    var pendientes=compras.filter(function(c){return !c.pagada&&c.tipoPago==='credito';});
+    html+='CRÉDITOS PENDIENTES ('+pendientes.length+'):\n';
+    pendientes.forEach(function(c){
+      html+='ID: '+c.id+'\n';
+      html+='  prov:'+( c.prov||'?')+' | total:'+f2(c.total||0)+' | fecha:'+(c.fecha||'?')+'\n\n';
+    });
 
-    var html='CORRECCIÓN ESTADO COMPRAS\n'+'═'.repeat(45)+'\n\n';
-    var actualizadas=0;
+    // Marcar pagadas: Carlos Caro 154k y Daniel 47k del 08/08
+    var aPagar=pendientes.filter(function(c){
+      var esCarlos=(c.prov||'').toUpperCase().includes('CARLOS')&&Math.abs((c.total||0)-154000)<500;
+      var esDaniel08=(c.prov||'').toUpperCase().includes('DANIEL')&&Math.abs((c.total||0)-47000)<500&&
+                     (c.fecha||'').includes('08');
+      return esCarlos||esDaniel08;
+    });
 
+    html+='\nA MARCAR PAGADAS ('+aPagar.length+'):\n';
     for(var i=0;i<aPagar.length;i++){
-      var criterio=aPagar[i];
-      var comp=compras.find(function(c){
-        return (c.prov||'').toUpperCase().includes(criterio.prov) &&
-               Math.abs((c.total||0)-criterio.monto)<100 &&
-               (c.fecha||'').includes(criterio.fecha.replace('2026-',''));
-      });
-      if(comp){
-        html+='✅ Encontrada: '+comp.id+'\n';
-        html+='   '+comp.prov+' | '+f2(comp.total)+' | '+comp.fecha+'\n';
-        html+='   Estado anterior: '+(comp.pagada?'Pagada':'Pendiente')+'\n';
-        comp.pagada=true;
-        comp.fechaPago=new Date().toISOString().split('T')[0];
-        comp.metodoPago='Efectivo';
-        await window.FB.set('compras', comp.id, comp);
-        html+='   → Marcada como PAGADA ✅\n\n';
-        actualizadas++;
-      } else {
-        html+='⚠️ No encontrada: '+criterio.prov+' $'+criterio.monto+' '+criterio.fecha+'\n\n';
-      }
+      var comp=aPagar[i];
+      html+='  '+comp.id+' | '+comp.prov+' | '+f2(comp.total)+' | '+comp.fecha+'\n';
+      comp.pagada=true;
+      comp.fechaPago='2026-08-15';
+      comp.metodoPago='Efectivo';
+      await window.FB.set('compras', comp.id, comp);
+      html+='  → PAGADA ✅\n';
     }
 
-    // Actualizar localStorage
     var todas=await window.FB.getAll('compras');
-    purchases=todas;
-    LS.set('purchases',todas);
+    purchases=todas;LS.set('purchases',todas);
     try{renderCompras();}catch(e){}
 
-    html+=actualizadas+' compras actualizadas\n';
-    html+='✅ Ventas NO modificadas\n✅ Cierres NO modificados\n';
+    html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
