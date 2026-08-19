@@ -3326,7 +3326,7 @@ var ingItems=[]; // items de la compra actual
 
 function fillIngProv(){
   var sel=document.getElementById('ing-prov');if(!sel)return;
-  sel.innerHTML=suppliers.map(s=>`<option value="${s.name}">${s.name}</option>`).join('')
+  sel.innerHTML=suppliers.map(s=>`<option value="${s.razonSocial||s.name}">${s.razonSocial||s.name}</option>`).join('')
     +'<option value="Mercado local">Mercado local</option><option value="Otro">Otro</option>';
 }
 
@@ -3973,7 +3973,7 @@ function fillGastoProvSel(){
     .forEach(function(s){
       var opt=document.createElement('option');
       opt.value=s.name;
-      opt.textContent=s.name+(s.nit?' ('+s.nit+')':'');
+      opt.textContent=(s.razonSocial||s.name)+(s.nit?' ('+s.nit+')':'');
       sel.appendChild(opt);
     });
 }
@@ -4249,8 +4249,8 @@ function renderSuppliers(){
     }).join(' ');
     return '<div class="sup-card">' +
       '<div style="flex:1">' +
-      '<div style="font-size:13px;font-weight:700">'+s.name+'</div>' +
-      (s.razonSocial?'<div style="font-size:11px;color:var(--text2);margin-top:1px">'+s.razonSocial+'</div>':'') +
+      '<div style="font-size:13px;font-weight:700">'+(s.razonSocial||s.name)+'</div>' +
+      (s.name&&s.name!==s.razonSocial?'<div style="font-size:11px;color:var(--text2);margin-top:1px">Contacto: '+s.name+'</div>':'') +
       (s.phone?'<div style="font-size:11px;color:var(--text2);margin-top:2px"><i class="ti ti-phone" style="font-size:11px"></i> '+s.phone+'</div>':'') +
       '<div style="margin-top:6px;display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+fp+'</div>' +
       (cats?'<div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">'+cats+'</div>':'') +
