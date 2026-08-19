@@ -6964,7 +6964,52 @@ async function eliminarDeudasOlga03(){
   if(!div)return;
   div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
   if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(eliminarDeudasOlga03,3000);return;}
-  div.innerHTML='⏳ Buscando en Firebase...';
+  div.innerHTML='⏳ Leyendo todas las deudas de Firebase...';
+  try{
+    var deudas=await window.FB.getAll('deudas');
+    var html='TODAS LAS DEUDAS EN FIREBASE ('+deudas.length+'):\n'+'─'.repeat(50)+'\n\n';
+
+    // Mostrar TODAS para ver IDs exactos
+    deudas.forEach(function(d){
+      var esProblema=(d.acreedor||'').toUpperCase().includes('OLGA')&&
+                     d.id!=='d_olga_20260803_unificada'&&
+                     !d.pagada&&
+                     (d.concepto||'').toLowerCase().includes('producto');
+      html+=(esProblema?'🔴 ':'✅ ')+'ID: '+d.id+'\n';
+      html+='   acreedor: '+(d.acreedor||'?')+'\n';
+      html+='   monto: $'+(d.monto||0).toLocaleString('es-CO')+'\n';
+      html+='   vence: '+JSON.stringify(d.vence)+'\n';
+      html+='   pagada: '+JSON.stringify(d.pagada)+'\n';
+      html+='   concepto: '+(d.concepto||'?').substring(0,50)+'\n\n';
+    });
+
+    // Eliminar las marcadas con 🔴
+    var aEliminar=deudas.filter(function(d){
+      return (d.acreedor||'').toUpperCase().includes('OLGA')&&
+             d.id!=='d_olga_20260803_unificada'&&
+             !d.pagada&&
+             (d.concepto||'').toLowerCase().includes('producto');
+    });
+
+    html+='A ELIMINAR: '+aEliminar.length+'\n';
+    for(var i=0;i<aEliminar.length;i++){
+      await window.FB.del('deudas', aEliminar[i].id);
+      html+='  ❌ Eliminada: '+aEliminar[i].id+'\n';
+    }
+
+    if(aEliminar.length>0){
+      var resta=deudas.filter(function(d){return !aEliminar.find(function(x){return x.id===d.id;});});
+      LS.set('deudas',resta);
+      try{renderDeudas();}catch(e){}
+      updateDeudasBadge();
+      html+='\n✅ '+aEliminar.length+' deudas eliminadas\n';
+    } else {
+      html+='\n⚠️ No se encontraron deudas con concepto "productos"\n';
+      html+='Copia el resultado completo y muéstraselo al asistente\n';
+    }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
   try{
     var deudas=await window.FB.getAll('deudas');
     var html='DEUDAS OLGA EN FIREBASE:\n'+'─'.repeat(45)+'\n';
