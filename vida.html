@@ -1254,7 +1254,12 @@ try{
   
   <!-- Datos del tercero -->
   <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:10px">
-    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase">Datos del tercero</div>
+    <div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:8px;text-transform:uppercase">Proveedor / Tercero</div>
+    <div class="fg" style="margin-bottom:6px"><label class="fgrp-label">Seleccionar proveedor existente</label>
+      <select class="finput" id="g-prov-sel" onchange="autoFillGastoTercero()">
+        <option value="">— Seleccionar o escribir manualmente —</option>
+      </select>
+    </div>
     <div class="fr">
       <div class="fg"><label class="fgrp-label">Nombre / Razón social</label><input class="finput" id="g-tercero-nombre" placeholder="Nombre del proveedor o persona"></div>
       <div class="fg"><label class="fgrp-label">NIT / Cédula</label><input class="finput" id="g-tercero-id" placeholder="Identificación"></div>
@@ -2108,6 +2113,7 @@ function openM(id){
       if(f) f.value=new Date().toISOString().split('T')[0];
       var wrap=document.getElementById('g-vence-wrap');
       if(wrap) wrap.style.display='none';
+      fillGastoProvSel();
     },50);
   }
   if(id==='usuario')setTimeout(()=>renderPermsForm('perms-new',ROLE_DEFAULT_PERMS.vendedor),50);
@@ -3948,7 +3954,31 @@ function renderSalesTable(){
 // ══════════════════════════════════════════════
 // GASTOS
 // ══════════════════════════════════════════════
-function toggleGastoCredito(){
+function autoFillGastoTercero(){
+  var sel=document.getElementById('g-prov-sel');
+  if(!sel||!sel.value)return;
+  var sup=suppliers.find(function(s){return s.id===sel.value||s.name===sel.value;});
+  if(!sup) return;
+  var nombre=document.getElementById('g-tercero-nombre');
+  var nit=document.getElementById('g-tercero-id');
+  if(nombre) nombre.value=sup.name||'';
+  if(nit) nit.value=sup.nit||sup.rut||'';
+}
+
+function fillGastoProvSel(){
+  var sel=document.getElementById('g-prov-sel');
+  if(!sel)return;
+  sel.innerHTML='<option value="">— Seleccionar o escribir manualmente —</option>';
+  (suppliers||[]).sort(function(a,b){return(a.name||'').localeCompare(b.name||'');})
+    .forEach(function(s){
+      var opt=document.createElement('option');
+      opt.value=s.name;
+      opt.textContent=s.name+(s.nit?' ('+s.nit+')':'');
+      sel.appendChild(opt);
+    });
+}
+
+
   var tipo=document.getElementById('g-tipo-pago').value;
   var wrap=document.getElementById('g-vence-wrap');
   if(wrap) wrap.style.display=tipo==='credito'?'':'none';
