@@ -4085,6 +4085,20 @@ function _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,te
 
 function renderGastos(){
   var gastos=LS.g('gastos')||[];
+
+  // Si localStorage vacío, cargar desde Firebase
+  if(!gastos.length){
+    if(window.FB&&window.FB.getAll){
+      var tbl2=document.getElementById('gastos-tbl');
+      if(tbl2)tbl2.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:16px">⏳ Cargando gastos...</td></tr>';
+      window.FB.getAll('gastos').then(function(fbGastos){
+        if(fbGastos&&fbGastos.length){LS.set('gastos',fbGastos);}
+        renderGastos();
+      }).catch(function(){});
+    }
+    return;
+  }
+
   var buscar=(document.getElementById('gasto-buscar')?.value||'').toLowerCase();
   var filtCat=document.getElementById('gasto-filtro-cat')?.value||'ALL';
   var filtPago=document.getElementById('gasto-filtro-pago')?.value||'ALL';
