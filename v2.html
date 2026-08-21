@@ -5039,6 +5039,7 @@ async function renderFondoAdmin(){
         fecha:m.fecha||'—',
         concepto:m.concepto||'Egreso fondo',
         tipo:'egreso',
+        medioPago:m.medioPago||'Efectivo',
         valor:m.valor||0
       });
     });
@@ -7137,6 +7138,18 @@ async function corregirMediosFondoAdmin(){
       await window.FB.set('fondoAdmin',daniel21.id,daniel21);
       html+='✅ DANIEL 21/08 $47.000 → Nequi/Daviplata\n';
     } else html+='⚠️ DANIEL 21/08 no encontrado\n';
+
+    // Corregir $85.000 OLGA que quedó mal como Nequi
+    var olga85=movs.find(function(m){
+      return (m.concepto||'').includes('OLGA')&&
+             (m.medioPago||'')==='Nequi/Daviplata'&&
+             (m.valor||0)===85000;
+    });
+    if(olga85){
+      olga85.medioPago='Efectivo';
+      await window.FB.set('fondoAdmin',olga85.id,olga85);
+      html+='✅ OLGA $85.000 corregido → Efectivo\n';
+    }
 
     // Eliminar Fresas duplicado
     if(fresas21duplicado){
