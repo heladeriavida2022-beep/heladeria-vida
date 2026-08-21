@@ -917,6 +917,7 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
+              <button onclick="corregirMediosFondoAdmin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">💳 Corregir medios Fondo Admin</button>
               <button onclick="eliminarDeudasOlga03()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412;font-weight:700">🗑️ Eliminar 9 deudas Olga 03/08</button>
               <button onclick="limpiarDeudasDuplicadas()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412">🧹 LIMPIAR DEUDAS DUPLICADAS</button>
               <button onclick="fijarRetiroT2_1508()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔴 FIJAR TODO T2 15/08 (valores exactos)</button>
@@ -7052,6 +7053,89 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function corregirMediosFondoAdmin(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='600px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(corregirMediosFondoAdmin,3000);return;}
+  div.innerHTML='⏳ Cargando movimientos...';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    var html='CORRECCIÓN MEDIOS FONDO ADMIN\n'+'═'.repeat(45)+'\n\n';
+
+    // Identificar los movimientos a corregir
+    // NEQUI: Daniel 19/08 $47k, Fresas primera 21/08 $60k, Daniel 21/08 $47k
+    // DUPLICADO: segunda Fresas 21/08 $60k
+
+    var daniel19=movs.find(function(m){
+      return (m.concepto||'').includes('DANIEL')&&
+             (m.fecha||'').includes('2026-08-19')&&
+             (m.valor||0)===47000;
+    });
+    var daniel21=movs.find(function(m){
+      return (m.concepto||'').includes('DANIEL')&&
+             (m.fecha||'').includes('2026-08-21')&&
+             (m.valor||0)===47000;
+    });
+    // Fresas del 21/08 - puede haber dos, tomar ambas
+    var fresas21=movs.filter(function(m){
+      return (m.concepto||'').toUpperCase().includes('FRESA')&&
+             (m.fecha||'').includes('2026-08-21')&&
+             (m.valor||0)===60000;
+    });
+    fresas21.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+    var fresas21primera=fresas21[0];
+    var fresas21duplicado=fresas21[1];
+
+    // Corregir Daniel 19/08 → Nequi
+    if(daniel19){
+      daniel19.medioPago='Nequi/Daviplata';
+      await window.FB.set('fondoAdmin',daniel19.id,daniel19);
+      html+='✅ DANIEL 19/08 $47.000 → Nequi/Daviplata\n';
+    } else html+='⚠️ DANIEL 19/08 no encontrado\n';
+
+    // Corregir Fresas primera 21/08 → Nequi
+    if(fresas21primera){
+      fresas21primera.medioPago='Nequi/Daviplata';
+      await window.FB.set('fondoAdmin',fresas21primera.id,fresas21primera);
+      html+='✅ FRESAS 21/08 $60.000 → Nequi/Daviplata\n';
+    } else html+='⚠️ FRESAS 21/08 no encontrada\n';
+
+    // Corregir Daniel 21/08 → Nequi
+    if(daniel21){
+      daniel21.medioPago='Nequi/Daviplata';
+      await window.FB.set('fondoAdmin',daniel21.id,daniel21);
+      html+='✅ DANIEL 21/08 $47.000 → Nequi/Daviplata\n';
+    } else html+='⚠️ DANIEL 21/08 no encontrado\n';
+
+    // Eliminar Fresas duplicado
+    if(fresas21duplicado){
+      await window.FB.del('fondoAdmin',fresas21duplicado.id);
+      html+='✅ FRESAS duplicado eliminado ('+fresas21duplicado.id+')\n';
+    } else html+='ℹ️ No se encontró FRESAS duplicado\n';
+
+    // Asegurar Efectivo en los demás egresos sin medioPago
+    var sinMedio=movs.filter(function(m){
+      return m.tipo==='egreso'&&!m.medioPago&&
+             m.id!==( daniel19?daniel19.id:null)&&
+             m.id!==( daniel21?daniel21.id:null)&&
+             m.id!==( fresas21primera?fresas21primera.id:null);
+    });
+    for(var i=0;i<sinMedio.length;i++){
+      sinMedio[i].medioPago='Efectivo';
+      await window.FB.set('fondoAdmin',sinMedio[i].id,sinMedio[i]);
+    }
+    html+='\n✅ '+sinMedio.length+' egresos sin medio → Efectivo\n';
+
+    // Recargar en memoria
+    window._fondoAdminMovs=await window.FB.getAll('fondoAdmin');
+    try{renderFondoAdmin();}catch(e){}
+
+    html+='\n✅ Corrección completa. Recargando Fondo Admin...\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
