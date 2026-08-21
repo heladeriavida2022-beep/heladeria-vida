@@ -4982,6 +4982,9 @@ async function renderFondoAdmin(){
   if(tbl) tbl.innerHTML='<tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr>';
 
   try{
+    // Recargar movimientos del fondo desde Firebase para saldos actualizados
+    try{ window._fondoAdminMovs = await window.FB.getAll('fondoAdmin'); }catch(e){}
+
     // 1. Cargar todos los cierres desde Firebase — solo desde 07/08/2026
     var cierres=await window.FB.getAll('cierresTurno');
     cierres=cierres.filter(function(c){
