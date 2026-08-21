@@ -917,6 +917,7 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
+              <button onclick="diagnosticoSaldoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985;font-weight:700">🔍 Diagnóstico saldos fondo</button>
               <button onclick="corregirMediosFondoAdmin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">💳 Corregir medios Fondo Admin</button>
               <button onclick="eliminarDeudasOlga03()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412;font-weight:700">🗑️ Eliminar 9 deudas Olga 03/08</button>
               <button onclick="limpiarDeudasDuplicadas()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412">🧹 LIMPIAR DEUDAS DUPLICADAS</button>
@@ -7058,6 +7059,32 @@ async function corregirEstadoCompras(){
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function diagnosticoSaldoFondo(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Leyendo...';
+  var movs=await window.FB.getAll('fondoAdmin');
+  window._fondoAdminMovs=movs;
+  var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+  var html='DIAGNÓSTICO SALDOS FONDO\n'+'─'.repeat(40)+'\n\n';
+  html+='Total movimientos: '+movs.length+'\n\n';
+  html+='EGRESOS EN FIREBASE:\n';
+  var egresos=movs.filter(function(m){return m.tipo==='egreso';});
+  egresos.forEach(function(m){
+    html+='  '+f2(m.valor||0)+' | medio:"'+(m.medioPago||'SIN MEDIO')+'" | '+(m.concepto||'').substring(0,40)+'\n';
+  });
+  html+='\nCÁLCULO NEQUI:\n';
+  var egNequi=egresos.filter(function(m){return m.medioPago==='Nequi/Daviplata';});
+  html+='  Egresos Nequi encontrados: '+egNequi.length+'\n';
+  egNequi.forEach(function(m){html+='    '+f2(m.valor||0)+' — '+(m.concepto||'').substring(0,40)+'\n';});
+  var totalEgNequi=egNequi.reduce(function(s,m){return s+(m.valor||0);},0);
+  html+='  Total egresos Nequi: '+f2(totalEgNequi)+'\n';
+  html+='  Ventas Nequi (getSaldo): '+f2(getSaldoFondo('Nequi/Daviplata')+totalEgNequi)+'\n';
+  html+='  Saldo Nequi calculado: '+f2(getSaldoFondo('Nequi/Daviplata'))+'\n';
+  div.innerHTML=html;
 }
 
 async function corregirMediosFondoAdmin(){
