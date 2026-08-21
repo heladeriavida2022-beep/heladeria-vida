@@ -7065,26 +7065,22 @@ async function diagnosticoSaldoFondo(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Leyendo...';
-  var movs=await window.FB.getAll('fondoAdmin');
-  window._fondoAdminMovs=movs;
-  var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
-  var html='DIAGNÓSTICO SALDOS FONDO\n'+'─'.repeat(40)+'\n\n';
-  html+='Total movimientos: '+movs.length+'\n\n';
-  html+='EGRESOS EN FIREBASE:\n';
-  var egresos=movs.filter(function(m){return m.tipo==='egreso';});
-  egresos.forEach(function(m){
-    html+='  '+f2(m.valor||0)+' | medio:"'+(m.medioPago||'SIN MEDIO')+'" | '+(m.concepto||'').substring(0,40)+'\n';
-  });
-  html+='\nCÁLCULO NEQUI:\n';
-  var egNequi=egresos.filter(function(m){return m.medioPago==='Nequi/Daviplata';});
-  html+='  Egresos Nequi encontrados: '+egNequi.length+'\n';
-  egNequi.forEach(function(m){html+='    '+f2(m.valor||0)+' — '+(m.concepto||'').substring(0,40)+'\n';});
-  var totalEgNequi=egNequi.reduce(function(s,m){return s+(m.valor||0);},0);
-  html+='  Total egresos Nequi: '+f2(totalEgNequi)+'\n';
-  html+='  Ventas Nequi (getSaldo): '+f2(getSaldoFondo('Nequi/Daviplata')+totalEgNequi)+'\n';
-  html+='  Saldo Nequi calculado: '+f2(getSaldoFondo('Nequi/Daviplata'))+'\n';
-  div.innerHTML=html;
+  div.innerHTML='⏳ Leyendo Firebase...';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var html='MOVIMIENTOS FONDO ADMIN EN FIREBASE\n'+'─'.repeat(40)+'\n';
+    html+='Total: '+movs.length+' movimientos\n\n';
+    var egresos=movs.filter(function(m){return m.tipo==='egreso';});
+    html+='EGRESOS ('+egresos.length+'):\n';
+    egresos.forEach(function(m){
+      html+='  "'+( m.medioPago||'SIN MEDIO')+'" | '+f2(m.valor||m.monto||0)+' | '+(m.concepto||'').substring(0,35)+'\n';
+    });
+    var nequiEg=egresos.filter(function(m){return(m.medioPago||'')==='Nequi/Daviplata';});
+    html+='\nEGRESOS NEQUI ENCONTRADOS: '+nequiEg.length+'\n';
+    nequiEg.forEach(function(m){html+='  '+f2(m.valor||0)+' — '+(m.concepto||'')+'\n';});
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
 async function corregirMediosFondoAdmin(){
