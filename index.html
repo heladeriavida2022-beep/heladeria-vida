@@ -5082,9 +5082,10 @@ async function renderFondoAdmin(){
       '<div class="stat"><div class="slb">📱 Nequi/Daviplata</div><div class="sval" style="color:#9b72cf">'+fmt(saldoNequi)+'</div></div>'+
       '<div class="stat"><div class="slb">🏦 Transferencia</div><div class="sval" style="color:#3b82f6">'+fmt(saldoTrans)+'</div></div>';
 
-    // 6. Saldo principal = solo efectivo
+    // 6. Saldo principal = suma de los tres medios
+    var saldoTotal=saldoEfectivo+saldoNequi+saldoTrans;
     var sv=document.getElementById('fondo-saldo-valor');
-    if(sv){sv.textContent=fmt(saldoEfectivo);sv.style.color=saldoEfectivo>=0?'#3aaa6a':'#e94560';}
+    if(sv){sv.textContent=fmt(saldoTotal);sv.style.color=saldoTotal>=0?'#3aaa6a':'#e94560';}
 
     // 7. Tabla historial
     if(!tbl)return;
