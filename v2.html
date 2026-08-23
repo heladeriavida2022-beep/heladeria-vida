@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="eliminarDeudaCremosion164()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar deuda Cremosion $164.000</button>
+              <button onclick="corregirEgresoOlga216()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🔧 Corregir egreso Olga $216k→$140k</button>
+              <button onclick="eliminarDeudaCremosion164()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412">🗑️ Eliminar deuda Cremosion $164.000</button>
               <button onclick="crearDeudaCremosionYEgresoCarloscaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Deuda Cremosion + Egreso Carlos Caro</button>
               <button onclick="diagnosticoSaldoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico saldos fondo</button>
               <button onclick="corregirMediosFondoAdmin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">💳 Corregir medios Fondo Admin</button>
@@ -7064,6 +7065,40 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function corregirEgresoOlga216(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(corregirEgresoOlga216,3000);return;}
+  div.innerHTML='⏳ Buscando...';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    // Buscar el egreso de $216.740 de Olga del 23/08
+    var mov=movs.find(function(m){
+      return (m.concepto||'').includes('OLGA')&&
+             (m.valor||0)===216740&&
+             m.tipo==='egreso';
+    });
+    if(!mov){div.innerHTML='⚠️ No se encontró egreso OLGA $216.740';return;}
+
+    var html='CORRECCIÓN EGRESO OLGA\n'+'─'.repeat(40)+'\n\n';
+    html+='Antes: '+f2(mov.valor||0)+'\n';
+    mov.valor=140100;
+    mov.concepto='Pago deuda: OLGA LUCIA PAZ — Compra: ALOHA RASPADO (saldo pendiente)';
+    await window.FB.set('fondoAdmin', mov.id, mov);
+    if(window._fondoAdminMovs){
+      var fi=window._fondoAdminMovs.findIndex(function(m){return m.id===mov.id;});
+      if(fi>=0) window._fondoAdminMovs[fi]=mov;
+    }
+    html+='Después: '+f2(140100)+' ✅\n\n';
+    html+='✅ Egreso corregido en Fondo Admin\n';
+    html+='✅ Diferencia ajustada: $76.640 (abono ya pagado)\n';
+    try{renderFondoAdmin();}catch(e){}
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
