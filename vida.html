@@ -3786,7 +3786,7 @@ function _renderDeudasTabla(deudas, tbl){
       <td style="font-size:11.5px">${d.concepto}</td>
       <td style="color:${colorMonto};font-weight:700">${esFiado?'+':'-'}${fmt(d.monto)}</td>
       <td style="font-size:11.5px;color:var(--text2)">${d.vence||'—'}</td>
-      <td><span class="badge ${cls}">${estado}</span>${!d.pagada&&d.montoPagado>0?`<br><span style="font-size:9px;color:#7c3aed">Abonado: ${fmt(d.montoPagado)}</span>`:''}</td>
+      <td><span class="badge ${cls}">${estado}</span>${!d.pagada&&d.montoPagado>0?`<br><span style="font-size:9px;color:#7c3aed">Abonado: ${fmt(d.montoPagado)}</span><br><span style="font-size:10px;font-weight:700;color:#e94560">Saldo: ${fmt((d.monto||0)-(d.montoPagado||0))}</span>`:''}</td>
       <td style="display:flex;gap:4px;flex-wrap:wrap">${d.pagada
         ?`<span style="font-size:10px;color:var(--acc3)">✓ ${d.fechaPago||''}</span>`
         :`<button class="btn btn-acc3 btn-sm" onclick="pagarDeuda('${d.id}')">${esFiado?'Cobrar':'Pagar'}</button>`+
