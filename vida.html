@@ -3664,32 +3664,36 @@ function ejecutarPagoDeuda(medio){
   var d=deudas.find(function(x){return x.id===id;});
   if(!d){toast('Deuda no encontrada','#e94560');return;}
 
+  // Usar saldo pendiente (descontando abonos)
+  var montoPagar=Math.max(0,(d.monto||0)-(d.montoPagado||0));
+  if(montoPagar===0){toast('Esta deuda ya está completamente abonada','#3aaa6a');return;}
+
   if(medio==='caja'){
-    // Pago desde caja del turno
-    if(!confirm('¿Confirmar pago de '+fmt(d.monto)+' a '+d.acreedor+' desde caja del turno?'))return;
-    var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:d.monto,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
+    if(!confirm('¿Confirmar pago de '+fmt(montoPagar)+' a '+d.acreedor+' desde caja del turno?'))return;
+    var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:montoPagar,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
     movCaja.unshift(mov);LS.set('movCaja',movCaja);
     if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
     d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
     d.metodoPago='Caja';
     LS.set('deudas',deudas);
     try{window.FB.set('deudas',d.id,d);}catch(e){}
+    try{window.FB.set('caja',mov.id,mov);}catch(e){}
     renderDeudas();updateDeudasBadge();
     try{renderCaja();}catch(e){}
-    toast('✅ Pago registrado — salida de caja','#3aaa6a');
+    toast('✅ Pago de '+fmt(montoPagar)+' registrado — salida de caja','#3aaa6a');
     return;
   }
 
   // Pago desde Fondo
   var saldoMedio=getSaldoFondo(medio);
-  if(d.monto>saldoMedio){
+  if(montoPagar>saldoMedio){
     toast('⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldoMedio),'#e94560');
     return;
   }
   var movFondo={
     id:'fa_'+Date.now(),tipo:'egreso',medioPago:medio,
     concepto:'Pago deuda: '+d.acreedor+' — '+d.concepto,
-    valor:d.monto,fecha:new Date().toISOString().split('T')[0],
+    valor:montoPagar,fecha:new Date().toISOString().split('T')[0],
     timestamp:new Date().toISOString(),usuario:currentUser.name,origen:'deuda'
   };
   window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
@@ -3700,7 +3704,7 @@ function ejecutarPagoDeuda(medio){
     LS.set('deudas',deudas);
     try{window.FB.set('deudas',d.id,d);}catch(e){}
     renderDeudas();updateDeudasBadge();
-    toast('✅ Deuda pagada desde Fondo '+medio,'#3aaa6a');
+    toast('✅ Pago de '+fmt(montoPagar)+' desde Fondo '+medio,'#3aaa6a');
   }).catch(function(){toast('Error al guardar','#e94560');});
 }
 
