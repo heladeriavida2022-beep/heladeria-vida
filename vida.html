@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="crearDeudaCremosionYEgresoCarloscaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ Deuda Cremosion + Egreso Carlos Caro</button>
+              <button onclick="eliminarDeudaCremosion164()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar deuda Cremosion $164.000</button>
+              <button onclick="crearDeudaCremosionYEgresoCarloscaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Deuda Cremosion + Egreso Carlos Caro</button>
               <button onclick="diagnosticoSaldoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico saldos fondo</button>
               <button onclick="corregirMediosFondoAdmin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">💳 Corregir medios Fondo Admin</button>
               <button onclick="eliminarDeudasOlga03()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412;font-weight:700">🗑️ Eliminar 9 deudas Olga 03/08</button>
@@ -7060,6 +7061,28 @@ async function corregirEstadoCompras(){
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function eliminarDeudaCremosion164(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(eliminarDeudaCremosion164,3000);return;}
+  div.innerHTML='⏳ Buscando...';
+  try{
+    var deudas=await window.FB.getAll('deudas');
+    var d=deudas.find(function(x){
+      return (x.acreedor||'').toUpperCase().includes('CREMOSION')&&
+             (x.monto||0)===164000&&!x.pagada;
+    });
+    if(!d){div.innerHTML='⚠️ No se encontró deuda CREMOSION $164.000';return;}
+    await window.FB.del('deudas',d.id);
+    var dls=(LS.g('deudas')||[]).filter(function(x){return x.id!==d.id;});
+    LS.set('deudas',dls);
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+    div.innerHTML='✅ Deuda CREMOSION $164.000 eliminada\n✅ Se conserva la de $167.500';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
