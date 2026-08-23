@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="diagnosticoSaldoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985;font-weight:700">🔍 Diagnóstico saldos fondo</button>
+              <button onclick="crearDeudaCremosionYEgresoCarloscaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ Deuda Cremosion + Egreso Carlos Caro</button>
+              <button onclick="diagnosticoSaldoFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico saldos fondo</button>
               <button onclick="corregirMediosFondoAdmin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">💳 Corregir medios Fondo Admin</button>
               <button onclick="eliminarDeudasOlga03()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412;font-weight:700">🗑️ Eliminar 9 deudas Olga 03/08</button>
               <button onclick="limpiarDeudasDuplicadas()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412">🧹 LIMPIAR DEUDAS DUPLICADAS</button>
@@ -7058,6 +7059,88 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function crearDeudaCremosionYEgresoCarloscaro(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando...';setTimeout(crearDeudaCremosionYEgresoCarloscaro,3000);return;}
+  div.innerHTML='⏳ Procesando...';
+  try{
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var html='';
+
+    // 1. Crear deuda CREMOSION $164.000 vence 29/08
+    var deudas=await window.FB.getAll('deudas');
+    var yaExiste=deudas.find(function(d){
+      return (d.acreedor||'').toUpperCase().includes('CREMOSION')&&
+             (d.monto||0)===164000&&!d.pagada;
+    });
+    if(yaExiste){
+      html+='⚠️ Deuda CREMOSION $164.000 ya existe ('+yaExiste.id+')\n';
+    } else {
+      var nuevaDeuda={
+        id:'d_compra_cremosion_'+Date.now(),
+        acreedor:'CREMOSION',
+        concepto:'Compra: productos',
+        monto:164000,
+        vence:'2026-08-29',
+        fecha:new Date().toISOString().split('T')[0],
+        timestamp:new Date().toISOString(),
+        pagada:false,
+        tipo:'compra',
+        usuario:currentUser?currentUser.name:'viviana.rojas'
+      };
+      await window.FB.set('deudas', nuevaDeuda.id, nuevaDeuda);
+      var deudasLS=LS.g('deudas')||[];
+      deudasLS.push(nuevaDeuda);
+      LS.set('deudas',deudasLS);
+      html+='✅ Deuda CREMOSION creada\n';
+      html+='   Monto: $164.000\n';
+      html+='   Vence: 29/08/2026\n\n';
+    }
+
+    // 2. Registrar egreso en caja del turno 2 por Carlos Caro $141.000
+    var mov={
+      id:'m_cc_'+Date.now(),
+      hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      tipo:'egreso',
+      desc:'Pago factura: CARLOS CARO — Compra crédito $141.000',
+      monto:141000,
+      pago:'Efectivo',
+      emp:currentUser?currentUser.name:'viviana.rojas',
+      fecha:new Date().toISOString().split('T')[0],
+      timestamp:new Date().toISOString()
+    };
+    movCaja.unshift(mov);
+    LS.set('movCaja',movCaja);
+    try{await window.FB.set('caja',mov.id,mov);}catch(e){}
+
+    // Marcar deuda Carlos Caro $141.000 como pagada
+    var deudasActuales=await window.FB.getAll('deudas');
+    var deudaCC=deudasActuales.find(function(d){
+      return (d.acreedor||'').toUpperCase().includes('CARLOS CARO')&&
+             (d.monto||0)===141000&&!d.pagada;
+    });
+    if(deudaCC){
+      deudaCC.pagada=true;
+      deudaCC.fechaPago=new Date().toISOString().split('T')[0];
+      deudaCC.metodoPago='Caja T2';
+      await window.FB.set('deudas',deudaCC.id,deudaCC);
+      html+='✅ Egreso caja T2 registrado: $141.000\n';
+      html+='✅ Deuda CARLOS CARO $141.000 marcada como PAGADA\n';
+    } else {
+      html+='✅ Egreso caja T2 registrado: $141.000\n';
+      html+='⚠️ Deuda CARLOS CARO $141.000 no encontrada — ya puede estar pagada\n';
+    }
+
+    try{renderDeudas();}catch(e){}
+    try{renderCaja();}catch(e){}
+    updateDeudasBadge();
+
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
