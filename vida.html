@@ -4152,8 +4152,12 @@ function renderGastos(){
 
   var isAdmin = currentUser && currentUser.role === 'admin';
   tbl.innerHTML=filtrados.map(function(g){
-    var badgePago = g.tipoPago==='contado'
+    var badgePago = g.tipoPago==='contado'||g.tipoPago==='contado_efectivo'
       ? '<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Contado</span>'
+      : g.tipoPago==='fondo_admin'
+      ? '<span class="badge" style="background:#f5f3ff;color:#7c3aed;font-size:10px">💰 Fondo '+(g.medioPago||'')+'</span>'
+      : g.tipoPago==='contado_transferencia'
+      ? '<span class="badge" style="background:#eff6ff;color:#3b82f6;font-size:10px">🏦 Transferencia</span>'
       : '<span class="badge" style="background:#fff8e1;color:#d48a00;font-size:10px">📋 Crédito</span>';
     var badgeCat = '<span class="badge bp" style="font-size:9.5px">'+(g.cat||'Otros')+'</span>';
     return '<tr>'+
