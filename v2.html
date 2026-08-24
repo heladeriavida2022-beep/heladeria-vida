@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="registrarEgresoCajaCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">💵 Egreso caja $141.000 Carlos Caro</button>
+              <button onclick="registrarEgresoRabajon()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f5f3ff;border-color:#7c3aed;color:#5b21b6;font-weight:700">💸 Egreso Fondo: RABAJON $146.450</button>
+              <button onclick="registrarEgresoCajaCarlosCaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">💵 Egreso caja $141.000 Carlos Caro</button>
               <button onclick="corregirEgresoOlga216()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🔧 Corregir egreso Olga $216k→$140k</button>
               <button onclick="eliminarDeudaCremosion164()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fff7ed;border-color:#ea580c;color:#9a3412">🗑️ Eliminar deuda Cremosion $164.000</button>
               <button onclick="crearDeudaCremosionYEgresoCarloscaro()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Deuda Cremosion + Egreso Carlos Caro</button>
@@ -7067,6 +7068,40 @@ async function corregirEstadoCompras(){
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function registrarEgresoRabajon(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Registrando...';
+  try{
+    // Verificar que no exista ya
+    var movs=await window.FB.getAll('fondoAdmin');
+    var yaExiste=movs.find(function(m){
+      return (m.concepto||'').toUpperCase().includes('RABAJON')&&
+             (m.valor||0)===146450;
+    });
+    if(yaExiste){div.innerHTML='⚠️ Egreso RABAJON $146.450 ya existe en el fondo';return;}
+
+    var mov={
+      id:'fa_rabajon_'+Date.now(),
+      tipo:'egreso',
+      medioPago:'Efectivo',
+      concepto:'Gasto: DESECHABLES — RABAJON',
+      valor:146450,
+      fecha:'2026-08-24',
+      timestamp:new Date().toISOString(),
+      usuario:currentUser?currentUser.name:'viviana.rojas',
+      origen:'gasto',
+      categoria:'Materia prima'
+    };
+    await window.FB.set('fondoAdmin', mov.id, mov);
+    if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+    window._fondoAdminMovs.push(mov);
+    try{renderFondoAdmin();}catch(e){}
+    div.innerHTML='✅ Egreso RABAJON registrado en Fondo Admin\n  Monto: $146.450\n  Medio: Efectivo\n  Fecha: 24/08/2026';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
