@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="corregirGastoD1Leche()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">🔧 Corregir D1 $12→$12.000</button>
+              <button onclick="auditoriaForenseFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🔎 AUDITORÍA FORENSE FONDO</button>
+              <button onclick="corregirGastoD1Leche()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔧 Corregir D1 $12→$12.000</button>
               <button onclick="corregirGastosServimetGustosita()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">🔧 Corregir gastos Servinet+Gustosita</button>
               <button onclick="eliminarDuplicadoRabajon()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado RABAJON</button>
               <button onclick="registrarEgresoRabajon()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f5f3ff;border-color:#7c3aed;color:#5b21b6">💸 Egreso Fondo: RABAJON $146.450</button>
@@ -7078,6 +7079,112 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function auditoriaForenseFondo(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';div.style.maxHeight='750px';div.style.overflow='auto';
+  if(!window.FB||!window.FB.getAll){div.innerHTML='⏳ Esperando Firebase...';setTimeout(auditoriaForenseFondo,3000);return;}
+  div.innerHTML='⏳ Leyendo Firebase (solo lectura)...';
+  try{
+    var res=await Promise.all([
+      window.FB.getAll('fondoAdmin'),
+      window.FB.getAll('cierresTurno'),
+      window.FB.getAll('ventas')
+    ]);
+    var fondoMovs=res[0];var cierresFB=res[1];var ventasFB=res[2];
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var fechaInicio='2026-08-07';
+
+    var html='🔎 AUDITORÍA FORENSE FONDO ADMIN\n⚠️ SOLO LECTURA\n'+'═'.repeat(55)+'\n\n';
+
+    // 1. CÓMO CALCULA EL SISTEMA
+    html+='1. CÓMO CALCULA EL SISTEMA:\n'+'─'.repeat(40)+'\n';
+    html+='Efectivo = SumaRetirosCierres(desde 07/08) - EgresosEfectivo\n';
+    html+='Nequi    = SumaVentasNequi(desde 07/08) - EgresosNequi\n';
+    html+='Trans    = SumaVentasTrans(desde 07/08) - EgresosTrans\n\n';
+
+    // 2. RETIROS DE CIERRES (fuente del efectivo)
+    var cierresValidos=cierresFB.filter(function(c){return (c.timestamp||'')>=fechaInicio||(c.fecha||'')>='7/8/2026';});
+    var totalRetiros=0;
+    var retirosList=[];
+    cierresValidos.forEach(function(c){
+      var r=c.dineroRetirado!==undefined?c.dineroRetirado:Math.max(0,(c.contado||0)-100000);
+      totalRetiros+=r;
+      retirosList.push({id:c.id,fecha:c.fecha||'',usuario:c.usuario||'?',turno:c.turno||'?',retiro:r});
+    });
+    html+='2. RETIROS DE CIERRES ('+cierresValidos.length+' cierres):\n';
+    retirosList.forEach(function(r){html+='  '+r.fecha+' T'+r.turno+' '+r.usuario+' → '+f2(r.retiro)+'\n';});
+    html+='  TOTAL RETIROS: '+f2(totalRetiros)+'\n\n';
+
+    // 3. EGRESOS DEL FONDO
+    var egresos=fondoMovs.filter(function(m){return m.tipo==='egreso';});
+    var egEfe=egresos.filter(function(m){return(m.medioPago||'Efectivo')==='Efectivo';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var egNequi=egresos.filter(function(m){return m.medioPago==='Nequi/Daviplata';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    var egTrans=egresos.filter(function(m){return m.medioPago==='Transferencia';}).reduce(function(s,m){return s+(m.valor||0);},0);
+    html+='3. EGRESOS DEL FONDO ('+egresos.length+'):\n';
+    egresos.forEach(function(m){
+      html+='  '+m.fecha+' | '+(m.medioPago||'Efectivo')+' | '+f2(m.valor||0)+' | '+(m.concepto||'').substring(0,35)+'\n';
+    });
+    html+='  Efectivo: '+f2(egEfe)+' | Nequi: '+f2(egNequi)+' | Trans: '+f2(egTrans)+'\n\n';
+
+    // 4. VENTAS NEQUI Y TRANS (desde 07/08)
+    var vNequi=ventasFB.filter(function(v){
+      var f=v.fecha||v.timestamp&&v.timestamp.substring(0,10)||'';
+      return f>=fechaInicio&&v.pago==='Nequi/Daviplata';
+    }).reduce(function(s,v){return s+(v.total||0);},0);
+    var vTrans=ventasFB.filter(function(v){
+      var f=v.fecha||v.timestamp&&v.timestamp.substring(0,10)||'';
+      return f>=fechaInicio&&v.pago==='Transferencia';
+    }).reduce(function(s,v){return s+(v.total||0);},0);
+    html+='4. VENTAS ELECTRÓNICAS (desde 07/08):\n';
+    html+='  Nequi: '+f2(vNequi)+'\n';
+    html+='  Trans: '+f2(vTrans)+'\n\n';
+
+    // 5. SALDO CALCULADO
+    var saldoEfe=totalRetiros-egEfe;
+    var saldoNequi=vNequi-egNequi;
+    var saldoTrans=vTrans-egTrans;
+    var saldoTotal=saldoEfe+saldoNequi+saldoTrans;
+    html+='5. SALDO RECONSTRUIDO DESDE FIREBASE:\n'+'─'.repeat(40)+'\n';
+    html+='  Efectivo:  '+f2(totalRetiros)+' retiros - '+f2(egEfe)+' egresos = '+f2(saldoEfe)+'\n';
+    html+='  Nequi:     '+f2(vNequi)+' ventas  - '+f2(egNequi)+' egresos = '+f2(saldoNequi)+'\n';
+    html+='  Trans:     '+f2(vTrans)+' ventas  - '+f2(egTrans)+' egresos = '+f2(saldoTrans)+'\n';
+    html+='  TOTAL: '+f2(saldoTotal)+'\n\n';
+
+    // 6. COMPARAR CON DASHBOARD
+    var dEfe=1256019,dNequi=306600,dTrans=645750,dTotal=2208369;
+    html+='6. COMPARACIÓN:\n'+'─'.repeat(40)+'\n';
+    html+='  Concepto    | Firebase     | Dashboard    | Diferencia\n';
+    html+='  Efectivo    | '+f2(saldoEfe).padEnd(12)+' | '+f2(dEfe).padEnd(12)+' | '+f2(dEfe-saldoEfe)+'\n';
+    html+='  Nequi       | '+f2(saldoNequi).padEnd(12)+' | '+f2(dNequi).padEnd(12)+' | '+f2(dNequi-saldoNequi)+'\n';
+    html+='  Trans       | '+f2(saldoTrans).padEnd(12)+' | '+f2(dTrans).padEnd(12)+' | '+f2(dTrans-saldoTrans)+'\n';
+    html+='  TOTAL       | '+f2(saldoTotal).padEnd(12)+' | '+f2(dTotal).padEnd(12)+' | '+f2(dTotal-saldoTotal)+'\n\n';
+
+    // 7. BUSCAR DUPLICADOS
+    html+='7. POSIBLES DUPLICADOS EN EGRESOS:\n';
+    var dupCheck={};var dups=[];
+    egresos.forEach(function(m){
+      var key=(m.valor||0)+'_'+(m.medioPago||'');
+      if(dupCheck[key]){dups.push({m1:dupCheck[key],m2:m});}
+      else dupCheck[key]=m;
+    });
+    if(!dups.length) html+='  ✅ Sin duplicados detectados\n';
+    dups.forEach(function(d){
+      html+='  ⚠️ '+d.m1.id+' y '+d.m2.id+' | '+f2(d.m1.valor||0)+' | '+(d.m1.medioPago||'')+'\n';
+    });
+
+    html+='\n8. DIAGNÓSTICO:\n'+'─'.repeat(40)+'\n';
+    html+='  El sistema usa VENTAS como fuente de Nequi/Trans (no retiros)\n';
+    html+='  Si ventas desde 07/08 en Firebase son '+f2(vNequi+vTrans)+'\n';
+    html+='  y dashboard muestra '+f2(dNequi+dTrans)+' → diff: '+f2((dNequi+dTrans)-(vNequi+vTrans))+'\n';
+    html+='  Esto puede ser porque window.sales tiene más ventas que Firebase retornó ahora\n';
+    html+='  (sales se carga al inicio y puede incluir ventas que aquí no se filtraron igual)\n\n';
+
+    html+='✅ Firebase NO modificado\n✅ Solo lectura\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
