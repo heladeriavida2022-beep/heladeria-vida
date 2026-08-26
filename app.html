@@ -7091,17 +7091,27 @@ async function corregirGastoD1Leche(){
     var gastos=await window.FB.getAll('gastos');
     var g=gastos.find(function(x){
       return (x.desc||'').toUpperCase().includes('LECHE')&&
-             (x.desc||'').toUpperCase().includes('D1')&&
-             (x.monto||0)===12;
+             (x.desc||'').toUpperCase().includes('D1');
     });
-    if(!g){div.innerHTML='⚠️ Gasto D1 $12 no encontrado';return;}
+    if(!g){
+      // Buscar solo por leche
+      g=gastos.find(function(x){
+        return (x.desc||'').toUpperCase().includes('LECHE')&&
+               (x.fecha||'').includes('2026-08-24');
+      });
+    }
+    if(!g){div.innerHTML='⚠️ Gasto D1 Leche no encontrado. Mostrando todos los gastos del 24/08:\n'+
+      gastos.filter(function(x){return (x.fecha||'').includes('2026-08-24');})
+            .map(function(x){return x.id+' | '+x.desc+' | $'+x.monto;}).join('\n');
+      return;
+    }
     g.monto=12350;
     await window.FB.set('gastos',g.id,g);
     // Corregir también en fondoAdmin si existe
     var movs=await window.FB.getAll('fondoAdmin');
     var mf=movs.find(function(m){
       return (m.concepto||'').toUpperCase().includes('LECHE')&&
-             (m.valor||0)===12;
+             m.tipo==='egreso';
     });
     if(mf){
       mf.valor=12350;
