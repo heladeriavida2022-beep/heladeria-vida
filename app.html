@@ -7086,43 +7086,36 @@ async function corregirGastoD1Leche(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando...';
+  div.innerHTML='⏳ Buscando en fondoAdmin...';
   try{
-    var gastos=await window.FB.getAll('gastos');
-    var g=gastos.find(function(x){
-      return (x.desc||'').toUpperCase().includes('LECHE')&&
-             (x.desc||'').toUpperCase().includes('D1');
-    });
-    if(!g){
-      // Buscar solo por leche
-      g=gastos.find(function(x){
-        return (x.desc||'').toUpperCase().includes('LECHE')&&
-               (x.fecha||'').includes('2026-08-24');
-      });
-    }
-    if(!g){div.innerHTML='⚠️ Gasto D1 Leche no encontrado. Mostrando todos los gastos del 24/08:\n'+
-      gastos.filter(function(x){return (x.fecha||'').includes('2026-08-24');})
-            .map(function(x){return x.id+' | '+x.desc+' | $'+x.monto;}).join('\n');
-      return;
-    }
-    g.monto=12350;
-    await window.FB.set('gastos',g.id,g);
-    // Corregir también en fondoAdmin si existe
     var movs=await window.FB.getAll('fondoAdmin');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
     var mf=movs.find(function(m){
       return (m.concepto||'').toUpperCase().includes('LECHE')&&
+             (m.concepto||'').toUpperCase().includes('D1')&&
              m.tipo==='egreso';
     });
-    if(mf){
-      mf.valor=12350;
-      await window.FB.set('fondoAdmin',mf.id,mf);
+    if(!mf){
+      mf=movs.find(function(m){
+        return (m.valor||0)===12&&m.tipo==='egreso'&&
+               (m.fecha||'').includes('2026-08-24');
+      });
     }
-    var gls=LS.g('gastos')||[];
-    var idx=gls.findIndex(function(x){return x.id===g.id;});
-    if(idx>=0){gls[idx]=g;LS.set('gastos',gls);}
-    try{renderGastos();}catch(e){}
+    if(!mf){
+      div.innerHTML='⚠️ No encontrado. Egresos 24/08:\n'+
+        movs.filter(function(m){return m.tipo==='egreso'&&(m.fecha||'').includes('2026-08-24');})
+            .map(function(m){return m.id+' | '+f2(m.valor||0)+' | '+(m.concepto||'');}).join('\n');
+      return;
+    }
+    var antes=mf.valor||0;
+    mf.valor=12350;
+    await window.FB.set('fondoAdmin',mf.id,mf);
+    if(window._fondoAdminMovs){
+      var fi=window._fondoAdminMovs.findIndex(function(m){return m.id===mf.id;});
+      if(fi>=0) window._fondoAdminMovs[fi]=mf;
+    }
     try{renderFondoAdmin();}catch(e){}
-    div.innerHTML='✅ Gasto D1 corregido: $12 → $12.350\n'+(mf?'✅ Fondo Admin también corregido':'');
+    div.innerHTML='✅ Corregido: '+f2(antes)+' → $12.350\nID: '+mf.id;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
