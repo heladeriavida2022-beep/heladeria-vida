@@ -3499,7 +3499,9 @@ function guardarIngreso(){
     try{
       window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);
       if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
-      window._fondoAdminMovs.push(movFondoCompra);
+      if(!window._fondoAdminMovs.find(function(m){return m.id===movFondoCompra.id;}))
+        window._fondoAdminMovs.push(movFondoCompra);
+      try{renderFondoAdmin();}catch(e){}
     }catch(e){}
   }
 
@@ -4044,8 +4046,10 @@ function guardarGasto(){
     };
     window.FB.set('fondoAdmin',movFondo.id,movFondo).then(function(){
       if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
-      window._fondoAdminMovs.push(movFondo);
+      if(!window._fondoAdminMovs.find(function(m){return m.id===movFondo.id;}))
+        window._fondoAdminMovs.push(movFondo);
       _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,false);
+      try{renderFondoAdmin();}catch(e){}
       toast('💰 Gasto desde Fondo ('+medioFondoGasto+') — Saldo restante: '+fmt(saldoMedioGasto-monto),'#3aaa6a');
     }).catch(function(){ toast('Error guardando en fondo','#e94560'); });
     return; // esperar la Promise
