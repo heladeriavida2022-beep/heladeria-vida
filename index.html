@@ -7095,7 +7095,7 @@ async function corregirGastoD1Leche(){
              (x.monto||0)===12;
     });
     if(!g){div.innerHTML='⚠️ Gasto D1 $12 no encontrado';return;}
-    g.monto=12000;
+    g.monto=12350;
     await window.FB.set('gastos',g.id,g);
     // Corregir también en fondoAdmin si existe
     var movs=await window.FB.getAll('fondoAdmin');
@@ -7104,7 +7104,7 @@ async function corregirGastoD1Leche(){
              (m.valor||0)===12;
     });
     if(mf){
-      mf.valor=12000;
+      mf.valor=12350;
       await window.FB.set('fondoAdmin',mf.id,mf);
     }
     var gls=LS.g('gastos')||[];
@@ -7112,7 +7112,7 @@ async function corregirGastoD1Leche(){
     if(idx>=0){gls[idx]=g;LS.set('gastos',gls);}
     try{renderGastos();}catch(e){}
     try{renderFondoAdmin();}catch(e){}
-    div.innerHTML='✅ Gasto D1 corregido: $12 → $12.000\n'+(mf?'✅ Fondo Admin también corregido':'');
+    div.innerHTML='✅ Gasto D1 corregido: $12 → $12.350\n'+(mf?'✅ Fondo Admin también corregido':'');
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
