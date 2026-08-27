@@ -7266,9 +7266,14 @@ async function corregirGastoD1Leche(){
     // Corregir en fondoAdmin
     var movs=await window.FB.getAll('fondoAdmin');
     var candidatos=movs.filter(function(m){
-      return m.tipo==='egreso'&&(m.valor||0)<1000&&
-             (m.concepto||'').toUpperCase().includes('LECHE');
+      return m.tipo==='egreso'&&(m.valor===12||m.valor==='12')&&
+             (m.fecha||'').includes('2026-08-24');
     });
+    if(!candidatos.length){
+      candidatos=movs.filter(function(m){
+        return m.tipo==='egreso'&&(m.valor===12||m.valor==='12');
+      });
+    }
     for(var i=0;i<candidatos.length;i++){
       candidatos[i].valor=12350;
       await window.FB.set('fondoAdmin',candidatos[i].id,candidatos[i]);
