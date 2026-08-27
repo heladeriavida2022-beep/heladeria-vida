@@ -5065,6 +5065,34 @@ async function renderFondoAdmin(){
       });
     });
 
+    // Agregar ventas Nequi y Transferencia como ingresos al historial
+    var fechaInicio2='2026-08-07';
+    var ventasElec=sales.filter(function(v){
+      var f=getFechaDeVenta(v)||'';
+      return f>=fechaInicio2&&(v.pago==='Nequi/Daviplata'||v.pago==='Transferencia');
+    });
+    // Agrupar por fecha y medio para no llenar de filas
+    var gruposVentas={};
+    ventasElec.forEach(function(v){
+      var f=getFechaDeVenta(v)||'';
+      var key=f+'_'+v.pago;
+      if(!gruposVentas[key]) gruposVentas[key]={fecha:f,medio:v.pago,total:0,count:0,timestamp:v.timestamp||f};
+      gruposVentas[key].total+=(v.total||0);
+      gruposVentas[key].count++;
+    });
+    Object.values(gruposVentas).forEach(function(g){
+      if(g.total>0){
+        historial.push({
+          timestamp:g.timestamp,
+          fecha:g.fecha,
+          concepto:'Ventas '+g.medio+' ('+g.count+' ventas)',
+          tipo:'ingreso_electronico',
+          medioPago:g.medio,
+          valor:g.total
+        });
+      }
+    });
+
     // Ordenar por timestamp
     historial.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
 
@@ -5125,11 +5153,13 @@ async function renderFondoAdmin(){
     }
     var saldoAcum=0;
     tbl.innerHTML=historial.map(function(m){
-      saldoAcum+=m.tipo==='ingreso'?(m.valor||0):-(m.valor||0);
-      var color=m.tipo==='ingreso'?'#3aaa6a':'#e94560';
-      var signo=m.tipo==='ingreso'?'+':'-';
+      saldoAcum+=m.tipo==='ingreso'||(m.tipo==='ingreso_electronico')?(m.valor||0):-(m.valor||0);
+      var color=m.tipo==='ingreso'||m.tipo==='ingreso_electronico'?'#3aaa6a':'#e94560';
+      var signo=m.tipo==='ingreso'||m.tipo==='ingreso_electronico'?'+':'-';
       var badge=m.tipo==='ingreso'
         ?'<span style="background:#edfaf2;color:#3aaa6a;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700">💰 RETIRO</span>'
+        :m.tipo==='ingreso_electronico'
+        ?'<span style="background:#eff6ff;color:#3b82f6;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700">📱 VENTAS</span>'
         :'<span style="background:#fff5f5;color:#e94560;font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700">💸 EGRESO</span>';
       return '<tr>'+
         '<td style="font-size:11px">'+m.fecha+'</td>'+
