@@ -4307,11 +4307,39 @@ function renderSuppliers(){
       (s.owed>0?'<div style="font-size:11px;color:var(--acc);margin-top:4px;font-weight:600">Deuda: '+fmt(s.owed)+'</div>':'') +
       '</div>' +
       '<div style="display:flex;gap:5px;flex-shrink:0">' +
+      '<button class="btn btn-ghost btn-sm" title="Editar proveedor" onclick="editarProveedor(\''+s.id+'\')"><i class="ti ti-edit"></i></button>' +
       '<button class="btn btn-ghost btn-sm" title="Registrar compra" onclick="abrirCompraProveedor(\''+s.id+'\')"><i class="ti ti-shopping-cart"></i></button>' +
       '</div>' +
     '</div>';
   }).join('');
 }
+function editarProveedor(id){
+  var s=suppliers.find(function(x){return x.id===id;});
+  if(!s){toast('Proveedor no encontrado','#e94560');return;}
+  // Llenar el modal de proveedor con los datos actuales
+  var setV=function(elId,val){var el=document.getElementById(elId);if(el)el.value=val||'';};
+  setV('pv-razon',s.razonSocial||s.name||'');
+  setV('pv-nombre',s.name||'');
+  setV('pv-nit',s.nit||'');
+  setV('pv-phone',s.phone||'');
+  setV('pv-dias',s.diasCredito||s.credit||0);
+  // Forma de pago
+  var fpC=document.getElementById('pv-fp-credito');
+  var fpCt=document.getElementById('pv-fp-contado');
+  if(s.formaPago==='credito'||s.credit>0){if(fpC)fpC.checked=true;}
+  else{if(fpCt)fpCt.checked=true;}
+  toggleDiasCredito();
+  // Categorías
+  var cats=['EMPAQUETADOS','FRESCOS','INSUMOS','DESECHABLES','SERVICIOS','OTROS'];
+  cats.forEach(function(c){
+    var cb=document.getElementById('pv-cat-'+c.toLowerCase());
+    if(cb) cb.checked=(s.categorias||[]).includes(c);
+  });
+  // Guardar ID para actualización
+  window._editandoProveedorId=id;
+  openM('proveedor');
+}
+
 function abrirCompraProveedor(supId){
   // Ir al módulo de compras y preseleccionar el proveedor
   adminNav('compras', document.getElementById('sni-compras'));
@@ -4355,19 +4383,28 @@ function guardarProveedor(){
   if(!cats.length){ toast('Selecciona al menos una categoría','var(--acc)'); return; }
 
   var s = {
-    id: 'sup'+Date.now(),
+    id: window._editandoProveedorId || 'sup'+Date.now(),
     name: nm,
     razonSocial: rs,
     phone: document.getElementById('pv-tel').value.trim(),
     formaPago: formaPago,
     diasCredito: formaPago==='credito' ? (parseInt(document.getElementById('pv-cr').value)||30) : 0,
     categorias: cats,
-    products: cats.join(', '), // compatibilidad con fillIngProv
+    products: cats.join(', '),
     credit: formaPago==='credito' ? (parseInt(document.getElementById('pv-cr').value)||30) : 0,
     owed: 0
   };
 
-  suppliers.push(s);
+  if(window._editandoProveedorId){
+    // Actualizar proveedor existente
+    var idx=suppliers.findIndex(function(x){return x.id===window._editandoProveedorId;});
+    if(idx>=0){suppliers[idx]=Object.assign({},suppliers[idx],s);}
+    window._editandoProveedorId=null;
+    toast('✅ Proveedor actualizado','#3aaa6a');
+  } else {
+    suppliers.push(s);
+    toast('✅ Proveedor creado','#3aaa6a');
+  }
   LS.set('suppliers', suppliers);
   if(typeof window.FB!=='undefined'&&window.FB.saveSupplier) window.FB.saveSupplier(s);
 
