@@ -7237,6 +7237,42 @@ async function corregirGastoD1Leche(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
+  div.innerHTML='⏳ Corrigiendo D1 Leche...';
+  try{
+    var resultados='';
+    // Corregir en fondoAdmin
+    var movs=await window.FB.getAll('fondoAdmin');
+    var candidatos=movs.filter(function(m){
+      return m.tipo==='egreso'&&(m.valor||0)<1000&&
+             (m.concepto||'').toUpperCase().includes('LECHE');
+    });
+    for(var i=0;i<candidatos.length;i++){
+      candidatos[i].valor=12350;
+      await window.FB.set('fondoAdmin',candidatos[i].id,candidatos[i]);
+      resultados+='✅ FondoAdmin corregido: '+candidatos[i].id+'\n';
+    }
+    // Corregir en gastos
+    var gastos=await window.FB.getAll('gastos');
+    var gCands=gastos.filter(function(g){
+      return (g.monto||0)<1000&&(g.desc||'').toUpperCase().includes('LECHE');
+    });
+    for(var j=0;j<gCands.length;j++){
+      gCands[j].monto=12350;
+      await window.FB.set('gastos',gCands[j].id,gCands[j]);
+      resultados+='✅ Gastos corregido: '+gCands[j].id+'\n';
+    }
+    if(!candidatos.length&&!gCands.length) resultados='⚠️ No encontrado ningún registro con valor < $1000 y LECHE';
+    window._fondoAdminMovs=await window.FB.getAll('fondoAdmin');
+    try{renderFondoAdmin();}catch(e){}
+    try{renderGastos();}catch(e){}
+    div.innerHTML=resultados+'\n✅ Valor corregido a $12.350';
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function _corregirGastoD1Leche_old(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
   div.innerHTML='⏳ Buscando en fondoAdmin...';
   try{
     var movs=await window.FB.getAll('fondoAdmin');
