@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="auditoriaForenseFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🔎 AUDITORÍA FORENSE FONDO</button>
+              <button onclick="pagarCompraCC141()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ Pagar compra Carlos Caro $141.000</button>
+              <button onclick="auditoriaForenseFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8">🔎 AUDITORÍA FORENSE FONDO</button>
               <button onclick="corregirGastoD1Leche()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔧 Corregir D1 $12→$12.000</button>
               <button onclick="corregirGastosServimetGustosita()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">🔧 Corregir gastos Servinet+Gustosita</button>
               <button onclick="eliminarDuplicadoRabajon()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado RABAJON</button>
@@ -7184,6 +7185,41 @@ async function corregirEstadoCompras(){
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function pagarCompraCC141(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando...';
+  try{
+    var compras=await window.FB.getAll('compras');
+    var c=compras.find(function(x){
+      return (x.prov||'').toUpperCase().includes('CARLOS')&&
+             (x.total||0)===141000&&!x.pagada;
+    });
+    if(!c){div.innerHTML='⚠️ Compra Carlos Caro $141.000 no encontrada o ya pagada';return;}
+    c.pagada=true;
+    c.fechaPago='2026-08-15';
+    c.metodoPago='Caja T2';
+    await window.FB.set('compras',c.id,c);
+    // Actualizar deuda relacionada si existe
+    var deudas=await window.FB.getAll('deudas');
+    var d=deudas.find(function(x){
+      return (x.acreedor||'').toUpperCase().includes('CARLOS')&&
+             (x.monto||0)===141000&&!x.pagada;
+    });
+    if(d){
+      d.pagada=true;d.fechaPago='2026-08-15';d.metodoPago='Caja T2';
+      await window.FB.set('deudas',d.id,d);
+    }
+    var ls=LS.g('purchases')||[];
+    var idx=ls.findIndex(function(x){return x.id===c.id;});
+    if(idx>=0){ls[idx]=c;LS.set('purchases',ls);}
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+    div.innerHTML='✅ Compra CARLOS CARO $141.000 marcada como PAGADA\n  Fecha pago: 15/08/2026\n  Método: Caja T2';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
