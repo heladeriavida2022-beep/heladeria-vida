@@ -3853,7 +3853,7 @@ function renderComprasTable(){
       :tp==='contado_transferencia'
         ?'<span class="badge" style="background:#eff6ff;color:#3b82f6;font-size:10px">📱 Transferencia</span>'
         :'<span class="badge" style="background:#edfaf2;color:#3aaa6a;font-size:10px">💵 Efectivo</span>';
-    var estadoBadge=c.estadoPago==='pendiente'
+    var estadoBadge=(!c.pagada&&c.estadoPago!=='pagada')
       ?'<span class="badge br" style="font-size:10px">🔴 Pendiente</span>'
       :'<span class="badge bg" style="font-size:10px">✅ Pagada</span>';
     return '<tr>'+
