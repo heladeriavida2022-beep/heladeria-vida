@@ -5069,16 +5069,30 @@ async function renderFondoAdmin(){
     var fechaInicio2='2026-08-07';
     var ventasElec=sales.filter(function(v){
       var f=getFechaDeVenta(v)||'';
-      return f>=fechaInicio2&&(v.pago==='Nequi/Daviplata'||v.pago==='Transferencia');
+      return f>=fechaInicio2&&(v.pago==='Nequi/Daviplata'||v.pago==='Transferencia'||v.pago==='Mixto');
     });
-    // Agrupar por fecha y medio para no llenar de filas
     var gruposVentas={};
     ventasElec.forEach(function(v){
       var f=getFechaDeVenta(v)||'';
-      var key=f+'_'+v.pago;
-      if(!gruposVentas[key]) gruposVentas[key]={fecha:f,medio:v.pago,total:0,count:0,timestamp:v.timestamp||f};
-      gruposVentas[key].total+=(v.total||0);
-      gruposVentas[key].count++;
+      // Determinar medio y valor según tipo de pago
+      if(v.pago==='Nequi/Daviplata'){
+        var key=f+'_Nequi/Daviplata';
+        if(!gruposVentas[key]) gruposVentas[key]={fecha:f,medio:'Nequi/Daviplata',total:0,count:0,timestamp:v.timestamp||f};
+        gruposVentas[key].total+=(v.total||0);gruposVentas[key].count++;
+      } else if(v.pago==='Transferencia'){
+        var key2=f+'_Transferencia';
+        if(!gruposVentas[key2]) gruposVentas[key2]={fecha:f,medio:'Transferencia',total:0,count:0,timestamp:v.timestamp||f};
+        gruposVentas[key2].total+=(v.total||0);gruposVentas[key2].count++;
+      } else if(v.pago==='Mixto'&&v.pagoMixto){
+        // Parte digital del mixto
+        var tipoD=v.pagoMixto.tipoDigital||'Nequi/Daviplata';
+        var valD=v.pagoMixto.digital||0;
+        if(valD>0){
+          var key3=f+'_'+tipoD;
+          if(!gruposVentas[key3]) gruposVentas[key3]={fecha:f,medio:tipoD,total:0,count:0,timestamp:v.timestamp||f};
+          gruposVentas[key3].total+=valD;gruposVentas[key3].count++;
+        }
+      }
     });
     Object.values(gruposVentas).forEach(function(g){
       if(g.total>0){
