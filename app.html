@@ -7224,6 +7224,15 @@ async function pagarCompraCC141(){
     var deudas=await window.FB.getAll('deudas');
     var d=deudas.find(function(x){return(x.monto||0)===141000&&!x.pagada&&(x.acreedor||'').toUpperCase().includes('CARLOS');});
     if(d){d.pagada=true;d.fechaPago='2026-08-15';d.metodoPago='Caja T2';await window.FB.set('deudas',d.id,d);html+='✅ Deuda también marcada como pagada\n';}
+    // Actualizar memoria local
+    candidatos.forEach(function(comp){
+      var idx=purchases.findIndex(function(x){return x.id===comp.id;});
+      if(idx>=0) Object.assign(purchases[idx],comp);
+      var ls=LS.g('purchases')||[];
+      var li=ls.findIndex(function(x){return x.id===comp.id;});
+      if(li>=0){ls[li]=comp;LS.set('purchases',ls);}
+    });
+    try{renderIngTable();}catch(e){}
     try{renderDeudas();}catch(e){}
     updateDeudasBadge();
     div.innerHTML=html;
