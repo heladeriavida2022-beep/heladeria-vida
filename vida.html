@@ -4128,14 +4128,30 @@ function renderGastos(){
   var desde=document.getElementById('gasto-desde')?.value||'';
   var hasta=document.getElementById('gasto-hasta')?.value||'';
 
+  // Normalizar fecha del gasto a formato YYYY-MM-DD para comparar
+  function normFecha(f){
+    if(!f) return '';
+    if(f.includes('-')&&f.indexOf('-')===4) return f; // ya es YYYY-MM-DD
+    // Formato DD/MM/YYYY o D/M/YYYY
+    var p=f.split('/');
+    if(p.length===3){
+      var d=p[0].padStart(2,'0');
+      var m=p[1].padStart(2,'0');
+      var y=p[2].length===4?p[2]:'20'+p[2];
+      return y+'-'+m+'-'+d;
+    }
+    return f;
+  }
+
   var filtrados=gastos.filter(function(g){
     var matchBuscar=!buscar||(g.terceroNombre||'').toLowerCase().includes(buscar)||(g.desc||'').toLowerCase().includes(buscar)||(g.terceroId||'').includes(buscar);
     var matchCat=filtCat==='ALL'||g.cat===filtCat;
     var matchPago=filtPago==='ALL'||g.tipoPago===filtPago;
-    var matchDesde=!desde||(g.fecha||'')>=desde;
-    var matchHasta=!hasta||(g.fecha||'')<=hasta;
+    var fechaN=normFecha(g.fecha||'');
+    var matchDesde=!desde||fechaN>=desde;
+    var matchHasta=!hasta||fechaN<=hasta;
     return matchBuscar&&matchCat&&matchPago&&matchDesde&&matchHasta;
-  }).sort(function(a,b){return (b.fecha||'')>(a.fecha||'')?1:-1;});
+  }).sort(function(a,b){return normFecha(b.fecha||'')>normFecha(a.fecha||'')?1:-1;});
 
   // Actualizar stats
   var hoy=new Date().toISOString().split('T')[0];
