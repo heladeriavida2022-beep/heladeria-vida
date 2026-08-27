@@ -7195,31 +7195,38 @@ async function pagarCompraCC141(){
   div.innerHTML='⏳ Buscando...';
   try{
     var compras=await window.FB.getAll('compras');
-    var c=compras.find(function(x){
-      return (x.prov||'').toUpperCase().includes('CARLOS')&&
-             (x.total||0)===141000&&!x.pagada;
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    // Buscar por total=141000 y fecha 15/08
+    var candidatos=compras.filter(function(x){
+      return (x.total||0)===141000&&(x.fecha||'').includes('2026-08-15');
     });
-    if(!c){div.innerHTML='⚠️ Compra Carlos Caro $141.000 no encontrada o ya pagada';return;}
-    c.pagada=true;
-    c.fechaPago='2026-08-15';
-    c.metodoPago='Caja T2';
-    await window.FB.set('compras',c.id,c);
-    // Actualizar deuda relacionada si existe
-    var deudas=await window.FB.getAll('deudas');
-    var d=deudas.find(function(x){
-      return (x.acreedor||'').toUpperCase().includes('CARLOS')&&
-             (x.monto||0)===141000&&!x.pagada;
-    });
-    if(d){
-      d.pagada=true;d.fechaPago='2026-08-15';d.metodoPago='Caja T2';
-      await window.FB.set('deudas',d.id,d);
+    // Si no encuentra, buscar solo por total
+    if(!candidatos.length){
+      candidatos=compras.filter(function(x){return (x.total||0)===141000;});
     }
-    var ls=LS.g('purchases')||[];
-    var idx=ls.findIndex(function(x){return x.id===c.id;});
-    if(idx>=0){ls[idx]=c;LS.set('purchases',ls);}
+    var html='Candidatos encontrados: '+candidatos.length+'\n';
+    candidatos.forEach(function(x){
+      html+='  ID:'+x.id+' | prov:'+(x.prov||x.proveedor||'?')+' | fecha:'+(x.fecha||'?')+' | pagada:'+(x.pagada?'SÍ':'NO')+'\n';
+    });
+    if(!candidatos.length){
+      div.innerHTML='⚠️ No encontrada ninguna compra de $141.000\nTotal compras en Firebase: '+compras.length;
+      return;
+    }
+    // Marcar como pagada
+    for(var i=0;i<candidatos.length;i++){
+      candidatos[i].pagada=true;
+      candidatos[i].fechaPago='2026-08-15';
+      candidatos[i].metodoPago='Caja T2';
+      await window.FB.set('compras',candidatos[i].id,candidatos[i]);
+      html+='✅ Marcada como pagada: '+candidatos[i].id+'\n';
+    }
+    // Actualizar deuda
+    var deudas=await window.FB.getAll('deudas');
+    var d=deudas.find(function(x){return(x.monto||0)===141000&&!x.pagada&&(x.acreedor||'').toUpperCase().includes('CARLOS');});
+    if(d){d.pagada=true;d.fechaPago='2026-08-15';d.metodoPago='Caja T2';await window.FB.set('deudas',d.id,d);html+='✅ Deuda también marcada como pagada\n';}
     try{renderDeudas();}catch(e){}
     updateDeudasBadge();
-    div.innerHTML='✅ Compra CARLOS CARO $141.000 marcada como PAGADA\n  Fecha pago: 15/08/2026\n  Método: Caja T2';
+    div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
