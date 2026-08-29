@@ -3506,8 +3506,9 @@ function guardarIngreso(){
           window._fondoAdminMovs.push(movFondoCompra);
         try{renderFondoAdmin();}catch(e){}
       }).catch(function(){
-        setTimeout(function(){window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).catch(function(){});},3000);}
-  }
+        setTimeout(function(){window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).catch(function(){});},3000);
+      });
+    }catch(e){}
 
   // Crear UNA sola compra con detalle
   var compra={
