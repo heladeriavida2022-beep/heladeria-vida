@@ -3500,14 +3500,13 @@ function guardarIngreso(){
       compraId:compraId
     };
     try{
-      await window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);
-      if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
-      if(!window._fondoAdminMovs.find(function(m){return m.id===movFondoCompra.id;}))
-        window._fondoAdminMovs.push(movFondoCompra);
-      try{renderFondoAdmin();}catch(e){}
-    }catch(e){
-      // Reintento silencioso
-      setTimeout(function(){window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).catch(function(){});},3000);}
+      window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).then(function(){
+        if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+        if(!window._fondoAdminMovs.find(function(m){return m.id===movFondoCompra.id;}))
+          window._fondoAdminMovs.push(movFondoCompra);
+        try{renderFondoAdmin();}catch(e){}
+      }).catch(function(){
+        setTimeout(function(){window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).catch(function(){});},3000);}
   }
 
   // Crear UNA sola compra con detalle
