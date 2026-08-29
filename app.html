@@ -3500,12 +3500,14 @@ function guardarIngreso(){
       compraId:compraId
     };
     try{
-      window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);
+      await window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra);
       if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
       if(!window._fondoAdminMovs.find(function(m){return m.id===movFondoCompra.id;}))
         window._fondoAdminMovs.push(movFondoCompra);
       try{renderFondoAdmin();}catch(e){}
-    }catch(e){}
+    }catch(e){
+      // Reintento silencioso
+      setTimeout(function(){window.FB.set('fondoAdmin',movFondoCompra.id,movFondoCompra).catch(function(){});},3000);}
   }
 
   // Crear UNA sola compra con detalle
@@ -8524,7 +8526,15 @@ function confirmarCierreTurno(){
       usuario: currentUser ? currentUser.name : '—',
       cierreId: cierre.id
     };
-    try{ window.FB.set('fondoAdmin', movFondo.id, movFondo); }catch(e){}
+    try{ window.FB.set('fondoAdmin', movFondo.id, movFondo).then(function(){
+        if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
+        if(!window._fondoAdminMovs.find(function(m){return m.id===movFondo.id;}))
+          window._fondoAdminMovs.push(movFondo);
+        try{renderFondoAdmin();}catch(e){}
+      }).catch(function(){
+        // Reintento silencioso
+        setTimeout(function(){window.FB.set('fondoAdmin',movFondo.id,movFondo).catch(function(){});},3000);
+      }); }catch(e){}
   }
 
   // Marcar turno activo como cerrado en Firebase
