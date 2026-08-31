@@ -2287,7 +2287,7 @@ function renderCart(){
     <div class="ci-name">${i.name}</div>
     <div style="display:flex;align-items:center;gap:3px"><button class="qbtn" onclick="chQty(${i.id},-1)">−</button><span style="font-size:11px;min-width:14px;text-align:center">${i.qty}</span><button class="qbtn" onclick="chQty(${i.id},1)">+</button></div>
     <div class="ci-price">${i.price>0?fmt(i.price*i.qty):'—'}</div></div>`).join('');
-  if(t)t.textContent=fmt(cartItems.reduce((s,i)=>s+(i.price*i.qty),0));
+  if(t)t.textContent=fmt(cartItems.reduce(function(s,i){return s+precioEfectivo(i)*i.qty;},0));
 }
 var _ventaEnProceso = false; // Protección contra duplicados
 
@@ -2297,7 +2297,7 @@ function confirmarVenta(){
   if(!cartItems.length){toast('Agrega productos','var(--acc)');return;}
 
   var pagoEl=document.getElementById('cart-pago');var pago=pagoEl?pagoEl.value:'Efectivo';
-  var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  var tot=cartItems.reduce(function(s,i){return s+precioEfectivo(i)*i.qty;},0);
 
   // PAGO MIXTO
   var pagoMixto=null;
@@ -2394,7 +2394,17 @@ function confirmarVenta(){
     obs:obs,
     emp:currentUser.name,
     empId:currentUser.id,
-    detalle:cartItems.map(function(i){return {name:i.name,qty:i.qty,price:i.price,total:i.price*i.qty};})
+    detalle:cartItems.map(function(i){
+      var pe=precioEfectivo(i);
+      return {
+        name:i.name,qty:i.qty,
+        price:pe,
+        precioOriginal:i.price,
+        descuento:i.descuento||0,
+        descuentoPct:i.descuentoPct||0,
+        total:pe*i.qty
+      };
+    })
   };
 
   // Guardar localmente
@@ -2510,7 +2520,7 @@ function dejarPendiente(){
   var canal = posMode==='mostrador'?'Mostrador':posMode==='mesa'?(mesaSel?mesaSel.value:'Mesa'):'Domicilio';
   var obsEl = document.getElementById('cart-obs');
   var obs = obsEl ? obsEl.value.trim() : '';
-  var tot = cartItems.reduce(function(s,i){ return s+(i.price*i.qty); },0);
+  var tot = cartItems.reduce(function(s,i){ return s+precioEfectivo(i)*i.qty; },0);
 
   // Verificar pedido existente para esta mesa
   var existente = pedidosPendientes.find(function(p){ return p.status==='pendiente'&&p.mesa===canal; });
@@ -3718,6 +3728,116 @@ function ejecutarPagoDeuda(medio){
   }).catch(function(){toast('Error al guardar','#e94560');});
 }
 
+// ══ DESCUENTOS POR PRECIO FINAL ══
+var _descItemId=null;
+
+function abrirDescuento(id){
+  var i=cartItems.find(function(x){return x.id===id;});
+  if(!i)return;
+  _descItemId=id;
+  var info=document.getElementById('desc-prod-info');
+  var inp=document.getElementById('desc-precio-final');
+  var res=document.getElementById('desc-resultado');
+  var btn=document.getElementById('desc-btn-aplicar');
+  if(info) info.innerHTML='<b>'+i.name+'</b><br>Precio original: <b>'+fmt(i.price)+'</b> | Cantidad: <b>'+i.qty+'</b>';
+  if(inp){inp.value=i.precioFinal||'';inp.placeholder=fmt(i.price);}
+  if(res){res.style.display='none';}
+  if(btn) btn.disabled=true;
+  openM('descuento');
+  setTimeout(function(){if(inp)inp.focus();},100);
+}
+
+function calcDescuento(){
+  var i=cartItems.find(function(x){return x.id===_descItemId;});
+  if(!i)return;
+  var inp=document.getElementById('desc-precio-final');
+  var res=document.getElementById('desc-resultado');
+  var btn=document.getElementById('desc-btn-aplicar');
+  var pFinal=parseFloat(inp.value)||0;
+  var pOrig=i.price;
+
+  if(!res||!btn)return;
+
+  if(pFinal<=0){
+    res.style.display='none';btn.disabled=true;return;
+  }
+  if(pFinal>pOrig){
+    res.style.display='block';res.style.background='#fff5f5';res.style.color='#e94560';
+    res.innerHTML='⚠️ El precio final no puede ser mayor al precio original.';
+    btn.disabled=true;return;
+  }
+  if(pFinal===pOrig){
+    res.style.display='block';res.style.background='#fff8e1';res.style.color='#d48a00';
+    res.innerHTML='ℹ️ No hay descuento porque el precio final es igual al original.';
+    btn.disabled=true;return;
+  }
+  var desc=pOrig-pFinal;
+  var pct=Math.round((desc/pOrig)*100*10)/10;
+  var totalDesc=desc*i.qty;
+  res.style.display='block';res.style.background='#edfaf2';res.style.color='#166534';
+  res.innerHTML='💰 Precio original: <b>'+fmt(pOrig)+'</b><br>'+
+    '🏷️ Precio final: <b>'+fmt(pFinal)+'</b><br>'+
+    '💸 Descuento: <b>-'+fmt(desc)+'</b> ('+pct+'%)<br>'+
+    (i.qty>1?'📦 Total descuento (×'+i.qty+'): <b>-'+fmt(totalDesc)+'</b>':'');
+  btn.disabled=false;
+}
+
+function aplicarDescuento(){
+  var i=cartItems.find(function(x){return x.id===_descItemId;});
+  if(!i)return;
+  var inp=document.getElementById('desc-precio-final');
+  var pFinal=parseFloat(inp.value)||0;
+  if(pFinal<=0||pFinal>=i.price)return;
+  var desc=i.price-pFinal;
+  var pct=Math.round((desc/i.price)*100*10)/10;
+  i.precioFinal=pFinal;
+  i.descuento=desc;
+  i.descuentoPct=pct;
+  i.precioOriginal=i.price;
+  // price sigue siendo el original — precioFinal es el que se usa en el total
+  closeM('descuento');
+  renderCart();
+  toast('✅ Descuento aplicado: -'+fmt(desc)+' ('+pct+'%)','#3aaa6a');
+}
+
+function quitarDescuento(id){
+  var i=cartItems.find(function(x){return x.id===id;});
+  if(!i)return;
+  delete i.precioFinal;delete i.descuento;delete i.descuentoPct;delete i.precioOriginal;
+  renderCart();
+  toast('Descuento eliminado','#888');
+}
+
+function precioEfectivo(item){
+  return item.precioFinal!==undefined?item.precioFinal:item.price;
+}
+
+function renderCart(){
+  const b=document.getElementById('cart-body');
+  const t=document.getElementById('cart-total');
+  if(!b)return;
+  b.innerHTML=cartItems.map(function(i){
+    var pe=precioEfectivo(i);
+    var subtotal=pe*i.qty;
+    var descBadge=i.descuento?'<div style="font-size:10px;color:#e94560;margin-top:2px">Original: '+fmt(i.price)+' | 🏷️ -'+fmt(i.descuento)+' ('+i.descuentoPct+'%)</div>':'';
+    var descBtn=currentUser&&(currentUser.role==='admin'||currentUser.perms&&currentUser.perms.descuentos)
+      ?'<button class="qbtn" style="font-size:10px;padding:2px 5px" onclick="abrirDescuento('+i.id+')" title="Descuento">🏷️</button>':'';
+    if(i.descuento) descBtn+='<button class="qbtn" style="font-size:10px;padding:2px 5px;color:#e94560" onclick="quitarDescuento('+i.id+')" title="Quitar descuento">✕</button>';
+    return '<div class="ci">'+
+      '<div class="ci-info"><div class="ci-name">'+(i.emoji||'')+''+i.name+'</div>'+descBadge+'</div>'+
+      '<div style="display:flex;align-items:center;gap:3px">'+descBtn+
+      '<button class="qbtn" onclick="chQty('+i.id+',-1)">−</button>'+
+      '<span class="qty">'+i.qty+'</span>'+
+      '<button class="qbtn" onclick="chQty('+i.id+',1)">+</button></div>'+
+      '<div class="ci-price">'+(pe>0?fmt(subtotal):'—')+'</div></div>';
+  }).join('');
+  if(t) t.textContent=fmt(cartItems.reduce(function(s,i){return s+precioEfectivo(i)*i.qty;},0));
+}
+
+function calcDescuentoTotal(){
+  return cartItems.reduce(function(s,i){return s+(i.descuento?i.descuento*i.qty:0);},0);
+}
+
 function updateDeudasBadge(){
   var deudas=(LS.g('deudas')||[]).filter(d=>!d.pagada);
   var b=document.getElementById('sni-deudas')?.querySelector('.snb');
@@ -4626,7 +4746,7 @@ function selectPago(m,btn){
 }
 
 function calcMixto(){
-  var tot=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  var tot=cartItems.reduce(function(s,i){return s+precioEfectivo(i)*i.qty;},0);
   var efe=parseFloat(document.getElementById('mixto-efectivo').value)||0;
   var digital=Math.max(0,tot-efe);
   var tipoDigital=document.getElementById('mixto-tipo-digital').value;
@@ -4652,7 +4772,7 @@ function setRecibido(valor){
 
 function calcCambio(){
   var totalEl=document.getElementById('cart-total');
-  var total=cartItems.reduce(function(s,i){return s+(i.price*i.qty);},0);
+  var total=cartItems.reduce(function(s,i){return s+precioEfectivo(i)*i.qty;},0);
   var recibidoEl=document.getElementById('efectivo-recibido');
   var recibido=parseFloat(recibidoEl?recibidoEl.value:0)||0;
   var cr=document.getElementById('cambio-resultado');
@@ -9122,6 +9242,24 @@ window.onerror = function(msg, src, line, col, err){
   return false;
 };
 </script>
+<!-- Modal descuento por precio final -->
+<div class="ov" id="ov-descuento">
+  <div class="modal" style="max-width:340px">
+    <button class="mx" onclick="closeM('descuento')"><i class="ti ti-x"></i></button>
+    <div class="mt">🏷️ Aplicar Descuento</div>
+    <div id="desc-prod-info" style="background:#f5f3ff;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px"></div>
+    <div class="fg">
+      <label class="fgrp-label">¿En cuánto quieres dejarlo? (precio por unidad)</label>
+      <input class="finput" type="number" id="desc-precio-final" placeholder="Precio final" oninput="calcDescuento()" style="font-size:18px;font-weight:700;text-align:center">
+    </div>
+    <div id="desc-resultado" style="margin:10px 0;padding:10px;border-radius:8px;font-size:13px;display:none"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="btn btn-ghost" style="flex:1" onclick="closeM('descuento')">Cancelar</button>
+      <button class="btn btn-acc" style="flex:1" id="desc-btn-aplicar" onclick="aplicarDescuento()" disabled>Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
 import { getFirestore, doc, collection, setDoc, getDocs, onSnapshot, deleteDoc, serverTimestamp, query, orderBy, limit }
