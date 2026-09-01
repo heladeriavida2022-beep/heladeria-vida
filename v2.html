@@ -4597,10 +4597,11 @@ function renderEmpStats(){
 }
 
 function _calcStats(ventasList,gastosList,comprasList,fechaInicio){
-  var mesActual='2026-08'; // Mes a mostrar en estadísticas
+  var mesActual='2026-08';
   var ventasMes=(ventasList||[]).filter(function(s){
-    var f=getFechaDeVenta(s)||(s.timestamp||'').substring(0,10)||s.fecha||'';
-    return f.startsWith(mesActual);
+    // Mismo filtro que el Excel — usar timestamp o fecha directamente
+    var f=(s.timestamp||s.fecha||'');
+    return f.includes(mesActual)||f.includes('08/2026')||f.includes('/8/2026');
   });
   var ingresosMes=ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
   var gastosMes=(gastosList||[]).filter(function(g){
