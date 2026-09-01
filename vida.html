@@ -4181,8 +4181,7 @@ function guardarGasto(){
       _guardarGastoFinal(desc,monto,cat,tipoPago,fecha,vence,terceroNombre,terceroId,false);
       setTimeout(function(){window.FB.set('fondoAdmin',movFondo.id,movFondo).catch(function(){});},3000);
       toast('⚠️ Gasto guardado pero falló el Fondo Admin. Reintentando...','#d48a00',4000);
-    });de Fondo ('+medioFondoGasto+') — Saldo restante: '+fmt(saldoMedioGasto-monto),'#3aaa6a');
-    }).catch(function(){ toast('Error guardando en fondo','#e94560'); });
+    });
     return; // esperar la Promise
   }
 
