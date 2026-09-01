@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="corregirGastoRabajonTrans()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔧 Corregir RABAJON $63.996 → Trans</button>
+              <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
+              <button onclick="corregirGastoRabajonTrans()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">🔧 Corregir RABAJON $63.996 → Trans</button>
               <button onclick="diagnosticoEgresosMedios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔍 Ver egresos sin medio de pago</button>
               <button onclick="corregirNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">🔧 Corregir Nómina Ángel 31/08</button>
               <button onclick="pagarCompraCC141()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Pagar compra Carlos Caro $141.000</button>
@@ -7535,6 +7536,120 @@ async function pagarCompraCC141(){
     try{renderDeudas();}catch(e){}
     updateDeudasBadge();
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function generarInformeAgosto(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Leyendo datos de agosto desde Firebase...';
+  try{
+    var mes='2026-08';
+    var res=await Promise.all([
+      window.FB.getAll('ventas'),
+      window.FB.getAll('gastos'),
+      window.FB.getAll('compras'),
+      window.FB.getAll('cierresTurno')
+    ]);
+    var ventasFB=res[0];var gastosFB=res[1];var comprasFB=res[2];var cierresFB=res[3];
+
+    // Filtrar agosto
+    function esMes(v,campo){
+      var f=(v[campo]||v.timestamp||v.fecha||'');
+      return f.includes(mes)||f.includes('08/2026')||f.includes('/8/2026');
+    }
+    var ventas=ventasFB.filter(function(v){return esMes(v,'timestamp')||esMes(v,'fecha');});
+    var gastos=gastosFB.filter(function(g){return esMes(g,'fecha');});
+    var compras=comprasFB.filter(function(c){return esMes(c,'fecha');});
+    var cierres=cierresFB.filter(function(c){return esMes(c,'timestamp')||esMes(c,'fecha');});
+
+    // Calcular totales
+    var totalVentas=ventas.reduce(function(s,v){return s+(v.total||0);},0);
+    var totalGastos=gastos.reduce(function(s,g){return s+(g.monto||0);},0);
+    var totalCompras=compras.reduce(function(s,c){return s+(c.total||0);},0);
+    var nomina=gastos.filter(function(g){return g.cat==='Nómina';}).reduce(function(s,g){return s+(g.monto||0);},0);
+
+    // Crear CSV descargable
+    var csv='\uFEFF'; // BOM para Excel
+    var fmt2=function(n){return(n||0).toLocaleString('es-CO');};
+
+    // Hoja 1: Resumen
+    csv+='INFORME MENSUAL — HELADERÍA VIDA\n';
+    csv+='Período: Agosto 2026\n\n';
+    csv+='RESUMEN GENERAL\n';
+    csv+='Concepto,Valor\n';
+    csv+='Total ventas,$'+fmt2(totalVentas)+'\n';
+    csv+='Total gastos,$'+fmt2(totalGastos)+'\n';
+    csv+='Total compras,$'+fmt2(totalCompras)+'\n';
+    csv+='Nómina pagada,$'+fmt2(nomina)+'\n';
+    csv+='Utilidad bruta,$'+fmt2(totalVentas-totalGastos-totalCompras)+'\n\n';
+
+    // Ventas por medio de pago
+    csv+='VENTAS POR MEDIO DE PAGO\n';
+    csv+='Medio,Total\n';
+    var medios=['Efectivo','Nequi/Daviplata','Transferencia','Tarjeta','Fiado'];
+    medios.forEach(function(m){
+      var tot=ventas.filter(function(v){return v.pago===m;}).reduce(function(s,v){return s+(v.total||0);},0);
+      if(tot>0) csv+=m+',$'+fmt2(tot)+'\n';
+    });
+    csv+='\n';
+
+    // Detalle ventas diarias
+    csv+='VENTAS DIARIAS\n';
+    csv+='Fecha,Cantidad,Total,Efectivo,Nequi,Transferencia\n';
+    var porDia={};
+    ventas.forEach(function(v){
+      var f=(v.timestamp||v.fecha||'').substring(0,10);
+      if(!porDia[f]) porDia[f]={n:0,tot:0,ef:0,nq:0,tr:0};
+      porDia[f].n++;porDia[f].tot+=(v.total||0);
+      if(v.pago==='Efectivo')porDia[f].ef+=(v.total||0);
+      else if(v.pago==='Nequi/Daviplata')porDia[f].nq+=(v.total||0);
+      else if(v.pago==='Transferencia')porDia[f].tr+=(v.total||0);
+    });
+    Object.keys(porDia).sort().forEach(function(f){
+      var d=porDia[f];
+      csv+=f+','+d.n+',$'+fmt2(d.tot)+',$'+fmt2(d.ef)+',$'+fmt2(d.nq)+',$'+fmt2(d.tr)+'\n';
+    });
+    csv+='\n';
+
+    // Detalle gastos
+    csv+='GASTOS DEL MES\n';
+    csv+='Fecha,Tercero,Concepto,Categoría,Pago,Monto\n';
+    gastos.sort(function(a,b){return(a.fecha||'')>(b.fecha||'')?1:-1;}).forEach(function(g){
+      csv+=(g.fecha||'')+',"'+(g.terceroNombre||'—')+'","'+(g.desc||'')+'","'+(g.cat||'')+'","'+(g.tipoPago||'')+'","$'+fmt2(g.monto||0)+'"\n';
+    });
+    csv+=',,,,,Total: $'+fmt2(totalGastos)+'\n\n';
+
+    // Detalle compras
+    csv+='COMPRAS DEL MES\n';
+    csv+='Fecha,Proveedor,Total,Tipo de pago,Estado\n';
+    compras.sort(function(a,b){return(a.fecha||'')>(b.fecha||'')?1:-1;}).forEach(function(c){
+      csv+=(c.fecha||'')+',"'+(c.prov||'')+'","$'+fmt2(c.total||0)+'","'+(c.tipoPago||'')+'","'+(c.pagada?'Pagada':'Pendiente')+'"\n';
+    });
+    csv+=',Total:,$'+fmt2(totalCompras)+'\n\n';
+
+    // Cierres
+    csv+='CIERRES DE CAJA\n';
+    csv+='Fecha,Turno,Usuario,Ventas,Gastos,Contado,Retirado\n';
+    cierres.sort(function(a,b){return(a.timestamp||a.fecha||'')>(b.timestamp||b.fecha||'')?1:-1;}).forEach(function(c){
+      csv+=(c.fecha||'')+',"T'+(c.turno||'?')+'","'+(c.usuario||'?')+'","$'+fmt2(c.totalVentas||c.contado||0)+'","$'+fmt2(c.gastos||0)+'","$'+fmt2(c.contado||0)+'","$'+fmt2(c.dineroRetirado||0)+'"\n';
+    });
+
+    // Descargar
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='Informe_Agosto_2026_Heladeria_Vida.csv';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    div.innerHTML='✅ Informe descargado\n\nRESUMEN AGOSTO:\n'+
+      '  Ventas: $'+fmt2(totalVentas)+' ('+ventas.length+' transacciones)\n'+
+      '  Gastos: $'+fmt2(totalGastos)+' ('+gastos.length+' registros)\n'+
+      '  Compras: $'+fmt2(totalCompras)+' ('+compras.length+' compras)\n'+
+      '  Nómina: $'+fmt2(nomina)+'\n'+
+      '  Utilidad bruta: $'+fmt2(totalVentas-totalGastos-totalCompras);
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
