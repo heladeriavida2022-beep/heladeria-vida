@@ -4149,7 +4149,12 @@ function guardarGasto(){
 
   var esFondo = tipoPago==='fondo_admin';
 
-  // FONDO ADMINISTRATIVO: verificar saldo y descontar
+  // DIAGNÓSTICO — mostrar qué medio y saldo hay disponible
+  if(esFondo){
+    var medDiag=document.getElementById('g-fondo-medio')?.value||'NO ENCONTRADO';
+    var saldoDiag=0;try{saldoDiag=getSaldoFondo(medDiag);}catch(e){}
+    toast('💰 Fondo:'+medDiag+' | Monto:$'+monto.toLocaleString('es-CO')+' | Disponible:$'+saldoDiag.toLocaleString('es-CO'),'#7c3aed',5000);
+  }
   if(esFondo){
     if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador puede usar el Fondo','#e94560');return;}
     var medioFondoGasto = document.getElementById('g-fondo-medio')?.value || 'Efectivo';
