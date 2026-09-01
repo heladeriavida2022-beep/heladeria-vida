@@ -4597,16 +4597,19 @@ function renderEmpStats(){
 }
 
 function _calcStats(ventasList,gastosList,comprasList,fechaInicio){
+  var mesActual='2026-08'; // Mes a mostrar en estadísticas
   var ventasMes=(ventasList||[]).filter(function(s){
     var f=getFechaDeVenta(s)||(s.timestamp||'').substring(0,10)||s.fecha||'';
-    return f>=fechaInicio;
+    return f.startsWith(mesActual);
   });
   var ingresosMes=ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
   var gastosMes=(gastosList||[]).filter(function(g){
-    var f=g.fecha||'';return f>=fechaInicio||f.includes('2026-08')||f.includes('08/2026');
+    var f=g.fecha||'';
+    return f.startsWith(mesActual)||f.includes('08/2026')||f.includes('/8/2026');
   }).reduce(function(t,g){return t+(g.monto||0);},0);
   var comprasMes=(comprasList||[]).filter(function(c){
-    var f=c.fecha||'';return f>=fechaInicio||f.includes('2026-08')||f.includes('08/2026');
+    var f=c.fecha||'';
+    return f.startsWith(mesActual)||f.includes('08/2026')||f.includes('/8/2026');
   }).reduce(function(t,c){return t+(c.total||0);},0);
   var ganancia=ingresosMes-gastosMes-comprasMes;
   var margen=ingresosMes>0?Math.round((ganancia/ingresosMes)*100):0;
