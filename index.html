@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="pagarCompraCC141()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">✅ Pagar compra Carlos Caro $141.000</button>
+              <button onclick="corregirNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔧 Corregir Nómina Ángel 31/08</button>
+              <button onclick="pagarCompraCC141()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Pagar compra Carlos Caro $141.000</button>
               <button onclick="auditoriaForenseFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8">🔎 AUDITORÍA FORENSE FONDO</button>
               <button onclick="corregirGastoD1Leche()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔧 Corregir D1 $12→$12.000</button>
               <button onclick="corregirGastosServimetGustosita()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">🔧 Corregir gastos Servinet+Gustosita</button>
@@ -7304,6 +7305,79 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function corregirNominaAngel(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando...';
+  try{
+    var gastos=await window.FB.getAll('gastos');
+    // Buscar los dos registros de nómina de Angel del 31/08
+    var nominas=gastos.filter(function(g){
+      return (g.desc||'').toUpperCase().includes('NOMINA')&&
+             (g.desc||'').toUpperCase().includes('ANGEL')||
+             ((g.terceroNombre||'').toUpperCase().includes('ANGEL')&&
+              (g.desc||'').toUpperCase().includes('NOMINA')&&
+              (g.fecha||'').includes('2026-08-31'));
+    });
+    var html='Nóminas encontradas: '+nominas.length+'\n';
+    nominas.forEach(function(g){html+='  '+g.id+' | '+g.desc+' | '+g.tipoPago+'\n';});
+
+    // Conservar "NOMINA DEL 24 AL 30" y eliminar "NOMINA SEMANA DEL 24 AL 30"
+    var conservar=nominas.find(function(g){
+      return (g.desc||'').includes('NOMINA DEL 24');
+    });
+    var eliminar=nominas.find(function(g){
+      return (g.desc||'').includes('NOMINA SEMANA DEL');
+    });
+
+    if(eliminar){
+      await window.FB.del('gastos',eliminar.id);
+      // También eliminar del fondoAdmin si existe
+      var movs=await window.FB.getAll('fondoAdmin');
+      var mf=movs.find(function(m){return (m.concepto||'').includes('NOMINA SEMANA')&&(m.valor||0)===170000;});
+      if(mf) await window.FB.del('fondoAdmin',mf.id);
+      html+='✅ Duplicado eliminado: '+eliminar.id+'\n';
+    }
+
+    if(conservar){
+      conservar.tipoPago='fondo_admin';
+      conservar.medioPago='Transferencia';
+      await window.FB.set('gastos',conservar.id,conservar);
+      // Crear o corregir movimiento en fondoAdmin
+      var movs2=await window.FB.getAll('fondoAdmin');
+      var mf2=movs2.find(function(m){
+        return (m.concepto||'').toUpperCase().includes('NOMINA')&&
+               (m.valor||0)===170000&&m.tipo==='egreso';
+      });
+      if(mf2){
+        mf2.medioPago='Transferencia';
+        await window.FB.set('fondoAdmin',mf2.id,mf2);
+        html+='✅ Movimiento fondo corregido a Transferencia\n';
+      } else {
+        var nuevoMov={
+          id:'fa_nom_angel_'+Date.now(),
+          tipo:'egreso',medioPago:'Transferencia',
+          concepto:'Gasto: NOMINA DEL 24 AL 30 DE AGOSTO — ANGEL VILLAREAL',
+          valor:170000,fecha:'2026-08-31',
+          timestamp:new Date().toISOString(),
+          usuario:currentUser?currentUser.name:'viviana.rojas',origen:'gasto'
+        };
+        await window.FB.set('fondoAdmin',nuevoMov.id,nuevoMov);
+        if(window._fondoAdminMovs) window._fondoAdminMovs.push(nuevoMov);
+        html+='✅ Movimiento fondo creado: Transferencia $170.000\n';
+      }
+      html+='✅ Gasto corregido: Fondo Admin / Transferencia\n';
+    }
+
+    var gls=await window.FB.getAll('gastos');
+    LS.set('gastos',gls);
+    try{renderGastos();}catch(e){}
+    try{renderFondoAdmin();}catch(e){}
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
