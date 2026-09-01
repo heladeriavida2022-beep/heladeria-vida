@@ -670,6 +670,24 @@ try{
               <div class="stat"><div class="sico"><i class="ti ti-percentage"></i></div><div class="slb">Margen</div><div class="sval" style="color:var(--acc5)" id="stat-margen">0%</div></div>
               <div class="stat"><div class="sico"><i class="ti ti-chart-bar"></i></div><div class="slb">Ganancia neta</div><div class="sval" style="color:var(--acc4)" id="stat-ganancia">$0</div></div>
             </div>
+
+            <!-- Informe mensual -->
+            <div class="card" style="margin-bottom:12px">
+              <div style="font-size:13px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">📊 Informe Mensual</div>
+              <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+                <select class="finput" id="informe-mes" style="width:160px;font-size:13px">
+                  <option value="2026-08">Agosto 2026</option>
+                  <option value="2026-07">Julio 2026</option>
+                  <option value="2026-09">Septiembre 2026</option>
+                  <option value="2026-10">Octubre 2026</option>
+                </select>
+                <button class="btn btn-acc" onclick="generarInformeMes()" style="font-size:13px">
+                  <i class="ti ti-download"></i> Descargar Excel
+                </button>
+              </div>
+              <div id="informe-resultado" style="margin-top:10px;font-size:12px;color:var(--text2)"></div>
+            </div>
+
             <div class="card"><div style="font-size:12px;font-weight:700;margin-bottom:10px;font-family:var(--font-head)">Resumen por empleado (mes actual)</div>
             <div class="tw"><table><thead><tr><th>Empleado</th><th>Turno</th><th>Ventas</th><th>Total generado</th><th>Promedio/venta</th></tr></thead><tbody id="emp-stats-tbl"></tbody></table></div></div>
           </div>
@@ -7537,6 +7555,91 @@ async function pagarCompraCC141(){
     updateDeudasBadge();
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function generarInformeMes(){
+  var sel=document.getElementById('informe-mes');
+  var mes=sel?sel.value:'2026-08';
+  var nombres={'2026-08':'Agosto 2026','2026-07':'Julio 2026','2026-09':'Septiembre 2026','2026-10':'Octubre 2026'};
+  var res2=document.getElementById('informe-resultado');
+  if(res2) res2.textContent='⏳ Generando informe...';
+  // Llamar la función principal con el mes seleccionado
+  generarInformeAgostoConMes(mes, nombres[mes]||mes);
+}
+
+async function generarInformeAgostoConMes(mes, nombreMes){
+  var res2=document.getElementById('informe-resultado');
+  try{
+    var r=await Promise.all([
+      window.FB.getAll('ventas'),window.FB.getAll('gastos'),
+      window.FB.getAll('compras'),window.FB.getAll('cierresTurno')
+    ]);
+    var ventasFB=r[0];var gastosFB=r[1];var comprasFB=r[2];var cierresFB=r[3];
+    function esMes(v){
+      var f=(v.timestamp||v.fecha||'');
+      return f.includes(mes)||(mes==='2026-08'&&(f.includes('08/2026')||f.includes('/8/2026')));
+    }
+    var ventas=ventasFB.filter(esMes);
+    var gastos=gastosFB.filter(esMes);
+    var compras=comprasFB.filter(esMes);
+    var cierres=cierresFB.filter(esMes);
+    var totalVentas=ventas.reduce(function(s,v){return s+(v.total||0);},0);
+    var totalGastos=gastos.reduce(function(s,g){return s+(g.monto||0);},0);
+    var totalCompras=compras.reduce(function(s,c){return s+(c.total||0);},0);
+    var nomina=gastos.filter(function(g){return g.cat==='Nómina';}).reduce(function(s,g){return s+(g.monto||0);},0);
+    var fmt2=function(n){return(n||0).toLocaleString('es-CO');};
+
+    var csv='\uFEFF';
+    csv+='INFORME MENSUAL — HELADERÍA VIDA\nPeríodo: '+nombreMes+'\n\n';
+    csv+='RESUMEN GENERAL\nConcepto,Valor\n';
+    csv+='Total ventas,$'+fmt2(totalVentas)+'\nTotal gastos,$'+fmt2(totalGastos)+'\nTotal compras,$'+fmt2(totalCompras)+'\nNómina,$'+fmt2(nomina)+'\nUtilidad bruta,$'+fmt2(totalVentas-totalGastos-totalCompras)+'\n\n';
+    csv+='VENTAS POR MEDIO DE PAGO\nMedio,Total\n';
+    ['Efectivo','Nequi/Daviplata','Transferencia','Tarjeta','Fiado'].forEach(function(m){
+      var t=ventas.filter(function(v){return v.pago===m;}).reduce(function(s,v){return s+(v.total||0);},0);
+      if(t>0)csv+=m+',$'+fmt2(t)+'\n';
+    });
+    csv+='\nVENTAS DIARIAS\nFecha,Cantidad,Total,Efectivo,Nequi,Transferencia\n';
+    var porDia={};
+    ventas.forEach(function(v){
+      var f=(v.timestamp||v.fecha||'').substring(0,10);
+      if(!porDia[f])porDia[f]={n:0,tot:0,ef:0,nq:0,tr:0};
+      porDia[f].n++;porDia[f].tot+=(v.total||0);
+      if(v.pago==='Efectivo')porDia[f].ef+=(v.total||0);
+      else if(v.pago==='Nequi/Daviplata')porDia[f].nq+=(v.total||0);
+      else if(v.pago==='Transferencia')porDia[f].tr+=(v.total||0);
+    });
+    Object.keys(porDia).sort().forEach(function(f){var d=porDia[f];csv+=f+','+d.n+',$'+fmt2(d.tot)+',$'+fmt2(d.ef)+',$'+fmt2(d.nq)+',$'+fmt2(d.tr)+'\n';});
+    csv+='\nGASTOS\nFecha,Tercero,Concepto,Categoría,Pago,Monto\n';
+    gastos.sort(function(a,b){return(a.fecha||'')>(b.fecha||'')?1:-1;}).forEach(function(g){
+      csv+=(g.fecha||'')+',"'+(g.terceroNombre||'—')+'","'+(g.desc||'')+'","'+(g.cat||'')+'","'+(g.tipoPago||'')+'","$'+fmt2(g.monto||0)+'"\n';
+    });
+    csv+=',,,,,Total:$'+fmt2(totalGastos)+'\n\n';
+    csv+='COMPRAS\nFecha,Proveedor,Total,Tipo de pago,Estado\n';
+    compras.sort(function(a,b){return(a.fecha||'')>(b.fecha||'')?1:-1;}).forEach(function(c){
+      csv+=(c.fecha||'')+',"'+(c.prov||'')+'","$'+fmt2(c.total||0)+'","'+(c.tipoPago||'')+'","'+(c.pagada?'Pagada':'Pendiente')+'"\n';
+    });
+    csv+=',Total:,$'+fmt2(totalCompras)+'\n\n';
+    csv+='CIERRES DE CAJA\nFecha,Turno,Usuario,Contado,Retirado\n';
+    cierres.sort(function(a,b){return(a.timestamp||a.fecha||'')>(b.timestamp||b.fecha||'')?1:-1;}).forEach(function(c){
+      csv+=(c.fecha||'')+',"T'+(c.turno||'?')+'","'+(c.usuario||'?')+'","$'+fmt2(c.contado||0)+'","$'+fmt2(c.dineroRetirado||0)+'"\n';
+    });
+
+    var blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+    var url=URL.createObjectURL(blob);
+    var a=document.createElement('a');
+    a.href=url;a.download='Informe_'+nombreMes.replace(' ','_')+'_Heladeria_Vida.csv';
+    document.body.appendChild(a);a.click();document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    var resumen='✅ Descargado — '+nombreMes+'\n'+
+      'Ventas: $'+fmt2(totalVentas)+' ('+ventas.length+')\n'+
+      'Gastos: $'+fmt2(totalGastos)+'\nCompras: $'+fmt2(totalCompras)+'\n'+
+      'Nómina: $'+fmt2(nomina)+'\nUtilidad: $'+fmt2(totalVentas-totalGastos-totalCompras);
+    if(res2) res2.textContent=resumen;
+    // También actualizar el panel del fondo si está abierto
+    var div=document.getElementById('fondo-diagnostico');
+    if(div&&div.style.display!=='none') div.innerHTML=resumen;
+  }catch(e){if(res2)res2.textContent='Error: '+e.message;}
 }
 
 async function generarInformeAgosto(){
