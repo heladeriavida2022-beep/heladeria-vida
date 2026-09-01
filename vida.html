@@ -4595,23 +4595,31 @@ function renderEmpStats(){
       var f=g.fecha||'';
       return f>=fechaInicio||(f.includes('2026-08')||f.includes('08/2026'));
     }).reduce(function(t,g){return t+(g.monto||0);},0);
-    var ganancia = ingresosMes - gastosMes;
+
+    // Incluir compras en el cálculo
+    var comprasMes=(LS.g('purchases')||[]).filter(function(c){
+      var f=c.fecha||'';
+      return f>=fechaInicio||(f.includes('2026-08')||f.includes('08/2026'));
+    }).reduce(function(t,c){return t+(c.total||0);},0);
+
+    var ganancia = ingresosMes - gastosMes - comprasMes;
     var margen = ingresosMes>0 ? Math.round((ganancia/ingresosMes)*100) : 0;
     var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
-    var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes);
+    var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes+comprasMes);
     var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
     var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
   };
 
   // Intentar cargar desde Firebase
   if(window.FB&&window.FB.getAll){
-    window.FB.getAll('gastos').then(function(fbGastos){
-      if(fbGastos&&fbGastos.length){
-        LS.set('gastos',fbGastos);
-        calcularStats(fbGastos);
-      } else {
-        calcularStats(LS.g('gastos')||[]);
-      }
+    Promise.all([
+      window.FB.getAll('gastos'),
+      window.FB.getAll('compras')
+    ]).then(function(res){
+      var fbGastos=res[0];var fbCompras=res[1];
+      if(fbGastos&&fbGastos.length) LS.set('gastos',fbGastos);
+      if(fbCompras&&fbCompras.length) LS.set('purchases',fbCompras);
+      calcularStats(fbGastos&&fbGastos.length?fbGastos:(LS.g('gastos')||[]));
     }).catch(function(){calcularStats(LS.g('gastos')||[]);});
   } else {
     calcularStats(LS.g('gastos')||[]);
