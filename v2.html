@@ -4582,23 +4582,41 @@ function guardarProveedor(){
 // ESTADÍSTICAS POR EMPLEADO
 // ══════════════════════════════════════════════
 function renderEmpStats(){
-  // Solo desde 07/08/2026 (inicio del nuevo período operativo)
   var fechaInicio = '2026-08-07';
   var ventasMes = sales.filter(function(s){
     var f = getFechaDeVenta(s);
     return f && f >= fechaInicio;
   });
   var ingresosMes = ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
-  var gastosMes = (LS.g('gastos')||[]).filter(function(g){
-    return (g.fecha||'') >= fechaInicio;
-  }).reduce(function(t,g){return t+(g.monto||0);},0);
-  var ganancia = ingresosMes - gastosMes;
-  var margen = ingresosMes>0 ? Math.round((ganancia/ingresosMes)*100) : 0;
 
-  var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
-  var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes);
-  var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
-  var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
+  // Cargar gastos desde Firebase para tener datos reales
+  var calcularStats=function(gastosList){
+    var gastosMes = (gastosList||[]).filter(function(g){
+      var f=g.fecha||'';
+      return f>=fechaInicio||(f.includes('2026-08')||f.includes('08/2026'));
+    }).reduce(function(t,g){return t+(g.monto||0);},0);
+    var ganancia = ingresosMes - gastosMes;
+    var margen = ingresosMes>0 ? Math.round((ganancia/ingresosMes)*100) : 0;
+    var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
+    var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes);
+    var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
+    var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
+  };
+
+  // Intentar cargar desde Firebase
+  if(window.FB&&window.FB.getAll){
+    window.FB.getAll('gastos').then(function(fbGastos){
+      if(fbGastos&&fbGastos.length){
+        LS.set('gastos',fbGastos);
+        calcularStats(fbGastos);
+      } else {
+        calcularStats(LS.g('gastos')||[]);
+      }
+    }).catch(function(){calcularStats(LS.g('gastos')||[]);});
+  } else {
+    calcularStats(LS.g('gastos')||[]);
+  }
+
   const tbl=document.getElementById('emp-stats-tbl');if(!tbl)return;
   tbl.innerHTML=systemUsers.filter(u=>u.active).map(u=>{
     const myS=ventasMes.filter(s=>s.empId===u.id||s.emp===u.name);
