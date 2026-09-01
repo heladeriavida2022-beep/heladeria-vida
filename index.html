@@ -4583,61 +4583,46 @@ function guardarProveedor(){
 // ══════════════════════════════════════════════
 function renderEmpStats(){
   var fechaInicio = '2026-08-01';
-  var ventasMes = sales.filter(function(s){
-    var f = getFechaDeVenta(s);
-    return f && f >= fechaInicio;
-  });
-  var ingresosMes = ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
-
-  // Cargar gastos desde Firebase para tener datos reales
-  var calcularStats=function(gastosList){
-    var gastosMes = (gastosList||[]).filter(function(g){
-      var f=g.fecha||'';
-      return f>=fechaInicio||(f.includes('2026-08')||f.includes('08/2026'));
-    }).reduce(function(t,g){return t+(g.monto||0);},0);
-
-    // Incluir compras en el cálculo
-    var comprasMes=(LS.g('purchases')||[]).filter(function(c){
-      var f=c.fecha||'';
-      return f>=fechaInicio||(f.includes('2026-08')||f.includes('08/2026'));
-    }).reduce(function(t,c){return t+(c.total||0);},0);
-
-    var ganancia = ingresosMes - gastosMes - comprasMes;
-    var margen = ingresosMes>0 ? Math.round((ganancia/ingresosMes)*100) : 0;
-    var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
-    var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes+comprasMes);
-    var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
-    var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
-  };
-
-  // Intentar cargar desde Firebase
   if(window.FB&&window.FB.getAll){
-    Promise.all([
-      window.FB.getAll('gastos'),
-      window.FB.getAll('compras')
-    ]).then(function(res){
-      var fbGastos=res[0];var fbCompras=res[1];
-      if(fbGastos&&fbGastos.length) LS.set('gastos',fbGastos);
-      if(fbCompras&&fbCompras.length) LS.set('purchases',fbCompras);
-      calcularStats(fbGastos&&fbGastos.length?fbGastos:(LS.g('gastos')||[]));
-    }).catch(function(){calcularStats(LS.g('gastos')||[]);});
+    Promise.all([window.FB.getAll('ventas'),window.FB.getAll('gastos'),window.FB.getAll('compras')])
+    .then(function(res){
+      var vFB=res[0]||[];var gFB=res[1]||[];var cFB=res[2]||[];
+      if(gFB.length) LS.set('gastos',gFB);
+      if(cFB.length) LS.set('purchases',cFB);
+      _calcStats(vFB,gFB,cFB,fechaInicio);
+    }).catch(function(){_calcStats(sales,LS.g('gastos')||[],LS.g('purchases')||[],fechaInicio);});
   } else {
-    calcularStats(LS.g('gastos')||[]);
+    _calcStats(sales,LS.g('gastos')||[],LS.g('purchases')||[],fechaInicio);
   }
+}
 
+function _calcStats(ventasList,gastosList,comprasList,fechaInicio){
+  var ventasMes=(ventasList||[]).filter(function(s){
+    var f=getFechaDeVenta(s)||(s.timestamp||'').substring(0,10)||s.fecha||'';
+    return f>=fechaInicio;
+  });
+  var ingresosMes=ventasMes.reduce(function(t,s){return t+(s.total||0);},0);
+  var gastosMes=(gastosList||[]).filter(function(g){
+    var f=g.fecha||'';return f>=fechaInicio||f.includes('2026-08')||f.includes('08/2026');
+  }).reduce(function(t,g){return t+(g.monto||0);},0);
+  var comprasMes=(comprasList||[]).filter(function(c){
+    var f=c.fecha||'';return f>=fechaInicio||f.includes('2026-08')||f.includes('08/2026');
+  }).reduce(function(t,c){return t+(c.total||0);},0);
+  var ganancia=ingresosMes-gastosMes-comprasMes;
+  var margen=ingresosMes>0?Math.round((ganancia/ingresosMes)*100):0;
+  var elI=document.getElementById('stat-ingresos');if(elI)elI.textContent=fmt(ingresosMes);
+  var elG=document.getElementById('stat-gastos');if(elG)elG.textContent=fmt(gastosMes+comprasMes);
+  var elM=document.getElementById('stat-margen');if(elM)elM.textContent=margen+'%';
+  var elN=document.getElementById('stat-ganancia');if(elN)elN.textContent=fmt(ganancia);
   const tbl=document.getElementById('emp-stats-tbl');if(!tbl)return;
-  tbl.innerHTML=systemUsers.filter(u=>u.active).map(u=>{
-    const myS=ventasMes.filter(s=>s.empId===u.id||s.emp===u.name);
-    const tot=myS.reduce((s,v)=>s+v.total,0);
-    const avg=myS.length?tot/myS.length:0;
-    return`<tr><td><div style="display:flex;align-items:center;gap:7px"><div class="av" style="background:${u.color};color:#fff;font-size:9px;width:24px;height:24px">${u.initials}</div>${u.name}</div></td>
-    <td style="color:var(--text2)">${u.turno}</td>
-    <td style="font-weight:600">${myS.length}</td>
-    <td style="color:${tot>0?'var(--acc3)':'var(--text2)'}">
-      ${fmt(tot)}
-      ${myS.length>0?`<div style="height:3px;background:var(--bg3);border-radius:2px;margin-top:3px;width:80px"><div style="height:3px;background:var(--acc3);border-radius:2px;width:${Math.min(100,Math.round(myS.length/Math.max(...systemUsers.map(x=>sales.filter(s=>s.empId===x.id).length))||1*100))}%"></div></div>`:''}
-    </td>
-    <td>${avg>0?fmt(avg):'—'}</td></tr>`;
+  tbl.innerHTML=systemUsers.filter(function(u){return u.active;}).map(function(u){
+    var myS=ventasMes.filter(function(s){return s.empId===u.id||s.emp===u.name;});
+    var tot=myS.reduce(function(s,v){return s+(v.total||0);},0);
+    var avg=myS.length?tot/myS.length:0;
+    return'<tr><td><div style="display:flex;align-items:center;gap:7px"><div class="av" style="background:'+u.color+';color:#fff;font-size:9px;width:24px;height:24px">'+u.initials+'</div>'+u.name+'</div></td>'+
+      '<td style="color:var(--text2)">'+u.turno+'</td><td style="font-weight:600">'+myS.length+'</td>'+
+      '<td style="color:'+(tot>0?'var(--acc3)':'var(--text2)')+'">'+fmt(tot)+'</td>'+
+      '<td>'+(avg>0?fmt(avg):'—')+'</td></tr>';
   }).join('');
 }
 
