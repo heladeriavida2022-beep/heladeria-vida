@@ -447,6 +447,7 @@ try{
           <button class="sni" id="sni-caja" onclick="adminNav('caja',this)"><i class="ti ti-cash-register"></i>Caja</button>
           <button class="sni" id="sni-cierres" onclick="adminNav('cierres',this)"><i class="ti ti-lock"></i>Cierres de Caja</button>
           <button class="sni" id="sni-gastos" onclick="adminNav('gastos',this)"><i class="ti ti-receipt"></i>Gastos</button>
+          <button class="sni" id="sni-nomina" onclick="adminNav('nomina',this)"><i class="ti ti-users"></i>Nómina</button>
           <button class="sni" id="sni-costos" onclick="adminNav('costos',this)"><i class="ti ti-calculator"></i>Costos</button>
           <button class="sni" id="sni-deudas" onclick="adminNav('deudas',this)"><i class="ti ti-credit-card"></i>Deudas<span class="snb">2</span></button>
         </div>
@@ -829,6 +830,34 @@ try{
           </div>
 
           <!-- COSTOS -->
+          <!-- ══ SECCIÓN NÓMINA ══ -->
+          <div class="adm-view" id="adv-nomina" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div class="qa">
+              <div style="font-size:15px;font-weight:700;font-family:var(--font-head)">👩 Liquidación Semanal de Nómina</div>
+              <div style="display:flex;gap:8px;align-items:center">
+                <label style="font-size:12px;color:var(--text2)">Semana:</label>
+                <input type="date" id="nom-desde" class="finput" style="width:140px;font-size:12px">
+                <span style="font-size:12px;color:var(--text2)">→</span>
+                <input type="date" id="nom-hasta" class="finput" style="width:140px;font-size:12px">
+                <button class="btn btn-acc" onclick="calcularNomina()"><i class="ti ti-calculator"></i> Calcular</button>
+              </div>
+            </div>
+
+            <!-- Tarifas -->
+            <div class="card" style="margin-bottom:12px">
+              <div style="font-size:12px;font-weight:700;margin-bottom:8px;font-family:var(--font-head)">📋 Tarifas por turno</div>
+              <div class="g4" style="gap:8px">
+                <div class="stat" style="background:#edfaf2"><div class="slb">Lun–Jue (único)</div><div class="sval" style="color:#166534;font-size:14px">$40.000</div><div style="font-size:10px;color:var(--text2)">2pm–9pm</div></div>
+                <div class="stat" style="background:#eff6ff"><div class="slb">Vie/Sáb/Dom/Fest T1</div><div class="sval" style="color:#1d4ed8;font-size:14px">$30.000</div><div style="font-size:10px;color:var(--text2)">10am–2pm</div></div>
+                <div class="stat" style="background:#fff7ed"><div class="slb">Viernes T2</div><div class="sval" style="color:#c2410c;font-size:14px">$40.000</div><div style="font-size:10px;color:var(--text2)">2pm–9pm</div></div>
+                <div class="stat" style="background:#fdf4ff"><div class="slb">Sáb/Dom/Fest T2</div><div class="sval" style="color:#7c3aed;font-size:14px">$50.000</div><div style="font-size:10px;color:var(--text2)">2pm–10pm</div></div>
+              </div>
+            </div>
+
+            <!-- Resultado liquidación -->
+            <div id="nom-resultado"></div>
+          </div>
+
           <div class="adm-view" id="adv-costos" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="g4">
               <div class="stat"><div class="slb">Costo prom/prod.</div><div class="sval" style="color:var(--acc2)">$1.820</div></div>
@@ -3858,6 +3887,189 @@ function renderCart(){
 
 function calcDescuentoTotal(){
   return cartItems.reduce(function(s,i){return s+(i.descuento?i.descuento*i.qty:0);},0);
+}
+
+// ══ NÓMINA POR TURNO ══
+var TARIFAS_TURNO = {
+  // día semana: 0=Dom, 1=Lun, 2=Mar, 3=Mie, 4=Jue, 5=Vie, 6=Sáb
+  // Festivos colombianos 2026 (principales)
+  festivos: ['2026-01-01','2026-01-12','2026-03-23','2026-04-02','2026-04-03',
+             '2026-05-01','2026-05-18','2026-06-08','2026-06-15','2026-06-29',
+             '2026-07-20','2026-08-07','2026-08-17','2026-10-12','2026-11-02',
+             '2026-11-16','2026-12-08','2026-12-25'],
+  esFestivo: function(fecha){return this.festivos.includes(fecha);},
+  esFindeSemana: function(fecha){var d=new Date(fecha+'T12:00:00');var dow=d.getDay();return dow===0||dow===6;},
+  esViernes: function(fecha){var d=new Date(fecha+'T12:00:00');return d.getDay()===5;},
+  esLunesNoFestivo: function(fecha){var d=new Date(fecha+'T12:00:00');return d.getDay()===1&&!this.esFestivo(fecha);},
+  esLunesJuevesNoFest: function(fecha){var d=new Date(fecha+'T12:00:00');var dow=d.getDay();return [1,2,3,4].includes(dow)&&!this.esFestivo(fecha);},
+  esFindeOFestivo: function(fecha){return this.esFindeSemana(fecha)||this.esFestivo(fecha)||this.esViernes(fecha);},
+  valorTurno: function(fecha, turno){
+    var esFest=this.esFestivo(fecha);
+    var d=new Date(fecha+'T12:00:00');var dow=d.getDay();
+    var esLunJue=[1,2,3,4].includes(dow)&&!esFest;
+    var esVie=dow===5;
+    var esSabDomFest=dow===0||dow===6||esFest;
+    var t=parseInt(turno)||1;
+    if(esLunJue) return 40000; // único turno
+    if(esVie&&t===1) return 30000;
+    if(esVie&&t===2) return 40000;
+    if(esSabDomFest&&t===1) return 30000;
+    if(esSabDomFest&&t===2) return 50000;
+    return 40000; // default
+  }
+};
+
+async function calcularNomina(){
+  var desde=document.getElementById('nom-desde')?.value;
+  var hasta=document.getElementById('nom-hasta')?.value;
+  var div=document.getElementById('nom-resultado');
+  if(!div)return;
+  if(!desde||!hasta){toast('Selecciona el rango de fechas','#e94560');return;}
+  div.innerHTML='<div style="text-align:center;padding:20px;color:var(--text2)">⏳ Calculando...</div>';
+
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var cierresSem=cierres.filter(function(c){
+      var f=c.fecha||'';
+      // Normalizar fecha
+      if(f.includes('/')){var p=f.split('/');if(p.length===3)f=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
+      return f>=desde&&f<=hasta;
+    });
+
+    // Agrupar por empleado
+    var porEmp={};
+    cierresSem.forEach(function(c){
+      var emp=c.usuario||'?';
+      if(!porEmp[emp]) porEmp[emp]={nombre:emp,turnos:[],total:0};
+      var f=c.fecha||'';
+      if(f.includes('/')){var p=f.split('/');if(p.length===3)f=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
+      var turno=c.turno||1;
+      var valor=TARIFAS_TURNO.valorTurno(f,turno);
+      porEmp[emp].turnos.push({fecha:f,turno:turno,valor:valor,cierreId:c.id});
+      porEmp[emp].total+=valor;
+    });
+
+    // Excluir a Viviana del pago
+    delete porEmp['viviana.rojas'];
+    delete porEmp['Viviana Rojas'];
+
+    var emps=Object.values(porEmp);
+    var totalGeneral=emps.reduce(function(s,e){return s+e.total;},0);
+    var fmt2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+    if(!emps.length){
+      div.innerHTML='<div class="card" style="text-align:center;color:var(--text2)">No se encontraron cierres en ese período.</div>';
+      return;
+    }
+
+    var html='<div style="font-size:13px;font-weight:700;margin-bottom:12px;font-family:var(--font-head)">'+
+      '📊 Liquidación '+desde+' → '+hasta+'</div>';
+
+    emps.forEach(function(e){
+      var u=systemUsers.find(function(u){return u.name===e.nombre||u.user===e.nombre;});
+      var color=u?u.color:'#888';
+      var initials=u?u.initials:e.nombre.substring(0,2).toUpperCase();
+
+      html+='<div class="card" style="margin-bottom:12px">'+
+        '<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">'+
+        '<div class="av" style="background:'+color+';color:#fff;font-size:11px;width:32px;height:32px">'+initials+'</div>'+
+        '<div><div style="font-weight:700;font-size:14px">'+e.nombre+'</div>'+
+        '<div style="font-size:11px;color:var(--text2)">'+e.turnos.length+' turno(s) trabajado(s)</div></div>'+
+        '<div style="margin-left:auto;font-size:18px;font-weight:700;color:var(--acc3)">'+fmt2(e.total)+'</div></div>';
+
+      // Detalle de turnos
+      html+='<div class="tw"><table style="width:100%;font-size:11px"><thead><tr>'+
+        '<th>Fecha</th><th>Turno</th><th>Tipo</th><th style="text-align:right">Valor</th></tr></thead><tbody>';
+      e.turnos.sort(function(a,b){return a.fecha>b.fecha?1:-1;}).forEach(function(t){
+        var d=new Date(t.fecha+'T12:00:00');var dow=d.getDay();
+        var dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        var tipo=t.valor===50000?'Sáb/Dom T2':t.valor===40000&&dow===5?'Vie T2':
+                 t.valor===30000?'T1 mañana':'Lun–Jue';
+        html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td><td>T'+t.turno+'</td>'+
+              '<td>'+tipo+'</td><td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+
+      // Botón pagar
+      html+='<div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">'+
+        '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="pagarNomina(\''+e.nombre+'\','+e.total+')">'+
+        '<i class="ti ti-cash"></i> Pagar '+fmt2(e.total)+'</button></div></div>';
+    });
+
+    // Total general
+    html+='<div class="card" style="background:var(--acc3);color:#fff">'+
+      '<div style="display:flex;justify-content:space-between;align-items:center">'+
+      '<div style="font-weight:700;font-size:15px">💰 TOTAL A PAGAR</div>'+
+      '<div style="font-size:22px;font-weight:700">'+fmt2(totalGeneral)+'</div></div>'+
+      '<div style="font-size:11px;opacity:0.8;margin-top:4px">'+emps.length+' empleada(s) | '+
+      cierresSem.length+' turno(s)</div>'+
+      '<button class="btn" style="margin-top:10px;background:rgba(255,255,255,0.2);color:#fff;font-size:12px" '+
+      'onclick="pagarNominaTotal('+totalGeneral+',\''+desde+'\',\''+hasta+'\')">'+
+      '✅ Pagar nómina completa ('+fmt2(totalGeneral)+')</button></div>';
+
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='<div class="card" style="color:#e94560">Error: '+e.message+'</div>';}
+}
+
+async function pagarNomina(nombre, monto){
+  var medio=prompt('¿Medio de pago?\n1. Efectivo\n2. Nequi\n3. Transferencia\n\nIngresa 1, 2 o 3:');
+  var medioMap={'1':'Efectivo','2':'Nequi/Daviplata','3':'Transferencia'};
+  var medioNombre=medioMap[medio]||'Efectivo';
+  if(!confirm('¿Confirmar pago de $'+monto.toLocaleString('es-CO')+' a '+nombre+' por '+medioNombre+'?'))return;
+
+  var desde=document.getElementById('nom-desde')?.value||'';
+  var hasta=document.getElementById('nom-hasta')?.value||'';
+
+  // Registrar en gastos
+  var g={id:'g_nom_'+Date.now(),
+    desc:'NOMINA '+(desde?'DEL '+desde+' AL '+hasta:'SEMANAL'),
+    monto:monto,cat:'Nómina',tipoPago:'fondo_admin',medioPago:medioNombre,
+    fecha:new Date().toISOString().split('T')[0],
+    timestamp:new Date().toISOString(),
+    terceroNombre:nombre.toUpperCase(),terceroId:'',
+    usuario:currentUser?currentUser.name:'viviana.rojas'
+  };
+  await window.FB.set('gastos',g.id,g);
+
+  // Registrar egreso en fondoAdmin
+  var mov={id:'fa_nom_'+Date.now(),tipo:'egreso',medioPago:medioNombre,
+    concepto:'Nómina: '+nombre.toUpperCase()+' ('+desde+' al '+hasta+')',
+    valor:monto,fecha:g.fecha,timestamp:g.timestamp,
+    usuario:currentUser?currentUser.name:'viviana.rojas',origen:'nomina'
+  };
+  await window.FB.set('fondoAdmin',mov.id,mov);
+  if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
+  window._fondoAdminMovs.push(mov);
+
+  toast('✅ Nómina de '+nombre+' pagada: $'+monto.toLocaleString('es-CO')+' por '+medioNombre,'#3aaa6a',4000);
+  try{renderFondoAdmin();}catch(e){}
+}
+
+async function pagarNominaTotal(total,desde,hasta){
+  var medio=prompt('¿Medio de pago para toda la nómina?\n1. Efectivo\n2. Nequi\n3. Transferencia\n\nIngresa 1, 2 o 3:');
+  var medioMap={'1':'Efectivo','2':'Nequi/Daviplata','3':'Transferencia'};
+  var medioNombre=medioMap[medio]||'Efectivo';
+  if(!confirm('¿Confirmar pago total de $'+total.toLocaleString('es-CO')+' por '+medioNombre+'?'))return;
+
+  var g={id:'g_nom_total_'+Date.now(),
+    desc:'NOMINA SEMANAL DEL '+desde+' AL '+hasta,
+    monto:total,cat:'Nómina',tipoPago:'fondo_admin',medioPago:medioNombre,
+    fecha:new Date().toISOString().split('T')[0],timestamp:new Date().toISOString(),
+    terceroNombre:'EMPLEADAS',terceroId:'',usuario:currentUser?currentUser.name:'viviana.rojas'
+  };
+  await window.FB.set('gastos',g.id,g);
+
+  var mov={id:'fa_nom_total_'+Date.now(),tipo:'egreso',medioPago:medioNombre,
+    concepto:'Nómina semanal: '+desde+' al '+hasta,
+    valor:total,fecha:g.fecha,timestamp:g.timestamp,
+    usuario:currentUser?currentUser.name:'viviana.rojas',origen:'nomina'
+  };
+  await window.FB.set('fondoAdmin',mov.id,mov);
+  if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
+  window._fondoAdminMovs.push(mov);
+
+  toast('✅ Nómina total pagada: $'+total.toLocaleString('es-CO'),'#3aaa6a',4000);
+  try{renderFondoAdmin();}catch(e){}
 }
 
 function updateDeudasBadge(){
