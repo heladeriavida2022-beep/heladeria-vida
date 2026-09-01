@@ -917,7 +917,8 @@ try{
               <!-- Historial -->
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
-              <button onclick="diagnosticoEgresosMedios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">🔍 Ver egresos sin medio de pago</button>
+              <button onclick="corregirGastoRabajonTrans()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🔧 Corregir RABAJON $63.996 → Trans</button>
+              <button onclick="diagnosticoEgresosMedios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔍 Ver egresos sin medio de pago</button>
               <button onclick="corregirNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">🔧 Corregir Nómina Ángel 31/08</button>
               <button onclick="pagarCompraCC141()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">✅ Pagar compra Carlos Caro $141.000</button>
               <button onclick="auditoriaForenseFondo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8">🔎 AUDITORÍA FORENSE FONDO</button>
@@ -7312,6 +7313,69 @@ async function corregirEstadoCompras(){
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function corregirGastoRabajonTrans(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando...';
+  try{
+    var gastos=await window.FB.getAll('gastos');
+    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var g=gastos.find(function(x){
+      return (x.desc||'').toUpperCase().includes('DESECHABLE')&&
+             (x.terceroNombre||'').toUpperCase().includes('RABAJON')&&
+             (x.monto||0)===63996;
+    });
+    if(!g){
+      // Buscar solo por monto y fecha
+      g=gastos.find(function(x){
+        return (x.monto||0)===63996&&(x.fecha||'').includes('2026-08-31');
+      });
+    }
+    if(!g){div.innerHTML='⚠️ Gasto RABAJON $63.996 no encontrado';return;}
+
+    var html='Encontrado: '+g.id+'\n';
+    html+='Antes: '+g.tipoPago+'\n';
+
+    // Corregir gasto
+    g.tipoPago='fondo_admin';
+    g.medioPago='Transferencia';
+    await window.FB.set('gastos',g.id,g);
+    html+='✅ Gasto corregido → Fondo Admin / Transferencia\n';
+
+    // Verificar si ya existe movimiento en fondoAdmin
+    var movs=await window.FB.getAll('fondoAdmin');
+    var mf=movs.find(function(m){
+      return (m.concepto||'').toUpperCase().includes('DESECHABLE')&&
+             (m.valor||0)===63996&&m.tipo==='egreso';
+    });
+
+    if(mf){
+      mf.medioPago='Transferencia';
+      await window.FB.set('fondoAdmin',mf.id,mf);
+      html+='✅ Movimiento fondo corregido a Transferencia\n';
+    } else {
+      var nuevoMov={
+        id:'fa_rabajon2_'+Date.now(),
+        tipo:'egreso',medioPago:'Transferencia',
+        concepto:'Gasto: DESECHABLES — RABAJON',
+        valor:63996,fecha:'2026-08-31',
+        timestamp:new Date().toISOString(),
+        usuario:currentUser?currentUser.name:'viviana.rojas',origen:'gasto'
+      };
+      await window.FB.set('fondoAdmin',nuevoMov.id,nuevoMov);
+      if(window._fondoAdminMovs) window._fondoAdminMovs.push(nuevoMov);
+      html+='✅ Movimiento fondo creado: Transferencia $63.996\n';
+    }
+
+    var gls=await window.FB.getAll('gastos');
+    LS.set('gastos',gls);
+    try{renderGastos();}catch(e){}
+    try{renderFondoAdmin();}catch(e){}
+    div.innerHTML=html+'✅ Listo. El gasto ahora descuenta de Transferencia.';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
