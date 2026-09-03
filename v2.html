@@ -5249,9 +5249,9 @@ function confirmarAbono(){
     if(typeof renderDeudas==='function') renderDeudas();
     updateDeudasBadge();
   } else if(origen==='compra'){
-    LS.set('compras', purchases);
+    LS.set('purchases', purchases);
     try{window.FB.set('compras', doc.id, doc);}catch(e){}
-    if(typeof renderComprasTable==='function') renderComprasTable();
+    if(typeof renderIngTable==='function') renderIngTable();
   }
 
   // Guardar egreso en fondoAdmin
