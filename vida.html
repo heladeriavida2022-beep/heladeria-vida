@@ -1259,14 +1259,17 @@ try{
 
 <!-- Ajuste -->
 <!-- MODAL ABONO DESDE FONDO -->
-<div class="ov" id="ov-abono"><div class="modal" style="max-width:440px">
+<div class="ov" id="ov-abono"><div class="modal" style="max-width:460px">
   <button class="mx" onclick="closeM('abono')"><i class="ti ti-x"></i></button>
-  <div class="mt"><i class="ti ti-cash" style="color:#7c3aed"></i>💰 Abono desde Fondo</div>
+  <div class="mt"><i class="ti ti-cash" style="color:#7c3aed"></i>💰 Pagar Factura</div>
   <input type="hidden" id="abono-doc-id">
   <input type="hidden" id="abono-doc-origen">
+
+  <!-- Info factura -->
   <div style="background:#f5f3ff;border:1.5px solid #8b5cf6;border-radius:8px;padding:12px;margin-bottom:12px;font-size:12px">
+    <div id="abono-proveedor" style="font-weight:700;font-size:13px;margin-bottom:6px"></div>
     <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center">
-      <div><div style="color:var(--text2);font-size:10px">Total</div><div id="abono-total" style="font-weight:700;font-size:14px"></div></div>
+      <div><div style="color:var(--text2);font-size:10px">Total factura</div><div id="abono-total" style="font-weight:700;font-size:14px"></div></div>
       <div><div style="color:var(--text2);font-size:10px">Pagado</div><div id="abono-pagado" style="font-weight:700;font-size:14px;color:#3aaa6a"></div></div>
       <div><div style="color:var(--text2);font-size:10px">Pendiente</div><div id="abono-pendiente" style="font-weight:700;font-size:14px;color:#e94560"></div></div>
     </div>
@@ -1274,23 +1277,47 @@ try{
       <div id="abono-barra" style="height:100%;background:#3aaa6a;border-radius:3px;transition:.3s"></div>
     </div>
   </div>
-  <div class="fg"><label class="fgrp-label" style="font-weight:700">Valor del abono</label>
-    <input class="finput" type="number" id="abono-valor" placeholder="Ingresa el valor a abonar" oninput="calcAbono()" style="font-size:15px;font-weight:700">
+
+  <!-- Medios de pago mixto -->
+  <div style="font-size:11px;font-weight:700;color:#7c3aed;margin-bottom:8px">💳 Ingresa el valor por cada medio de pago:</div>
+  <div style="display:grid;gap:8px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:160px;font-size:12px">💵 Efectivo Fondo</span>
+      <input class="finput" type="number" id="abono-efe" placeholder="$0" oninput="calcAbono()" style="flex:1;font-size:13px;font-weight:700">
+      <span id="abono-saldo-efe" style="font-size:10px;color:var(--text2);width:80px;text-align:right"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:160px;font-size:12px">📱 Nequi/Daviplata</span>
+      <input class="finput" type="number" id="abono-nequi" placeholder="$0" oninput="calcAbono()" style="flex:1;font-size:13px;font-weight:700">
+      <span id="abono-saldo-nequi" style="font-size:10px;color:var(--text2);width:80px;text-align:right"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:160px;font-size:12px">🏦 Transferencia</span>
+      <input class="finput" type="number" id="abono-trans" placeholder="$0" oninput="calcAbono()" style="flex:1;font-size:13px;font-weight:700">
+      <span id="abono-saldo-trans" style="font-size:10px;color:var(--text2);width:80px;text-align:right"></span>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="width:160px;font-size:12px">💳 Tarjeta</span>
+      <input class="finput" type="number" id="abono-tarjeta" placeholder="$0" oninput="calcAbono()" style="flex:1;font-size:13px;font-weight:700">
+      <span style="font-size:10px;color:var(--text2);width:80px;text-align:right"></span>
+    </div>
   </div>
-  <div class="fg"><label class="fgrp-label" style="font-weight:700;color:#7c3aed">Medio de pago del Fondo</label>
-    <select class="finput" id="abono-medio" onchange="calcAbono()" style="border-color:#8b5cf6">
-      <option value="Efectivo">💵 Efectivo</option>
-      <option value="Nequi/Daviplata">📱 Nequi/Daviplata</option>
-      <option value="Transferencia">🏦 Transferencia</option>
-    </select>
+
+  <!-- Resumen pago -->
+  <div style="background:#f0fdf4;border:1.5px solid #16a34a;border-radius:8px;padding:10px;margin-bottom:10px;font-size:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:700">TOTAL A PAGAR:</span>
+      <span id="abono-total-pago" style="font-size:18px;font-weight:700;color:#16a34a">$0</span>
+    </div>
+    <div style="display:flex;justify-content:space-between;margin-top:4px">
+      <span style="color:var(--text2)">Saldo después del pago:</span>
+      <span id="abono-saldo-post" style="font-weight:700;color:#e94560">$0</span>
+    </div>
   </div>
-  <div style="background:#f5f3ff;border:1px solid #c4b5fd;border-radius:6px;padding:8px 10px;font-size:11px;margin-bottom:8px">
-    <div style="font-weight:700;color:#7c3aed;margin-bottom:4px">Saldo disponible:</div>
-    <div id="abono-saldo-detalle"></div>
-  </div>
+
   <div id="abono-aviso" style="display:none;background:#fff5f5;border:1.5px solid #e94560;border-radius:6px;padding:8px;font-size:11px;color:#e94560;font-weight:700;margin-bottom:8px"></div>
   <div style="display:flex;gap:8px">
-    <button class="btn btn-acc" onclick="confirmarAbono()" style="flex:1;background:#7c3aed;border-color:#7c3aed">✅ Confirmar abono</button>
+    <button class="btn btn-acc" onclick="confirmarAbono()" id="abono-btn-confirmar" style="flex:1;background:#7c3aed;border-color:#7c3aed">✅ Confirmar pago</button>
     <button class="btn btn-ghost" onclick="closeM('abono')">Cancelar</button>
   </div>
 </div></div>
@@ -5141,142 +5168,189 @@ function getPagoTotals(){
 
 function abrirModalAbono(id, origen){
   if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador','#e94560');return;}
-  var doc = null;
-  if(origen==='deuda'){
-    var deudas=LS.g('deudas')||[];
-    doc=deudas.find(function(d){return d.id===id;});
-  } else if(origen==='compra'){
-    doc=purchases.find(function(c){return c.id==id;});
+  var doc=null;
+  var deudas=LS.g('deudas')||[];
+  if(origen==='deuda') doc=deudas.find(function(d){return d.id===id;});
+  else if(origen==='compra') doc=purchases.find(function(c){return c.id==id;});
+  // Fallback Firebase si no está en memoria
+  if(!doc){
+    if(window.FB&&window.FB.getAll){
+      window.FB.getAll(origen==='deuda'?'deudas':'compras').then(function(all){
+        var found=all.find(function(x){return x.id==id;});
+        if(found){
+          if(origen==='deuda'){deudas.push(found);LS.set('deudas',deudas);}
+          else{purchases.push(found);LS.set('purchases',purchases);}
+          abrirModalAbono(id,origen);
+        } else toast('Documento no encontrado','#e94560');
+      });
+    } else toast('Documento no encontrado','#e94560');
+    return;
   }
-  if(!doc){toast('Documento no encontrado','#e94560');return;}
 
-  var monto = doc.monto || doc.total || 0;
-  var pagado = doc.montoPagado || 0;
-  var pendiente = monto - pagado;
+  var monto=doc.monto||doc.total||0;
+  var pagado=doc.montoPagado||0;
+  var pendiente=monto-pagado;
+  if(pendiente<=0){toast('Este documento ya está pagado','#3aaa6a');return;}
 
-  if(pendiente <= 0){toast('Este documento ya está pagado','#3aaa6a');return;}
-
-  document.getElementById('abono-doc-id').value = id;
-  document.getElementById('abono-doc-origen').value = origen;
-  document.getElementById('abono-total').textContent = fmt(monto);
-  document.getElementById('abono-pagado').textContent = fmt(pagado);
-  document.getElementById('abono-pendiente').textContent = fmt(pendiente);
-  document.getElementById('abono-barra').style.width = (pagado/monto*100)+'%';
-  document.getElementById('abono-valor').value = '';
-  document.getElementById('abono-aviso').style.display = 'none';
+  document.getElementById('abono-doc-id').value=id;
+  document.getElementById('abono-doc-origen').value=origen;
+  var prov=doc.acreedor||doc.prov||doc.terceroNombre||'—';
+  var el=document.getElementById('abono-proveedor');
+  if(el)el.textContent=prov;
+  document.getElementById('abono-total').textContent=fmt(monto);
+  document.getElementById('abono-pagado').textContent=fmt(pagado);
+  document.getElementById('abono-pendiente').textContent=fmt(pendiente);
+  document.getElementById('abono-barra').style.width=(pagado/monto*100)+'%';
+  // Limpiar campos
+  ['abono-efe','abono-nequi','abono-trans','abono-tarjeta'].forEach(function(x){
+    var el=document.getElementById(x);if(el)el.value='';
+  });
+  document.getElementById('abono-aviso').style.display='none';
   calcAbono();
   openM('abono');
 }
 
 function calcAbono(){
-  var medio = document.getElementById('abono-medio').value;
-  var sEfe = getSaldoFondo('Efectivo');
-  var sNequi = getSaldoFondo('Nequi/Daviplata');
-  var sTrans = getSaldoFondo('Transferencia');
-  var saldos = {'Efectivo':sEfe,'Nequi/Daviplata':sNequi,'Transferencia':sTrans};
+  var sEfe=getSaldoFondo('Efectivo');
+  var sNequi=getSaldoFondo('Nequi/Daviplata');
+  var sTrans=getSaldoFondo('Transferencia');
 
-  document.getElementById('abono-saldo-detalle').innerHTML =
-    '<div>💵 Efectivo: <b style="color:#3aaa6a">'+fmt(sEfe)+'</b></div>'+
-    '<div>📱 Nequi/Daviplata: <b style="color:#9b72cf">'+fmt(sNequi)+'</b></div>'+
-    '<div>🏦 Transferencia: <b style="color:#3b82f6">'+fmt(sTrans)+'</b></div>';
+  var elSEfe=document.getElementById('abono-saldo-efe');
+  var elSNequi=document.getElementById('abono-saldo-nequi');
+  var elSTrans=document.getElementById('abono-saldo-trans');
+  if(elSEfe) elSEfe.textContent='Disp: '+fmt(sEfe);
+  if(elSNequi) elSNequi.textContent='Disp: '+fmt(sNequi);
+  if(elSTrans) elSTrans.textContent='Disp: '+fmt(sTrans);
 
-  var abono = parseFloat(document.getElementById('abono-valor').value)||0;
-  var pendiente = parseFloat(document.getElementById('abono-pendiente').textContent.replace(/[^0-9]/g,''))||0;
-  var aviso = document.getElementById('abono-aviso');
-  var saldo = saldos[medio]||0;
+  var vEfe=parseFloat(document.getElementById('abono-efe')?.value)||0;
+  var vNequi=parseFloat(document.getElementById('abono-nequi')?.value)||0;
+  var vTrans=parseFloat(document.getElementById('abono-trans')?.value)||0;
+  var vTarjeta=parseFloat(document.getElementById('abono-tarjeta')?.value)||0;
+  var totalPago=vEfe+vNequi+vTrans+vTarjeta;
+
+  var pendienteTxt=document.getElementById('abono-pendiente')?.textContent||'0';
+  var pendiente=parseFloat(pendienteTxt.replace(/[^0-9]/g,''))||0;
+  var saldoPost=pendiente-totalPago;
+
+  var elTotal=document.getElementById('abono-total-pago');
+  var elPost=document.getElementById('abono-saldo-post');
+  var aviso=document.getElementById('abono-aviso');
+  var btn=document.getElementById('abono-btn-confirmar');
+
+  if(elTotal) elTotal.textContent=fmt(totalPago);
+  if(elPost){
+    elPost.textContent=fmt(Math.max(0,saldoPost));
+    elPost.style.color=saldoPost<=0?'#3aaa6a':'#e94560';
+  }
 
   aviso.style.display='none';
-  if(abono > 0){
-    if(abono > pendiente){
-      aviso.style.display='block';
-      aviso.textContent='⚠️ El abono ($'+fmt(abono)+') supera el saldo pendiente ('+fmt(pendiente)+')';
-    } else if(abono > saldo){
-      aviso.style.display='block';
-      aviso.textContent='⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldo);
-    }
+  if(btn) btn.disabled=false;
+
+  if(totalPago<=0){if(btn)btn.disabled=true;return;}
+  if(totalPago>pendiente){
+    aviso.style.display='block';
+    aviso.textContent='⚠️ El pago ($'+fmt(totalPago)+') supera el saldo pendiente ($'+fmt(pendiente)+')';
+    if(btn) btn.disabled=true;return;
   }
+  if(vEfe>sEfe){aviso.style.display='block';aviso.textContent='⚠️ Saldo Efectivo insuficiente. Disponible: '+fmt(sEfe);if(btn)btn.disabled=true;return;}
+  if(vNequi>sNequi){aviso.style.display='block';aviso.textContent='⚠️ Saldo Nequi insuficiente. Disponible: '+fmt(sNequi);if(btn)btn.disabled=true;return;}
+  if(vTrans>sTrans){aviso.style.display='block';aviso.textContent='⚠️ Saldo Transferencia insuficiente. Disponible: '+fmt(sTrans);if(btn)btn.disabled=true;return;}
 }
 
 function confirmarAbono(){
-  var id = document.getElementById('abono-doc-id').value;
-  var origen = document.getElementById('abono-doc-origen').value;
-  var medio = document.getElementById('abono-medio').value;
-  var abono = parseFloat(document.getElementById('abono-valor').value)||0;
+  var id=document.getElementById('abono-doc-id').value;
+  var origen=document.getElementById('abono-doc-origen').value;
+  var vEfe=parseFloat(document.getElementById('abono-efe')?.value)||0;
+  var vNequi=parseFloat(document.getElementById('abono-nequi')?.value)||0;
+  var vTrans=parseFloat(document.getElementById('abono-trans')?.value)||0;
+  var vTarjeta=parseFloat(document.getElementById('abono-tarjeta')?.value)||0;
+  var totalPago=vEfe+vNequi+vTrans+vTarjeta;
 
-  if(!abono||abono<=0){toast('Ingresa un valor de abono','#e94560');return;}
+  if(totalPago<=0){toast('Ingresa al menos un valor de pago','#e94560');return;}
 
-  // Obtener documento
-  var doc = null;
-  var deudas = LS.g('deudas')||[];
+  var doc=null;
+  var deudas=LS.g('deudas')||[];
   if(origen==='deuda') doc=deudas.find(function(d){return d.id===id;});
   else if(origen==='compra') doc=purchases.find(function(c){return c.id==id;});
   if(!doc){toast('Documento no encontrado','#e94560');return;}
 
-  var monto = doc.monto || doc.total || 0;
-  var pagadoAnterior = doc.montoPagado || 0;
-  var pendiente = monto - pagadoAnterior;
-  var saldoMedio = getSaldoFondo(medio);
+  var monto=doc.monto||doc.total||0;
+  var pagadoAnterior=doc.montoPagado||0;
+  var pendiente=monto-pagadoAnterior;
 
-  // Validaciones
-  if(abono > pendiente){toast('⚠️ El abono supera el saldo pendiente: '+fmt(pendiente),'#e94560');return;}
-  if(abono > saldoMedio){toast('⚠️ Saldo insuficiente en '+medio+'. Disponible: '+fmt(saldoMedio),'#e94560');return;}
-  if(!confirm('¿Confirmar abono de '+fmt(abono)+' desde Fondo '+medio+'?'))return;
+  if(totalPago>pendiente){toast('⚠️ El pago supera el saldo pendiente','#e94560');return;}
+  if(!confirm('¿Confirmar pago de '+fmt(totalPago)+'?'))return;
 
-  var now = new Date();
-  var nuevoPagado = pagadoAnterior + abono;
-  var nuevoPendiente = monto - nuevoPagado;
-  var esPagadoTotal = nuevoPendiente <= 0;
+  var now=new Date();
+  var fecha=now.toISOString().split('T')[0];
+  var nuevoPagado=pagadoAnterior+totalPago;
+  var nuevoPendiente=monto-nuevoPagado;
+  var esPagadoTotal=nuevoPendiente<=0;
 
-  // Registro del abono individual
-  var registroAbono = {
-    fecha: now.toISOString().split('T')[0],
-    hora: now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
-    valor: abono,
-    medioPago: medio,
-    usuario: currentUser.name,
-    timestamp: now.toISOString()
+  // Registro detallado del pago
+  var registroPago={
+    pagoId:'pago_'+now.getTime(),
+    fecha:fecha,hora:now.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+    totalPago:totalPago,
+    efectivo:vEfe,nequi:vNequi,transferencia:vTrans,tarjeta:vTarjeta,
+    saldoAnterior:pendiente,saldoPosterior:Math.max(0,nuevoPendiente),
+    usuario:currentUser.name,timestamp:now.toISOString(),
+    tipoPago:( [vEfe>0,vNequi>0,vTrans>0,vTarjeta>0].filter(Boolean).length>1)?'mixto':'simple'
   };
 
   // Actualizar documento
-  doc.montoPagado = nuevoPagado;
-  doc.abonos = [...(doc.abonos||[]), registroAbono];
-  if(esPagadoTotal){ doc.pagada=true; doc.fechaPago=registroAbono.fecha; }
+  doc.montoPagado=nuevoPagado;
+  doc.abonos=[...(doc.abonos||[]),registroPago];
+  if(esPagadoTotal){doc.pagada=true;doc.fechaPago=fecha;doc.estadoPago='pagada';}
 
-  // Guardar en localStorage y Firebase
+  // Guardar documento
   if(origen==='deuda'){
-    LS.set('deudas', deudas);
-    try{window.FB.set('deudas', doc.id, doc);}catch(e){}
-    if(typeof renderDeudas==='function') renderDeudas();
+    LS.set('deudas',deudas);
+    try{window.FB.set('deudas',doc.id,doc);}catch(e){}
+    try{renderDeudas();}catch(e){}
     updateDeudasBadge();
-  } else if(origen==='compra'){
-    LS.set('purchases', purchases);
-    try{window.FB.set('compras', doc.id, doc);}catch(e){}
-    if(typeof renderIngTable==='function') renderIngTable();
+  } else {
+    LS.set('purchases',purchases);
+    try{window.FB.set('compras',doc.id,doc);}catch(e){}
+    try{renderIngTable();}catch(e){}
   }
 
-  // Guardar egreso en fondoAdmin
-  var movFondoAbono = {
-    id: 'fa_'+now.getTime(),
-    tipo: 'egreso',
-    medioPago: medio,
-    concepto: 'Abono '+(origen==='deuda'?'deuda':'compra')+': '+(doc.acreedor||doc.prov||'—'),
-    valor: abono,
-    fecha: registroAbono.fecha,
-    timestamp: now.toISOString(),
-    usuario: currentUser.name,
-    documentoId: id,
-    origen: origen
-  };
-  window.FB.set('fondoAdmin', movFondoAbono.id, movFondoAbono).then(function(){
-    if(!window._fondoAdminMovs) window._fondoAdminMovs=[];
-    window._fondoAdminMovs.push(movFondoAbono);
+  // Crear UN movimiento en fondoAdmin por cada medio usado (no duplicar total)
+  var prov=doc.acreedor||doc.prov||doc.terceroNombre||'—';
+  var concepto='Pago '+(origen==='deuda'?'deuda':'compra')+': '+prov;
+  var movPromises=[];
+  var mediosUsados=[
+    {medio:'Efectivo',valor:vEfe},
+    {medio:'Nequi/Daviplata',valor:vNequi},
+    {medio:'Transferencia',valor:vTrans},
+    {medio:'Tarjeta',valor:vTarjeta}
+  ];
+  mediosUsados.forEach(function(m,i){
+    if(m.valor<=0) return;
+    var mov={
+      id:'fa_pago_'+(now.getTime()+i),
+      tipo:'egreso',medioPago:m.medio,
+      concepto:concepto+(registroPago.tipoPago==='mixto'?' (mixto)':''),
+      valor:m.valor,fecha:fecha,timestamp:now.toISOString(),
+      usuario:currentUser.name,documentoId:id,origen:origen,
+      pagoId:registroPago.pagoId
+    };
+    movPromises.push(window.FB.set('fondoAdmin',mov.id,mov).then(function(){
+      if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
+      window._fondoAdminMovs.push(mov);
+    }).catch(function(){
+      setTimeout(function(){window.FB.set('fondoAdmin',mov.id,mov).catch(function(){});},3000);
+    }));
+  });
+
+  Promise.all(movPromises).then(function(){
     closeM('abono');
-    var msg = esPagadoTotal
-      ? '✅ Pago completado — '+( origen==='deuda'?'Deuda':'Compra')+' marcada como PAGADA'
-      : '✅ Abono registrado — Pendiente: '+fmt(nuevoPendiente);
-    toast(msg, esPagadoTotal?'#3aaa6a':'#7c3aed');
-    if(typeof renderFondoAdmin==='function') renderFondoAdmin();
-  }).catch(function(){ toast('Error guardando en Firebase','#e94560'); });
+    var msg=esPagadoTotal
+      ?'✅ Factura pagada completamente — '+fmt(totalPago)
+      :'✅ Pago de '+fmt(totalPago)+' registrado — Pendiente: '+fmt(Math.max(0,nuevoPendiente));
+    toast(msg,esPagadoTotal?'#3aaa6a':'#7c3aed',4000);
+    try{renderFondoAdmin();}catch(e){}
+  });
 }
 
 
