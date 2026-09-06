@@ -7756,21 +7756,17 @@ async function diagCajaTurno(){
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
     var html='DIAGNÓSTICO CAJA TURNO\n'+'─'.repeat(40)+'\n';
     html+='Fecha hoy: '+hoy+'\n';
-    html+='Turno activo: '+(ta?JSON.stringify({id:ta.turnoId||ta.id,turno:ta.turno,apertura:(ta.timestampApertura||'').substring(0,16)}):'NINGUNO')+'\n\n';
+    html+='getTurnoActivo: '+(ta?JSON.stringify({id:ta.turnoId||ta.id,turno:ta.turno,apertura:(ta.timestampApertura||'').substring(0,16)}):'NINGUNO')+'\n\n';
 
-    var cajaDocs=await window.FB.getAll('caja');
-    var egresosHoy=cajaDocs.filter(function(m){
-      return m.tipo==='egreso'&&((m.fecha||'')===hoy||(m.timestamp||'').includes(hoy));
-    });
-    html+='EGRESOS HOY EN FIREBASE ('+egresosHoy.length+'):\n';
-    egresosHoy.forEach(function(m){
-      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,35)+'\n';
-    });
-
-    var egLocal=movCaja.filter(function(m){return m.tipo==='egreso'&&(m.fecha||'').includes(hoy.substring(0,7));});
-    html+='\nEGRESOS LOCAL ('+egLocal.length+'):\n';
-    egLocal.forEach(function(m){
-      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,35)+'\n';
+    // Mostrar todos los turnos recientes de Firebase
+    var turnosFB=await window.FB.getAll('turnos');
+    var recientes=turnosFB.filter(function(t){
+      return (t.timestampApertura||t.fecha||'')>='2026-09-03';
+    }).sort(function(a,b){return (b.timestampApertura||'')>(a.timestampApertura||'')?1:-1;});
+    html+='TURNOS RECIENTES EN FIREBASE ('+recientes.length+'):\n';
+    recientes.forEach(function(t){
+      html+='  ID:'+(t.turnoId||t.id||'?')+'\n';
+      html+='  T'+(t.turno||'?')+' | apertura:'+(t.timestampApertura||'').substring(0,16)+' | estado:'+(t.estado||'?')+'\n\n';
     });
 
     div.innerHTML=html;
