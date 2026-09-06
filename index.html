@@ -3807,7 +3807,7 @@ function ejecutarPagoDeuda(medio){
 
   if(medio==='caja'){
     if(!confirm('¿Confirmar pago de '+fmt(montoPagar)+' a '+d.acreedor+' desde caja del turno?'))return;
-    var _ta=turnoAbierto||currentTurno||null;
+    var _ta=getTurnoActivo();
     var mov={
       id:'m'+Date.now(),
       hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
@@ -7751,26 +7751,26 @@ async function diagCajaTurno(){
   div.style.display='block';
   div.innerHTML='⏳ Leyendo...';
   try{
-    var ta=turnoAbierto||currentTurno||null;
+    var ta=getTurnoActivo();
     var hoy=getFechaHoy();
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
     var html='DIAGNÓSTICO CAJA TURNO\n'+'─'.repeat(40)+'\n';
     html+='Fecha hoy: '+hoy+'\n';
-    html+='Turno activo: '+(ta?JSON.stringify({id:ta.turnoId||ta.id,turno:ta.turno,apertura:ta.timestampApertura}):'NINGUNO')+'\n\n';
+    html+='Turno activo: '+(ta?JSON.stringify({id:ta.turnoId||ta.id,turno:ta.turno,apertura:(ta.timestampApertura||'').substring(0,16)}):'NINGUNO')+'\n\n';
 
-    // Leer caja desde Firebase
     var cajaDocs=await window.FB.getAll('caja');
     var egresosHoy=cajaDocs.filter(function(m){
-      return m.tipo==='egreso'&&((m.fecha||'')=== hoy||(m.timestamp||'').includes(hoy));
+      return m.tipo==='egreso'&&((m.fecha||'')===hoy||(m.timestamp||'').includes(hoy));
     });
     html+='EGRESOS HOY EN FIREBASE ('+egresosHoy.length+'):\n';
     egresosHoy.forEach(function(m){
-      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,30)+'\n';
+      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,35)+'\n';
     });
 
-    html+='\nEGRESOS EN movCaja LOCAL HOY ('+movCaja.filter(function(m){return m.tipo==='egreso'&&(m.fecha||'').includes(hoy);}).length+'):\n';
-    movCaja.filter(function(m){return m.tipo==='egreso'&&(m.fecha||'').includes(hoy);}).forEach(function(m){
-      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,30)+'\n';
+    var egLocal=movCaja.filter(function(m){return m.tipo==='egreso'&&(m.fecha||'').includes(hoy.substring(0,7));});
+    html+='\nEGRESOS LOCAL ('+egLocal.length+'):\n';
+    egLocal.forEach(function(m){
+      html+='  '+f2(m.monto||0)+' | turnoId:'+(m.turnoId||'SIN')+' | '+(m.desc||'').substring(0,35)+'\n';
     });
 
     div.innerHTML=html;
@@ -7783,7 +7783,7 @@ async function corregirPagoCremosionCaja(){
   div.style.display='block';
   div.innerHTML='⏳ Buscando pago CREMOSIN en caja...';
   try{
-    var ta=turnoAbierto||currentTurno||null;
+    var ta=getTurnoActivo();
     var hoy=getFechaHoy();
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
 
