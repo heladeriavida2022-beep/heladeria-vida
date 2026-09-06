@@ -7777,66 +7777,65 @@ async function corregirPagoCremosionCaja(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Creando egreso CREMOSIN en caja...';
+  div.innerHTML='⏳ Procesando...';
   try{
-    var ta=getTurnoActivo();
-    var hoy=getFechaHoy();
-    var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+    var turnoIdHoy='turno_T1_2026-09-05_1788620705808';
+    var hoy='2026-09-05';
+    var html='';
 
-    // Verificar si ya existe
+    // 1. Crear o actualizar egreso en caja
     var cajaDocs=await window.FB.getAll('caja');
     var yaExiste=cajaDocs.find(function(m){
-      return m.tipo==='egreso'&&(m.desc||'').toUpperCase().includes('CREMOSIN')&&(m.monto||0)===129000;
+      return (m.desc||'').toUpperCase().includes('CREMOSIN')&&(m.monto||0)===129000;
     });
-    if(yaExiste){div.innerHTML='ℹ️ El egreso CREMOSIN ya existe\n'+JSON.stringify(yaExiste,null,2);return;}
-
-    // Crear egreso
-    var mov={
-      id:'m_cremosin_'+Date.now(),
-      hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
-      tipo:'egreso',
-      desc:'Pago deuda: CREMOSIN — Compra: CUARTOS DE HELADO, HELADOS CUADRADOS, MEDIO LITRO DE HELADO',
-      monto:129000,
-      pago:'Efectivo',
-      emp:currentUser?currentUser.name:'viviana.rojas',
-      fecha:hoy,
-      timestamp:new Date().toISOString(),
-      turnoId:ta?(ta.turnoId||ta.id||null):null
-    };
-    await window.FB.set('caja',mov.id,mov);
-    movCaja.unshift(mov);
-    LS.set('movCaja',movCaja);
-
-    // Marcar deuda CREMOSIN como pagada
-    var deudas=LS.g('deudas')||[];
-    var d=deudas.find(function(x){
-      return (x.acreedor||'').toUpperCase().includes('CREMOSIN')&&!x.pagada;
-    });
-    if(!d){
-      var dFB=await window.FB.getAll('deudas');
-      d=dFB.find(function(x){return (x.acreedor||'').toUpperCase().includes('CREMOSIN')&&!x.pagada;});
+    if(yaExiste){
+      yaExiste.turnoId=turnoIdHoy;
+      yaExiste.fecha=hoy;
+      await window.FB.set('caja',yaExiste.id,yaExiste);
+      html+='✅ Egreso CREMOSIN actualizado con turnoId correcto\n';
+    } else {
+      var mov={
+        id:'m_cremosin_'+Date.now(),
+        hora:'14:30',tipo:'egreso',
+        desc:'Pago deuda: CREMOSIN — Compra: CUARTOS DE HELADO, HELADOS CUADRADOS, MEDIO LITRO',
+        monto:129000,pago:'Efectivo',
+        emp:currentUser?currentUser.name:'viviana.rojas',
+        fecha:hoy,timestamp:new Date().toISOString(),
+        turnoId:turnoIdHoy
+      };
+      await window.FB.set('caja',mov.id,mov);
+      movCaja.unshift(mov);LS.set('movCaja',movCaja);
+      html+='✅ Egreso CREMOSIN $129.000 creado\n';
     }
+
+    // 2. Marcar deuda y compra como pagadas
+    var dFB=await window.FB.getAll('deudas');
+    var d=dFB.find(function(x){return (x.acreedor||'').toUpperCase().includes('CREMOSIN')&&!x.pagada;});
     if(d){
       d.pagada=true;d.fechaPago=hoy;d.metodoPago='Caja';
       await window.FB.set('deudas',d.id,d);
-      // Actualizar compra también
+      html+='✅ Deuda CREMOSIN marcada como PAGADA\n';
       if(d.compraId){
-        var compra=purchases.find(function(c){return c.id===d.compraId;});
-        if(!compra){
-          var all=await window.FB.getAll('compras');
-          compra=all.find(function(c){return c.id===d.compraId;});
-        }
-        if(compra){compra.pagada=true;compra.estadoPago='pagada';compra.fechaPago=hoy;await window.FB.set('compras',compra.id,compra);}
+        var cFB=await window.FB.getAll('compras');
+        var comp=cFB.find(function(c){return c.id===d.compraId;});
+        if(comp){comp.pagada=true;comp.estadoPago='pagada';comp.fechaPago=hoy;await window.FB.set('compras',comp.id,comp);html+='✅ Compra CREMOSIN marcada como PAGADA\n';}
       }
+    } else html+='ℹ️ Deuda CREMOSIN ya estaba pagada\n';
+
+    // 3. Corregir turno Sep4 que quedó como "abierto"
+    var t4=await window.FB.getAll('turnos');
+    var tMal=t4.find(function(t){return (t.turnoId||t.id)==='turno_T1_2026-09-04_1788545531729';});
+    if(tMal&&tMal.estado==='abierto'){
+      tMal.estado='cerrado';
+      await window.FB.set('turnos',tMal.turnoId||tMal.id,tMal);
+      html+='✅ Turno T1 04/09 corregido a cerrado\n';
     }
 
-    try{renderCaja();}catch(e){}
     try{renderDeudas();}catch(e){}
     updateDeudasBadge();
-
-    div.innerHTML='✅ Egreso CREMOSIN $129.000 creado en caja\n'+
-      'TurnoId: '+(ta?(ta.turnoId||ta.id):'sin turno')+'\n'+
-      (d?'✅ Deuda CREMOSIN marcada como pagada':'⚠️ Deuda no encontrada');
+    try{renderIngTable();}catch(e){}
+    try{renderCaja();}catch(e){}
+    div.innerHTML=html+'✅ Todo corregido';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
