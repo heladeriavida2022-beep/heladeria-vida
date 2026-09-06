@@ -7740,24 +7740,13 @@ async function corregirStockPaletaDracula(){
   div.style.display='block';
   div.innerHTML='⏳ Buscando...';
   try{
-    // Buscar el producto en Firebase
-    var invAll=await window.FB.getAll('inventario');
-    var pAll=prods.concat(invAll.filter(function(x){return !prods.find(function(p){return String(p.id)===String(x.id);});}));
-    var prod=pAll.find(function(p){return (p.name||'').toUpperCase().includes('DRACULA');});
-    if(!prod){
-      div.innerHTML='⚠️ PALETA DRACULA no encontrada\nProductos con PALETA:\n'+
-        pAll.filter(function(p){return (p.name||'').includes('PALETA');}).map(function(p){return p.id+' | '+p.name+' | stock:'+p.stock;}).join('\n');
-      return;
-    }
-    var html='Encontrada: '+prod.id+' | '+prod.name+' | Stock actual: '+prod.stock+'\n';
-    var nuevoStock=(prod.stock||0)+20;
-    // Actualizar en Firebase
-    await window.FB.set('inventario',String(prod.id),{id:String(prod.id),stock:nuevoStock});
-    // Actualizar en memoria
-    var pLocal=prods.find(function(p){return String(p.id)===String(prod.id);});
-    if(pLocal) pLocal.stock=nuevoStock;
-    LS.updProd(prod.id,{stock:nuevoStock});
-    html+='Stock nuevo: '+nuevoStock+' ✅\n(+20 unidades de compra CREMELADO 04/09)';
+    var prod=prods.find(function(p){return (p.name||'').toUpperCase().includes('DRACULA');});
+    if(!prod){div.innerHTML='⚠️ PALETA DRACULA no encontrada';return;}
+    var html='Producto: '+prod.id+' | '+prod.name+'\nStock antes: '+prod.stock+'\n';
+    prod.stock=19;
+    await window.FB.set('inventario',String(prod.id),{id:String(prod.id),stock:19});
+    LS.updProd(prod.id,{stock:19});
+    html+='Stock ahora: 19 ✅\n(20 compradas - 1 vendida)';
     div.innerHTML=html;
     try{renderInv();}catch(e){}
   }catch(e){div.innerHTML='Error: '+e.message;}
