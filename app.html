@@ -7781,48 +7781,66 @@ async function corregirPagoCremosionCaja(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando pago CREMOSIN en caja...';
+  div.innerHTML='⏳ Creando egreso CREMOSIN en caja...';
   try{
     var ta=getTurnoActivo();
     var hoy=getFechaHoy();
     var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
 
-    // Buscar en caja Firebase
+    // Verificar si ya existe
     var cajaDocs=await window.FB.getAll('caja');
-    var movCremosin=cajaDocs.find(function(m){
-      return m.tipo==='egreso'&&
-             (m.desc||'').toUpperCase().includes('CREMOSIN')&&
-             (m.monto||0)===129000;
+    var yaExiste=cajaDocs.find(function(m){
+      return m.tipo==='egreso'&&(m.desc||'').toUpperCase().includes('CREMOSIN')&&(m.monto||0)===129000;
     });
+    if(yaExiste){div.innerHTML='ℹ️ El egreso CREMOSIN ya existe\n'+JSON.stringify(yaExiste,null,2);return;}
 
-    if(!movCremosin){
-      div.innerHTML='⚠️ Pago CREMOSIN $129.000 no encontrado en Firebase caja\n'+
-        'Movimientos egreso hoy:\n'+
-        cajaDocs.filter(function(m){return m.tipo==='egreso'&&(m.fecha||m.timestamp||'').includes(hoy.substring(0,7));})
-               .map(function(m){return (m.fecha||'')+'|'+f2(m.monto||0)+'|'+(m.desc||'');}).join('\n');
-      return;
-    }
-
-    var html='Encontrado: '+movCremosin.id+'\n';
-    html+='turnoId antes: '+(movCremosin.turnoId||'SIN turnoId')+'\n';
-
-    // Asignar turnoId del turno activo
-    movCremosin.fecha=hoy;
-    movCremosin.turnoId=ta?(ta.turnoId||ta.id||null):null;
-    movCremosin.timestamp=movCremosin.timestamp||new Date().toISOString();
-    await window.FB.set('caja',movCremosin.id,movCremosin);
-
-    // Actualizar también en movCaja local
-    var local=movCaja.find(function(m){return m.id===movCremosin.id;});
-    if(local){local.turnoId=movCremosin.turnoId;local.fecha=hoy;}
-    else{movCaja.unshift(movCremosin);}
+    // Crear egreso
+    var mov={
+      id:'m_cremosin_'+Date.now(),
+      hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      tipo:'egreso',
+      desc:'Pago deuda: CREMOSIN — Compra: CUARTOS DE HELADO, HELADOS CUADRADOS, MEDIO LITRO DE HELADO',
+      monto:129000,
+      pago:'Efectivo',
+      emp:currentUser?currentUser.name:'viviana.rojas',
+      fecha:hoy,
+      timestamp:new Date().toISOString(),
+      turnoId:ta?(ta.turnoId||ta.id||null):null
+    };
+    await window.FB.set('caja',mov.id,mov);
+    movCaja.unshift(mov);
     LS.set('movCaja',movCaja);
 
-    html+='turnoId ahora: '+(movCremosin.turnoId||'—')+'\n';
-    html+='✅ Pago corregido — ya aparece en el cierre\n';
-    html+='Turno activo: '+(ta?JSON.stringify({id:ta.turnoId||ta.id,turno:ta.turno}):'ninguno');
+    // Marcar deuda CREMOSIN como pagada
+    var deudas=LS.g('deudas')||[];
+    var d=deudas.find(function(x){
+      return (x.acreedor||'').toUpperCase().includes('CREMOSIN')&&!x.pagada;
+    });
+    if(!d){
+      var dFB=await window.FB.getAll('deudas');
+      d=dFB.find(function(x){return (x.acreedor||'').toUpperCase().includes('CREMOSIN')&&!x.pagada;});
+    }
+    if(d){
+      d.pagada=true;d.fechaPago=hoy;d.metodoPago='Caja';
+      await window.FB.set('deudas',d.id,d);
+      // Actualizar compra también
+      if(d.compraId){
+        var compra=purchases.find(function(c){return c.id===d.compraId;});
+        if(!compra){
+          var all=await window.FB.getAll('compras');
+          compra=all.find(function(c){return c.id===d.compraId;});
+        }
+        if(compra){compra.pagada=true;compra.estadoPago='pagada';compra.fechaPago=hoy;await window.FB.set('compras',compra.id,compra);}
+      }
+    }
+
     try{renderCaja();}catch(e){}
-    div.innerHTML=html;
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+
+    div.innerHTML='✅ Egreso CREMOSIN $129.000 creado en caja\n'+
+      'TurnoId: '+(ta?(ta.turnoId||ta.id):'sin turno')+'\n'+
+      (d?'✅ Deuda CREMOSIN marcada como pagada':'⚠️ Deuda no encontrada');
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
