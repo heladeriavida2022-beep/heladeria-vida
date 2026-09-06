@@ -3826,7 +3826,27 @@ function ejecutarPagoDeuda(medio){
     LS.set('deudas',deudas);
     try{window.FB.set('deudas',d.id,d);}catch(e){}
     try{window.FB.set('caja',mov.id,mov);}catch(e){}
+
+    // Si la deuda tiene compraId, también actualizar la compra
+    if(d.compraId){
+      var compra=purchases.find(function(c){return c.id===d.compraId||c.id==d.compraId;});
+      if(compra){
+        compra.pagada=true;compra.fechaPago=d.fechaPago;compra.estadoPago='pagada';
+        compra.metodoPago='Caja';
+        LS.set('purchases',purchases);
+        try{window.FB.set('compras',compra.id,compra);}catch(e){}
+      }
+      // Buscar en Firebase si no está en memoria
+      else if(window.FB&&window.FB.getAll){
+        window.FB.getAll('compras').then(function(all){
+          var c2=all.find(function(x){return x.id===d.compraId;});
+          if(c2){c2.pagada=true;c2.fechaPago=d.fechaPago;c2.estadoPago='pagada';c2.metodoPago='Caja';window.FB.set('compras',c2.id,c2);}
+        }).catch(function(){});
+      }
+    }
+
     renderDeudas();updateDeudasBadge();
+    try{renderIngTable();}catch(e){}
     try{renderCaja();}catch(e){}
     toast('✅ Pago de '+fmt(montoPagar)+' registrado — salida de caja','#3aaa6a');
     return;
