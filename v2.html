@@ -3805,7 +3805,19 @@ function ejecutarPagoDeuda(medio){
 
   if(medio==='caja'){
     if(!confirm('¿Confirmar pago de '+fmt(montoPagar)+' a '+d.acreedor+' desde caja del turno?'))return;
-    var mov={id:'m'+Date.now(),hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),tipo:'egreso',desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,monto:montoPagar,pago:'Efectivo',emp:currentUser?currentUser.name:'—'};
+    var _ta=turnoAbierto||currentTurno||null;
+    var mov={
+      id:'m'+Date.now(),
+      hora:new Date().toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      tipo:'egreso',
+      desc:'Pago deuda: '+d.acreedor+' — '+d.concepto,
+      monto:montoPagar,
+      pago:'Efectivo',
+      emp:currentUser?currentUser.name:'—',
+      fecha:new Date().toISOString().split('T')[0],
+      timestamp:new Date().toISOString(),
+      turnoId:_ta?(_ta.turnoId||_ta.id||null):null
+    };
     movCaja.unshift(mov);LS.set('movCaja',movCaja);
     if(typeof window.fbSaveMovCaja==='function')window.fbSaveMovCaja(mov);
     d.pagada=true;d.fechaPago=new Date().toISOString().split('T')[0];
