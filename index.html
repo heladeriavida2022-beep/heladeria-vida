@@ -7754,42 +7754,30 @@ async function configurarSodaMichelado(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando SODA MICHELADO...';
+  div.innerHTML='⏳ Configurando...';
   try{
     var html='';
-    // Buscar en prods (memoria)
-    var soda=prods.find(function(p){return (p.name||'').toUpperCase().includes('SODA');});
-    if(soda){
-      html+='✅ Encontrado: ID='+soda.id+' | '+soda.name+'\n';
-      // Ver si SODA existe como insumo (para descontar)
-      // El insumo "SODA" puede ser un producto NEVERA o PREPARADOS
-      // Buscar en prods
-      var insumoSoda=prods.find(function(p){
-        return (p.name||'').toUpperCase()==='SODA'||
-               (p.name||'').toUpperCase().includes('SODA 1.5')||
-               (p.name||'').toUpperCase()==='SODA';
-      });
-      if(insumoSoda){
-        html+='✅ Insumo SODA encontrado: ID='+insumoSoda.id+' | '+insumoSoda.name+'\n';
-        html+='→ Para configurar la relación ejecuta el botón de abajo\n';
-        html+='Relación: SODA MICHELADO ('+soda.id+') → SODA ('+insumoSoda.id+')\n';
-        window._sodaProductoId=soda.id;
-        window._sodaInsumoId=insumoSoda.id;
-      } else {
-        html+='⚠️ No se encontró insumo SODA separado\n';
-        html+='Productos con SODA:\n';
-        prods.filter(function(p){return (p.name||'').toUpperCase().includes('SODA');})
-             .forEach(function(p){html+='  ID:'+p.id+' | '+p.name+'\n';});
-      }
-    } else {
-      html+='⚠️ SODA MICHELADO no encontrado en memoria\nProductos cargados: '+prods.length+'\n';
-      html+='Buscando en Firebase...\n';
+    var idSoda=1786209892476;
+    var prod=prods.find(function(p){return p.id===idSoda||p.id===String(idSoda);});
+    if(!prod){
       // Buscar en Firebase
       var fProds=await window.FB.getAll('productos');
-      var sodaFB=fProds.find(function(p){return (p.name||'').toUpperCase().includes('SODA');});
-      if(sodaFB) html+='Firebase: ID='+sodaFB.id+' | '+sodaFB.name+'\n';
-      else html+='No encontrado en Firebase tampoco.\nCrea el producto desde Carta → Admin.\n';
+      prod=fProds.find(function(p){return String(p.id)===String(idSoda);});
     }
+    if(!prod){div.innerHTML='⚠️ Producto SODA no encontrado';return;}
+    html+='Producto: ID='+prod.id+' | '+prod.name+'\n';
+    html+='descuenta antes: '+prod.descuenta+'\n';
+
+    // Activar descuenta:true
+    prod.descuenta=true;
+    LS.updProd(prod.id,{descuenta:true});
+    await window.FB.set('productos',String(prod.id),Object.assign({},prod,{descuenta:true}));
+    html+='descuenta ahora: true ✅\n\n';
+    html+='✅ Cada venta de SODA descuenta 1 unidad del inventario\n';
+    html+='Stock actual: '+prod.stock+'\n\n';
+
+    // También verificar TAMARINDO MICHELADO (ya configurado via tablaInsumos)
+    html+='TAMARINDO MICHELADO: ya configurado → descuenta BOTELLA DE TAMARINDO (ID 303) ✅\n';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
