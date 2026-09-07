@@ -10585,27 +10585,22 @@ async function fbCargarTodo(){
       for(var s of suppliers) await fbSet('suppliers', s.id, s);
     }
 
-    // 3. Inventario (solo stock) + productos nuevos creados desde la app
+    // 3. Cargar primero productos nuevos creados desde la app
+    try{
+      var fbProds = await fbGetAll('productos');
+      fbProds.forEach(function(fp){\
+        var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
+        if(!existe && fp.active!==false) prods.push(fp);
+        else if(existe){ Object.assign(existe, fp); }
+      });
+    }catch(e){}
+
+    // Inventario (solo stock) - DESPUÉS de cargar productos
     var fbInv = await fbGetAll('inventario');
     fbInv.forEach(function(item){
       var p = prods.find(x => String(x.id) === String(item.id));
       if(p && item.stock !== undefined) p.stock = item.stock;
     });
-    // Cargar productos nuevos guardados en colección 'productos'
-    try{
-      var fbProds = await fbGetAll('productos');
-      fbProds.forEach(function(fp){
-        var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
-        if(!existe){
-          // Producto nuevo creado desde la app — agregar
-          prods.push(fp);
-        } else if(parseInt(fp.id) >= 700){
-          // Solo actualizar stock de productos nuevos (id >= 700)
-          if(fp.stock !== undefined) existe.stock = fp.stock;
-        }
-        // Productos del código base (id < 700) NO se sobreescriben desde Firebase
-      });
-    }catch(e){ console.warn('productos FB:', e); }
 
     // 4. Ventas
     var fbVentas = await fbGetAll('ventas');
