@@ -7755,16 +7755,37 @@ async function corregirStockSoda24(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Actualizando stock SODA...';
+  div.innerHTML='⏳ Verificando...';
   try{
-    var idSoda=1786209892476;
-    var prod=prods.find(function(p){return p.id===idSoda||String(p.id)===String(idSoda);});
-    if(!prod){div.innerHTML='⚠️ SODA no encontrado';return;}
-    prod.stock=24;
-    LS.updProd(prod.id,{stock:24});
-    await window.FB.set('inventario',String(prod.id),{id:String(prod.id),stock:24});
+    var idSoda='1786209892476';
+    var html='';
+
+    // Ver qué hay en Firebase inventario para esta ID
+    var invFB=await window.FB.getAll('inventario');
+    var invEntry=invFB.find(function(x){return String(x.id)===idSoda;});
+    html+='En Firebase inventario: '+(invEntry?JSON.stringify(invEntry):'NO EXISTE')+'\n';
+
+    // Ver el producto en prods
+    var prod=prods.find(function(p){return String(p.id)===idSoda;});
+    html+='En prods local: '+(prod?'ID='+prod.id+' stock='+prod.stock:'NO ENCONTRADO')+'\n';
+
+    // Forzar guardado con ambos formatos
+    await window.FB.set('inventario', idSoda, {id:idSoda, stock:24});
+    await window.FB.set('inventario', Number(idSoda), {id:idSoda, stock:24});
+
+    // Actualizar en memoria
+    if(prod){
+      prod.stock=24;
+      LS.updProd(prod.id, {stock:24});
+    }
+
+    // Verificar después
+    var invFB2=await window.FB.getAll('inventario');
+    var entry2=invFB2.find(function(x){return String(x.id)===idSoda;});
+    html+='\nDespués de guardar: '+(entry2?JSON.stringify(entry2):'AÚN NO EXISTE')+'\n';
+    html+='✅ Stock forzado a 24 en Firebase';
     try{renderInv();}catch(e){}
-    div.innerHTML='✅ Stock SODA actualizado a 24 botellas\n(+24 según compra registrada)';
+    div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
