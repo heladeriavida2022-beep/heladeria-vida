@@ -10588,7 +10588,7 @@ async function fbCargarTodo(){
     // 3. Cargar primero productos nuevos creados desde la app
     try{
       var fbProds = await fbGetAll('productos');
-      fbProds.forEach(function(fp){\
+      fbProds.forEach(function(fp){
         var existe = prods.find(function(p){ return String(p.id)===String(fp.id); });
         if(!existe && fp.active!==false) prods.push(fp);
         else if(existe){ Object.assign(existe, fp); }
