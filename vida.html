@@ -965,7 +965,8 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
-              <button onclick="diagCajaTurno()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985;font-weight:700">🔍 Diagnóstico caja turno activo</button>
+              <button onclick="registrarStock30Tamarindo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🫙 Registrar 30 botellas Tamarindo</button>
+              <button onclick="diagCajaTurno()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico caja turno activo</button>
               <button onclick="corregirPagoCremosionCaja()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔧 Corregir pago CREMOSIN en caja</button>
               <button onclick="corregirDescuentaPaletaDracula()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8">🔧 Activar descuento inv. Paleta Dracula</button>
               <button onclick="corregirStockPaletaDracula()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">🍦 Corregir stock Paleta Dracula +20</button>
@@ -2449,7 +2450,10 @@ function confirmarVenta(){
       'JUGO EN AGUA':       700,
       'JUGO EN LECHE':      700,
       'LIMONADA CEREZADA':  701,
-      'LIMONADA DE COCO':   702
+      'LIMONADA DE COCO':   702,
+      // Tamarindo Michelado consume 1 botella de Tamarindo (ID=303)
+      'TAMARINDO MICHELADO': 303,
+      'TAMARINDO MICHELADO PARA LLEVAR': 303
     };
     var insumoId = tablaInsumos[p.name];
     if(insumoId){
@@ -7741,6 +7745,34 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function registrarStock30Tamarindo(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Actualizando stock tamarindo...';
+  try{
+    // BOTELLA DE TAMARINDO = ID 303
+    var idTam=303;
+    var prod=prods.find(function(p){return p.id===idTam;});
+    if(!prod){div.innerHTML='⚠️ BOTELLA DE TAMARINDO (ID 303) no encontrada';return;}
+    var html='Producto: ID '+idTam+' | '+prod.name+'\n';
+    html+='Stock anterior: '+prod.stock+'\n';
+
+    // Actualizar stock a 30
+    prod.stock=30;
+    LS.updProd(idTam,{stock:30});
+    await window.FB.set('inventario',String(idTam),{id:String(idTam),stock:30});
+
+    html+='Stock nuevo: 30 botellas ✅\n\n';
+    html+='RELACIÓN CONFIGURADA:\n';
+    html+='TAMARINDO MICHELADO → consume ID 303 (BOTELLA DE TAMARINDO)\n';
+    html+='Ratio: 1 venta = 1 botella descontada\n';
+    html+='✅ Listo — cada venta descuenta automáticamente';
+    try{renderInv();}catch(e){}
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
