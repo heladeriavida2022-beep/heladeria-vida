@@ -965,6 +965,7 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
+              <button onclick="configurarSodaMichelado()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">🥤 Buscar y configurar Soda Michelado</button>
               <button onclick="registrarStock30Tamarindo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🫙 Registrar 30 botellas Tamarindo</button>
               <button onclick="diagCajaTurno()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico caja turno activo</button>
               <button onclick="corregirPagoCremosionCaja()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🔧 Corregir pago CREMOSIN en caja</button>
@@ -7745,6 +7746,50 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function configurarSodaMichelado(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando SODA MICHELADO...';
+  try{
+    var html='';
+    // Buscar en prods (memoria)
+    var soda=prods.find(function(p){return (p.name||'').toUpperCase().includes('SODA');});
+    if(soda){
+      html+='✅ Encontrado: ID='+soda.id+' | '+soda.name+'\n';
+      // Ver si SODA existe como insumo (para descontar)
+      // El insumo "SODA" puede ser un producto NEVERA o PREPARADOS
+      // Buscar en prods
+      var insumoSoda=prods.find(function(p){
+        return (p.name||'').toUpperCase()==='SODA'||
+               (p.name||'').toUpperCase().includes('SODA 1.5')||
+               (p.name||'').toUpperCase()==='SODA';
+      });
+      if(insumoSoda){
+        html+='✅ Insumo SODA encontrado: ID='+insumoSoda.id+' | '+insumoSoda.name+'\n';
+        html+='→ Para configurar la relación ejecuta el botón de abajo\n';
+        html+='Relación: SODA MICHELADO ('+soda.id+') → SODA ('+insumoSoda.id+')\n';
+        window._sodaProductoId=soda.id;
+        window._sodaInsumoId=insumoSoda.id;
+      } else {
+        html+='⚠️ No se encontró insumo SODA separado\n';
+        html+='Productos con SODA:\n';
+        prods.filter(function(p){return (p.name||'').toUpperCase().includes('SODA');})
+             .forEach(function(p){html+='  ID:'+p.id+' | '+p.name+'\n';});
+      }
+    } else {
+      html+='⚠️ SODA MICHELADO no encontrado en memoria\nProductos cargados: '+prods.length+'\n';
+      html+='Buscando en Firebase...\n';
+      // Buscar en Firebase
+      var fProds=await window.FB.getAll('productos');
+      var sodaFB=fProds.find(function(p){return (p.name||'').toUpperCase().includes('SODA');});
+      if(sodaFB) html+='Firebase: ID='+sodaFB.id+' | '+sodaFB.name+'\n';
+      else html+='No encontrado en Firebase tampoco.\nCrea el producto desde Carta → Admin.\n';
+    }
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
