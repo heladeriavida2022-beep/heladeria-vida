@@ -965,7 +965,8 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
-              <button onclick="corregirStockSoda24()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">🥤 Ajustar stock SODA a 24</button>
+              <button onclick="diagCierresSemana()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">📋 Ver cierres semana 31/08-07/09</button>
+              <button onclick="corregirStockSoda24()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">🥤 Ajustar stock SODA a 24</button>
               <button onclick="configurarSodaMichelado()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🥤 Buscar y configurar Soda Michelado</button>
               <button onclick="registrarStock30Tamarindo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🫙 Registrar 30 botellas Tamarindo</button>
               <button onclick="diagCajaTurno()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0284c7;color:#075985">🔍 Diagnóstico caja turno activo</button>
@@ -7747,6 +7748,38 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function diagCierresSemana(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Leyendo cierres...';
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var desde='2026-08-31';var hasta='2026-09-07';
+    function normFecha(f){
+      if(!f)return'';
+      if(f.includes('-')&&f.indexOf('-')===4)return f;
+      var p=f.split('/');if(p.length===3)return p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');
+      return f;
+    }
+    var semana=cierres.filter(function(c){
+      var f=normFecha(c.fecha||'');
+      if(!f&&c.timestamp)f=c.timestamp.substring(0,10);
+      return f>=desde&&f<=hasta;
+    }).sort(function(a,b){
+      var fa=normFecha(a.fecha||'')||a.timestamp||'';
+      var fb=normFecha(b.fecha||'')||b.timestamp||'';
+      return fa>fb?1:-1;
+    });
+    var html='CIERRES '+desde+' → '+hasta+' ('+semana.length+'):\n'+'─'.repeat(45)+'\n';
+    semana.forEach(function(c){
+      var f=normFecha(c.fecha||'')||c.timestamp||'';
+      html+='Fecha:'+f+' | T'+(c.turno||'?')+' | Usuario:'+(c.usuario||'?')+' | ID:'+c.id+'\n';
+    });
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
