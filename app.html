@@ -4339,13 +4339,28 @@ async function eliminarCompra(id){
   if(!compra){toast('Compra no encontrada','#e94560');return;}
   var prov=compra.prov||'?';
   var total=fmt(compra.total||0);
-  if(!confirm('¿Eliminar compra de '+prov+' por '+total+'?\n\nNOTA: Esta acción NO revierte el inventario. Si ya afectó el stock, ajústalo manualmente.'))return;
+  var detalle=compra.detalle||[];
+  // Construir resumen de productos para el confirm
+  var resumenProds=detalle.map(function(d){return d.producto+' ('+d.cantidad+' '+( d.unit||'und')+')'}).join(', ');
+  if(!confirm('¿Eliminar compra de '+prov+' por '+total+'?\n\nProductos: '+resumenProds+'\n\nSe revertirá el inventario automáticamente.'))return;
   try{
+    // Revertir inventario — descontar lo que se había sumado
+    if(detalle.length>0){
+      detalle.forEach(function(d){
+        var p=prods.find(function(x){return String(x.id)===String(d.productoId)||x.name===d.producto;});
+        if(p){
+          var qty=parseFloat(d.cantidad)||0;
+          p.stock=Math.max(0,(p.stock||0)-qty);
+          LS.updProd(p.id,{stock:p.stock});
+          try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});}catch(e){}
+        }
+      });
+    }
     // Eliminar de Firebase
     await window.FB.del('compras', String(id));
     // Eliminar de purchases en memoria
-    purchases = purchases.filter(function(c){return c.id!=id;});
-    LS.set('purchases', purchases);
+    purchases=purchases.filter(function(c){return c.id!=id;});
+    LS.set('purchases',purchases);
     // Eliminar deuda asociada si existe
     var deudas=LS.g('deudas')||[];
     var deuda=deudas.find(function(d){return d.compraId===id||d.compraId==id;});
@@ -4356,8 +4371,9 @@ async function eliminarCompra(id){
     }
     renderIngTable();
     try{renderDeudas();}catch(e){}
+    try{renderInv();}catch(e){}
     updateDeudasBadge();
-    toast('✅ Compra eliminada','#3aaa6a');
+    toast('✅ Compra eliminada e inventario revertido','#3aaa6a');
   }catch(e){toast('Error al eliminar: '+e.message,'#e94560');}
 }
 
