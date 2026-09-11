@@ -4327,9 +4327,38 @@ function renderComprasTable(){
         (tieneDetalle?'<button class="btn btn-ghost btn-sm" onclick="verDetalleCompra(\''+c.id+'\')" style="font-size:10px">👁 Detalle</button>':'')+
         (isAdmin?'<button class="btn btn-ghost btn-sm" onclick="corregirPagoCompra(\''+c.id+'\')" style="font-size:10px">✏️</button>':'')+
         (isAdmin&&c.tipoPago==='credito'&&!c.pagada?'<button class="btn btn-ghost btn-sm" onclick="abrirModalAbono(\''+c.id+'\',\'compra\')" style="font-size:10px;color:#7c3aed;border-color:#8b5cf6">💰 Abonar</button>':'')+
+        (isAdmin?'<button class="btn btn-ghost btn-sm" onclick="eliminarCompra(\''+c.id+'\')" style="font-size:10px;color:#e94560;border-color:#e94560" title="Eliminar compra">🗑️</button>':'')+
       '</td>'+
     '</tr>';
   }).join('');
+}
+
+async function eliminarCompra(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador','#e94560');return;}
+  var compra=purchases.find(function(c){return c.id==id;});
+  if(!compra){toast('Compra no encontrada','#e94560');return;}
+  var prov=compra.prov||'?';
+  var total=fmt(compra.total||0);
+  if(!confirm('¿Eliminar compra de '+prov+' por '+total+'?\n\nNOTA: Esta acción NO revierte el inventario. Si ya afectó el stock, ajústalo manualmente.'))return;
+  try{
+    // Eliminar de Firebase
+    await window.FB.del('compras', String(id));
+    // Eliminar de purchases en memoria
+    purchases = purchases.filter(function(c){return c.id!=id;});
+    LS.set('purchases', purchases);
+    // Eliminar deuda asociada si existe
+    var deudas=LS.g('deudas')||[];
+    var deuda=deudas.find(function(d){return d.compraId===id||d.compraId==id;});
+    if(deuda){
+      deudas=deudas.filter(function(d){return d.compraId!==id&&d.compraId!=id;});
+      LS.set('deudas',deudas);
+      try{await window.FB.del('deudas',deuda.id);}catch(e){}
+    }
+    renderIngTable();
+    try{renderDeudas();}catch(e){}
+    updateDeudasBadge();
+    toast('✅ Compra eliminada','#3aaa6a');
+  }catch(e){toast('Error al eliminar: '+e.message,'#e94560');}
 }
 
 function verDetalleCompra(id){
