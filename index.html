@@ -4335,46 +4335,65 @@ function renderComprasTable(){
 
 async function eliminarCompra(id){
   if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador','#e94560');return;}
+
+  // Cargar desde Firebase para tener el detalle completo
   var compra=purchases.find(function(c){return c.id==id;});
+  if(!compra||!compra.detalle||!compra.detalle.length){
+    try{
+      var todas=await window.FB.getAll('compras');
+      compra=todas.find(function(c){return String(c.id)===String(id);});
+    }catch(e){}
+  }
   if(!compra){toast('Compra no encontrada','#e94560');return;}
+
   var prov=compra.prov||'?';
   var total=fmt(compra.total||0);
   var detalle=compra.detalle||[];
-  // Construir resumen de productos para el confirm
-  var resumenProds=detalle.map(function(d){return d.producto+' ('+d.cantidad+' '+( d.unit||'und')+')'}).join(', ');
+  var resumenProds=detalle.length
+    ?detalle.map(function(d){return d.producto+' ('+d.cantidad+' '+(d.unit||'und')+')'}).join(', ')
+    :'sin detalle';
+
   if(!confirm('¿Eliminar compra de '+prov+' por '+total+'?\n\nProductos: '+resumenProds+'\n\nSe revertirá el inventario automáticamente.'))return;
+
   try{
-    // Revertir inventario — descontar lo que se había sumado
-    if(detalle.length>0){
-      detalle.forEach(function(d){
-        var p=prods.find(function(x){return String(x.id)===String(d.productoId)||x.name===d.producto;});
-        if(p){
-          var qty=parseFloat(d.cantidad)||0;
-          p.stock=Math.max(0,(p.stock||0)-qty);
-          LS.updProd(p.id,{stock:p.stock});
-          try{window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});}catch(e){}
-        }
-      });
+    var html='Revirtiendo inventario:\n';
+    // Revertir inventario
+    for(var i=0;i<detalle.length;i++){
+      var d=detalle[i];
+      var qty=parseFloat(d.cantidad)||0;
+      if(qty<=0)continue;
+      var p=prods.find(function(x){return String(x.id)===String(d.productoId)||x.name===d.producto;});
+      if(p){
+        var antes=p.stock||0;
+        p.stock=Math.max(0,antes-qty);
+        LS.updProd(p.id,{stock:p.stock});
+        await window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});
+        html+=d.producto+': '+antes+' → '+p.stock+'\n';
+      } else {
+        html+='⚠️ '+d.producto+' no encontrado en inventario\n';
+      }
     }
-    // Eliminar de Firebase
-    await window.FB.del('compras', String(id));
-    // Eliminar de purchases en memoria
-    purchases=purchases.filter(function(c){return c.id!=id;});
+
+    // Eliminar compra
+    await window.FB.del('compras',String(id));
+    purchases=purchases.filter(function(c){return String(c.id)!==String(id);});
     LS.set('purchases',purchases);
-    // Eliminar deuda asociada si existe
+
+    // Eliminar deuda asociada
     var deudas=LS.g('deudas')||[];
-    var deuda=deudas.find(function(d){return d.compraId===id||d.compraId==id;});
+    var deuda=deudas.find(function(d){return String(d.compraId)===String(id);});
     if(deuda){
-      deudas=deudas.filter(function(d){return d.compraId!==id&&d.compraId!=id;});
+      deudas=deudas.filter(function(d){return String(d.compraId)!==String(id);});
       LS.set('deudas',deudas);
-      try{await window.FB.del('deudas',deuda.id);}catch(e){}
+      try{await window.FB.del('deudas',String(deuda.id));}catch(e){}
     }
+
     renderIngTable();
     try{renderDeudas();}catch(e){}
     try{renderInv();}catch(e){}
     updateDeudasBadge();
     toast('✅ Compra eliminada e inventario revertido','#3aaa6a');
-  }catch(e){toast('Error al eliminar: '+e.message,'#e94560');}
+  }catch(e){toast('Error: '+e.message,'#e94560');}
 }
 
 function verDetalleCompra(id){
