@@ -4813,10 +4813,20 @@ function eliminarGasto(id){
   if(!confirm('¿Eliminar gasto?\n'+g.desc+' — '+fmt(g.monto)+'\nFecha: '+g.fecha+'\n\nEsta acción no se puede deshacer.'))return;
   var nuevosGastos=gastos.filter(function(x){return x.id!==id;});
   LS.set('gastos',nuevosGastos);
-  try{if(typeof fbDel==='function')fbDel('gastos',id);}catch(e){}
+  // Eliminar de Firebase
+  try{
+    window.FB.del('gastos',id).then(function(){
+      renderGastos();
+      toast('🗑️ Gasto eliminado','#e94560');
+    }).catch(function(){
+      renderGastos();
+      toast('🗑️ Gasto eliminado','#e94560');
+    });
+  }catch(e){
+    renderGastos();
+    toast('🗑️ Gasto eliminado','#e94560');
+  }
   logAction('admin','Eliminó gasto '+id,g.desc+' '+fmt(g.monto));
-  renderGastos();
-  toast('🗑️ Gasto eliminado','#e94560');
 }
 
 
