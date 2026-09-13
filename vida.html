@@ -966,6 +966,7 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
+              <button onclick="eliminarDuplicadoNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado nómina Angel</button>
               <button onclick="sincronizarUsuarios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">👤 Sincronizar usuarios desde Firebase</button>
               <button onclick="corregirFechaPagoCremosin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">📅 Corregir fecha pago CREMOSIN → 12/09</button>
               <button onclick="corregirStockChococonos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍫 Corregir stock CHOCOCONOS a 14</button>
@@ -7919,6 +7920,48 @@ async function sincronizarUsuarios(){
     } else {
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
     }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function eliminarDuplicadoNominaAngel(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando duplicados...';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    var nominasAngel=movs.filter(function(m){
+      return m.tipo==='egreso'&&
+             (m.concepto||'').toUpperCase().includes('ANGEL')&&
+             (m.valor||0)===170000&&
+             (m.fecha||'').includes('2026-09-13');
+    });
+    var html='Nóminas Angel $170.000 del 13/09: '+nominasAngel.length+'\n';
+    nominasAngel.forEach(function(m){html+='  '+m.id+'\n';});
+    if(nominasAngel.length<2){div.innerHTML=html+'ℹ️ Solo hay '+nominasAngel.length+' — no hay duplicado';return;}
+    // Eliminar el segundo (más reciente)
+    nominasAngel.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+    var eliminar=nominasAngel[nominasAngel.length-1];
+    await window.FB.del('fondoAdmin',eliminar.id);
+    if(window._fondoAdminMovs)window._fondoAdminMovs=window._fondoAdminMovs.filter(function(m){return m.id!==eliminar.id;});
+    // También eliminar el gasto duplicado
+    var gastos=await window.FB.getAll('gastos');
+    var gastosAngel=gastos.filter(function(g){
+      return (g.terceroNombre||'').toUpperCase().includes('ANGEL')&&
+             (g.monto||0)===170000&&
+             (g.fecha||'').includes('2026-09-13')&&
+             g.cat==='Nómina';
+    });
+    if(gastosAngel.length>1){
+      gastosAngel.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+      var gEliminar=gastosAngel[gastosAngel.length-1];
+      await window.FB.del('gastos',gEliminar.id);
+      html+='✅ Gasto duplicado eliminado: '+gEliminar.id+'\n';
+    }
+    html+='✅ Egreso duplicado eliminado: '+eliminar.id+'\n';
+    html+='Queda solo 1 pago de $170.000 a Angel';
+    try{renderFondoAdmin();}catch(e){}
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
