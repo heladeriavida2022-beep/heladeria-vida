@@ -4057,6 +4057,7 @@ async function calcularNomina(){
 
   try{
     var cierres=await window.FB.getAll('cierresTurno');
+    var gastosDB=await window.FB.getAll('gastos');
     var cierresSem=cierres.filter(function(c){
       var f=c.fecha||'';
       // Normalizar fecha
@@ -4119,10 +4120,24 @@ async function calcularNomina(){
       });
       html+='</tbody></table></div>';
 
-      // Botón pagar
-      html+='<div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">'+
-        '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="pagarNomina(\''+e.nombre+'\','+e.total+')">'+
-        '<i class="ti ti-cash"></i> Pagar '+fmt2(e.total)+'</button></div></div>';
+      // Verificar si ya fue pagada
+      var yaFuePagada=gastosDB.find(function(g){
+        return g.cat==='Nómina'&&
+               (g.terceroNombre||'').toUpperCase().includes(e.nombre.toUpperCase().split(' ')[0])&&
+               (g.monto||0)===e.total&&
+               (g.fecha||'')>=desde&&(g.fecha||'')<=hasta;
+      });
+
+      // Botón pagar o estado pagada
+      if(yaFuePagada){
+        html+='<div style="margin-top:10px;text-align:right">'+
+          '<span style="background:#ecfdf5;color:#166534;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">'+
+          '✅ PAGADA el '+yaFuePagada.fecha+' · $'+fmt2(e.total)+'</span></div></div>';
+      } else {
+        html+='<div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">'+
+          '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="pagarNomina(\''+e.nombre+'\','+e.total+')">'+
+          '<i class="ti ti-cash"></i> Pagar '+fmt2(e.total)+'</button></div></div>';
+      }
     });
 
     // Total general
