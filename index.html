@@ -965,7 +965,8 @@ try{
               <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de movimientos</div>
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
-              <button onclick="corregirFechaPagoCremosin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46;font-weight:700">📅 Corregir fecha pago CREMOSIN → 12/09</button>
+              <button onclick="sincronizarUsuarios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">👤 Sincronizar usuarios desde Firebase</button>
+              <button onclick="corregirFechaPagoCremosin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">📅 Corregir fecha pago CREMOSIN → 12/09</button>
               <button onclick="corregirStockChococonos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍫 Corregir stock CHOCOCONOS a 14</button>
               <button onclick="diagCierresSemana()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">📋 Ver cierres semana 31/08-07/09</button>
               <button onclick="corregirStockSoda24()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8">🥤 Ajustar stock SODA a 24</button>
@@ -7824,6 +7825,37 @@ async function corregirEstadoCompras(){
     try{renderCompras();}catch(e){}
 
     html+='\n'+(aPagar.length>0?'✅ '+aPagar.length+' compras actualizadas':'⚠️ No se encontraron — copia los IDs arriba')+'\n';
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function sincronizarUsuarios(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando usuarios en Firebase...';
+  try{
+    var fbUsers=await window.FB.getAll('usuarios');
+    if(!fbUsers||!fbUsers.length){
+      // Buscar en colección 'users'
+      fbUsers=await window.FB.getAll('users');
+    }
+    var html='Usuarios encontrados en Firebase: '+fbUsers.length+'\n';
+    fbUsers.forEach(function(u){html+='  '+u.id+' | '+(u.name||u.nombre||'?')+' | rol:'+(u.role||u.rol||'?')+'\n';});
+
+    if(fbUsers.length){
+      // Actualizar systemUsers en localStorage
+      var localUsers=LS.g('users')||[];
+      fbUsers.forEach(function(fu){
+        var existe=localUsers.find(function(u){return u.id===fu.id||u.user===fu.user;});
+        if(!existe) localUsers.push(fu);
+        else Object.assign(existe,fu);
+      });
+      LS.set('users',localUsers);
+      html+='\n✅ '+fbUsers.length+' usuarios sincronizados\nRecarga la app en incógnito para ver DANNA';
+    } else {
+      html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
+    }
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
