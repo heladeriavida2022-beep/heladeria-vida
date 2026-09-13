@@ -2190,7 +2190,7 @@ function guardarEditUser(){
   const newPass=document.getElementById('eu-pass').value;
   if(newPass)u.pass=newPass;
   u.perms=u.role==='admin'?PERMS_LIST.map(p=>p.key):getPermsFromForm('perms-edit');
-  u.initials=u.name.split(' ').map(w=>w[0]).join('').toUpperCase().slice(0,2);
+  u.initials=(u.name||'??').split(' ').map(w=>w[0]||'').join('').toUpperCase().slice(0,2)||'??';
   // GUARDAR EN LOCALSTORAGE Y FIREBASE (esperar confirmación)
   LS.set('users', systemUsers);
   if(typeof window.FB!=='undefined'&&window.FB.saveUser){
@@ -4309,7 +4309,7 @@ function renderComprasTable(){
     // Compatibilidad: compras nuevas tienen detalle[], viejas son por producto
     var tieneDetalle=Array.isArray(c.detalle)&&c.detalle.length>0;
     var descripcion=tieneDetalle
-      ?(c.numProductos||c.detalle.length)+' producto(s): '+c.detalle.slice(0,2).map(function(d){return d.producto||d.name;}).join(', ')+(c.detalle.length>2?'...':'')
+      ?(c.numProductos||c.detalle.length)+' producto(s): '+(c.detalle||[]).slice(0,2).map(function(d){return d.producto||d.name;}).join(', ')+(c.detalle.length>2?'...':'')
       :(c.name||'—');
     var tp=c.tipoPago||'contado';
     var badgePago=tp==='credito'
@@ -9397,7 +9397,7 @@ async function sincronizarDeudasCompras(){
       var deudaComp = {
         id: deudasComp,
         acreedor: comp.prov||'—',
-        concepto: 'Compra: '+(comp.detalle?comp.detalle.slice(0,2).map(function(p){return p.name;}).join(', '):'productos'),
+        concepto: 'Compra: '+(comp.detalle?(comp.detalle||[]).slice(0,2).map(function(p){return p.name;}).join(', '):'productos'),
         monto: comp.total||0,
         montoPagado: 0,
         abonos: [],
