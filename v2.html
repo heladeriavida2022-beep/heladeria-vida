@@ -2141,8 +2141,8 @@ function renderUsers(){
       <div style="font-size:10px;color:var(--text2);margin-top:2px">@${u.user} · ${u.turno}</div>
       <div style="margin-top:4px;display:flex;flex-wrap:wrap;gap:3px">
         <span class="badge" style="background:${ROLE_COLORS[u.role]}18;color:${ROLE_COLORS[u.role]}">${ROLE_LABELS[u.role]}</span>
-        ${u.perms.slice(0,4).map(p=>{const pl=PERMS_LIST.find(x=>x.key===p);return pl?`<span class="badge bgr" style="font-size:8px">${pl.label}</span>`:''}).join('')}
-        ${u.perms.length>4?`<span class="badge bgr" style="font-size:8px">+${u.perms.length-4} más</span>`:''}
+        ${(u.perms||[]).slice(0,4).map(p=>{const pl=PERMS_LIST.find(x=>x.key===p);return pl?`<span class="badge bgr" style="font-size:8px">${pl.label}</span>`:''}).join('')}
+        ${(u.perms||[]).length>4?`<span class="badge bgr" style="font-size:8px">+${(u.perms||[]).length-4} más</span>`:''}
       </div>
     </div>
     <div style="display:flex;gap:5px;flex-shrink:0">
