@@ -4112,7 +4112,8 @@ async function calcularNomina(){
         var dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
         var tipo=t.valor===50000?'Sáb/Dom T2':t.valor===40000&&dow===5?'Vie T2':
                  t.valor===30000?'T1 mañana':'Lun–Jue';
-        html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td><td>T'+t.turno+'</td>'+
+        html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td>'+
+              '<td>T'+t.turno+' <button onclick="editarTurnoCierre(\''+t.cierreId+'\',\''+t.turno+'\')" style="font-size:9px;padding:1px 4px;background:#f0f9ff;border:1px solid #3b82f6;border-radius:3px;color:#1d4ed8;cursor:pointer" title="Cambiar turno">✏️</button></td>'+
               '<td>'+tipo+'</td><td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+'</td></tr>';
       });
       html+='</tbody></table></div>';
@@ -4139,65 +4140,84 @@ async function calcularNomina(){
 }
 
 async function pagarNomina(nombre, monto){
-  var medio=prompt('¿Medio de pago?\n1. Efectivo\n2. Nequi\n3. Transferencia\n\nIngresa 1, 2 o 3:');
-  var medioMap={'1':'Efectivo','2':'Nequi/Daviplata','3':'Transferencia'};
-  var medioNombre=medioMap[medio]||'Efectivo';
-  if(!confirm('¿Confirmar pago de $'+monto.toLocaleString('es-CO')+' a '+nombre+' por '+medioNombre+'?'))return;
-
   var desde=document.getElementById('nom-desde')?.value||'';
   var hasta=document.getElementById('nom-hasta')?.value||'';
+  abrirModalPagoNomina(nombre, monto, desde, hasta, false);
+}
 
-  // Registrar en gastos
+async function pagarNominaTotal(total,desde,hasta){
+  abrirModalPagoNomina('TODAS LAS EMPLEADAS', total, desde, hasta, true);
+}
+
+function abrirModalPagoNomina(nombre, monto, desde, hasta, esTotal){
+  var sEfe=getSaldoFondo('Efectivo');
+  var sNequi=getSaldoFondo('Nequi/Daviplata');
+  var sTrans=getSaldoFondo('Transferencia');
+  var f2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+  var mo=document.getElementById('pagar-deuda-modal');
+  if(!mo){mo=document.createElement('div');mo.id='pagar-deuda-modal';mo.className='ov';document.body.appendChild(mo);}
+  mo.style.display='flex';
+  mo.innerHTML='<div class="modal" style="max-width:380px">'+
+    '<button class="mx" onclick="closeM(\'pagar-deuda-modal\')"><i class="ti ti-x"></i></button>'+
+    '<div class="mt">💰 Pagar Nómina</div>'+
+    '<div style="background:#f0fdf4;border-radius:8px;padding:10px;margin-bottom:12px;font-size:13px">'+
+      '<b>'+nombre+'</b><br>Monto: <b style="font-size:16px;color:#3aaa6a">'+f2(monto)+'</b>'+
+      '<br><span style="font-size:11px;color:var(--text2)">'+desde+' al '+hasta+'</span>'+
+    '</div>'+
+    '<div style="font-size:12px;font-weight:700;color:#7c3aed;margin-bottom:8px">¿Desde dónde pagas?</div>'+
+    '<div style="display:flex;flex-direction:column;gap:8px">'+
+      '<button class="btn btn-acc" onclick="ejecutarPagoNomina(\''+nombre+'\','+monto+',\''+desde+'\',\''+hasta+'\',\'Efectivo\','+esTotal+')" style="text-align:left">'+
+        '💵 Fondo Efectivo — disponible: '+f2(sEfe)+'</button>'+
+      '<button class="btn btn-ghost" onclick="ejecutarPagoNomina(\''+nombre+'\','+monto+',\''+desde+'\',\''+hasta+'\',\'Nequi/Daviplata\','+esTotal+')" style="text-align:left">'+
+        '📱 Fondo Nequi — disponible: '+f2(sNequi)+'</button>'+
+      '<button class="btn btn-ghost" onclick="ejecutarPagoNomina(\''+nombre+'\','+monto+',\''+desde+'\',\''+hasta+'\',\'Transferencia\','+esTotal+')" style="text-align:left">'+
+        '🏦 Fondo Transferencia — disponible: '+f2(sTrans)+'</button>'+
+      '<button class="btn btn-ghost" onclick="closeM(\'pagar-deuda-modal\')">Cancelar</button>'+
+    '</div></div>';
+}
+
+async function ejecutarPagoNomina(nombre, monto, desde, hasta, medio, esTotal){
+  closeM('pagar-deuda-modal');
+  var saldo=getSaldoFondo(medio);
+  if(monto>saldo){toast('⚠️ Saldo insuficiente en '+medio+'. Disponible: $'+saldo.toLocaleString('es-CO'),'#e94560');return;}
+  if(!confirm('¿Confirmar pago de $'+monto.toLocaleString('es-CO')+' a '+nombre+' desde Fondo '+medio+'?'))return;
+  var fecha=new Date().toISOString().split('T')[0];
+  var ts=new Date().toISOString();
   var g={id:'g_nom_'+Date.now(),
-    desc:'NOMINA '+(desde?'DEL '+desde+' AL '+hasta:'SEMANAL'),
-    monto:monto,cat:'Nómina',tipoPago:'fondo_admin',medioPago:medioNombre,
-    fecha:new Date().toISOString().split('T')[0],
-    timestamp:new Date().toISOString(),
+    desc:'NOMINA DEL '+desde+' AL '+hasta,
+    monto:monto,cat:'Nómina',tipoPago:'fondo_admin',medioPago:medio,
+    fecha:fecha,timestamp:ts,
     terceroNombre:nombre.toUpperCase(),terceroId:'',
     usuario:currentUser?currentUser.name:'viviana.rojas'
   };
   await window.FB.set('gastos',g.id,g);
-
-  // Registrar egreso en fondoAdmin
-  var mov={id:'fa_nom_'+Date.now(),tipo:'egreso',medioPago:medioNombre,
+  var mov={id:'fa_nom_'+Date.now(),tipo:'egreso',medioPago:medio,
     concepto:'Nómina: '+nombre.toUpperCase()+' ('+desde+' al '+hasta+')',
-    valor:monto,fecha:g.fecha,timestamp:g.timestamp,
+    valor:monto,fecha:fecha,timestamp:ts,
     usuario:currentUser?currentUser.name:'viviana.rojas',origen:'nomina'
   };
   await window.FB.set('fondoAdmin',mov.id,mov);
   if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
   window._fondoAdminMovs.push(mov);
-
-  toast('✅ Nómina de '+nombre+' pagada: $'+monto.toLocaleString('es-CO')+' por '+medioNombre,'#3aaa6a',4000);
+  toast('✅ Nómina pagada: $'+monto.toLocaleString('es-CO')+' desde Fondo '+medio,'#3aaa6a',4000);
   try{renderFondoAdmin();}catch(e){}
 }
 
-async function pagarNominaTotal(total,desde,hasta){
-  var medio=prompt('¿Medio de pago para toda la nómina?\n1. Efectivo\n2. Nequi\n3. Transferencia\n\nIngresa 1, 2 o 3:');
-  var medioMap={'1':'Efectivo','2':'Nequi/Daviplata','3':'Transferencia'};
-  var medioNombre=medioMap[medio]||'Efectivo';
-  if(!confirm('¿Confirmar pago total de $'+total.toLocaleString('es-CO')+' por '+medioNombre+'?'))return;
-
-  var g={id:'g_nom_total_'+Date.now(),
-    desc:'NOMINA SEMANAL DEL '+desde+' AL '+hasta,
-    monto:total,cat:'Nómina',tipoPago:'fondo_admin',medioPago:medioNombre,
-    fecha:new Date().toISOString().split('T')[0],timestamp:new Date().toISOString(),
-    terceroNombre:'EMPLEADAS',terceroId:'',usuario:currentUser?currentUser.name:'viviana.rojas'
-  };
-  await window.FB.set('gastos',g.id,g);
-
-  var mov={id:'fa_nom_total_'+Date.now(),tipo:'egreso',medioPago:medioNombre,
-    concepto:'Nómina semanal: '+desde+' al '+hasta,
-    valor:total,fecha:g.fecha,timestamp:g.timestamp,
-    usuario:currentUser?currentUser.name:'viviana.rojas',origen:'nomina'
-  };
-  await window.FB.set('fondoAdmin',mov.id,mov);
-  if(!window._fondoAdminMovs)window._fondoAdminMovs=[];
-  window._fondoAdminMovs.push(mov);
-
-  toast('✅ Nómina total pagada: $'+total.toLocaleString('es-CO'),'#3aaa6a',4000);
-  try{renderFondoAdmin();}catch(e){}
+async function editarTurnoCierre(cierreId, turnoActual){
+  var nuevoTurno=turnoActual==='1'||turnoActual===1?'2':'1';
+  if(!confirm('¿Cambiar turno T'+turnoActual+' → T'+nuevoTurno+' en este cierre?'))return;
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var c=cierres.find(function(x){return x.id===cierreId;});
+    if(!c){toast('Cierre no encontrado','#e94560');return;}
+    c.turno=parseInt(nuevoTurno);
+    await window.FB.set('cierresTurno',c.id,c);
+    toast('✅ Turno cambiado a T'+nuevoTurno,'#3aaa6a');
+    calcularNomina();
+  }catch(e){toast('Error: '+e.message,'#e94560');}
 }
+
+
 
 function updateDeudasBadge(){
   var deudas=(LS.g('deudas')||[]).filter(d=>!d.pagada);
