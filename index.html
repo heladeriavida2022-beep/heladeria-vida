@@ -7835,22 +7835,24 @@ async function corregirFechaPagoCremosin(){
   div.innerHTML='⏳ Buscando...';
   try{
     var compras=await window.FB.getAll('compras');
-    var c=compras.find(function(x){
-      return (x.prov||'').toUpperCase().includes('CREMOSIN')&&
-             x.pagada&&(x.fechaPago||'').includes('2026-09-13');
+    // Buscar todas las compras de CREMOSIN pagadas
+    var candidatas=compras.filter(function(x){
+      return (x.prov||'').toUpperCase().includes('CREMOSIN')&&x.pagada;
     });
-    if(!c){div.innerHTML='⚠️ Compra CREMOSIN con fecha 13/09 no encontrada';return;}
+    var html='CREMOSIN pagadas ('+candidatas.length+'):\n';
+    candidatas.forEach(function(x){html+='  ID:'+x.id+' | fecha:'+x.fecha+' | fechaPago:'+(x.fechaPago||'sin fecha')+'\n';});
+
+    if(!candidatas.length){div.innerHTML=html+'⚠️ No hay compras pagadas de CREMOSIN';return;}
+
+    // Tomar la más reciente
+    var c=candidatas.sort(function(a,b){return (b.fecha||'')>(a.fecha||'')?1:-1;})[0];
     c.fechaPago='2026-09-12';
     await window.FB.set('compras',c.id,c);
-    // También corregir la deuda si existe
-    var deudas=await window.FB.getAll('deudas');
-    var d=deudas.find(function(x){return String(x.compraId)===String(c.id)&&x.pagada;});
-    if(d){d.fechaPago='2026-09-12';await window.FB.set('deudas',d.id,d);}
-    // Actualizar en memoria
     var pc=purchases.find(function(x){return x.id===c.id;});
     if(pc){pc.fechaPago='2026-09-12';LS.set('purchases',purchases);}
     try{renderIngTable();}catch(e){}
-    div.innerHTML='✅ Fecha de pago corregida\nAntes: 2026-09-13\nAhora: 2026-09-12\nMétodo: Caja del turno';
+    html+='✅ Corregida: '+c.id+'\nFecha pago ahora: 2026-09-12';
+    div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
