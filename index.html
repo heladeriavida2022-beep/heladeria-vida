@@ -2147,6 +2147,7 @@ function renderUsers(){
     </div>
     <div style="display:flex;gap:5px;flex-shrink:0">
       ${u.role!=='admin'||currentUser.role==='admin'?`<button class="btn btn-ghost btn-sm" onclick="editUser(${i})"><i class="ti ti-edit"></i></button>`:''}
+      ${u.role!=='admin'&&currentUser.role==='admin'?`<button class="btn btn-ghost btn-sm" onclick="eliminarUsuario('${u.id}')" style="color:#e94560;border-color:#e94560" title="Eliminar"><i class="ti ti-trash"></i></button>`:''}
     </div>
   </div>`).join('');
 }
@@ -2166,6 +2167,22 @@ function guardarUsuario(){
   closeM('usuario');renderUsers();renderUserPills();
   toast('Usuario "'+nm+'" creado ✓');
   ['u-nm','u-user','u-pass','u-tel'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});
+}
+
+async function eliminarUsuario(id){
+  if(!currentUser||currentUser.role!=='admin'){toast('Solo el administrador','#e94560');return;}
+  var u=systemUsers.find(function(x){return x.id===id;});
+  if(!u){toast('Usuario no encontrado','#e94560');return;}
+  if(u.role==='admin'){toast('No se puede eliminar un administrador','#e94560');return;}
+  if(!confirm('¿Eliminar el usuario '+u.name+'?\nEsta acción no se puede deshacer.'))return;
+  try{
+    await window.FB.del('usuarios',String(id));
+    systemUsers=systemUsers.filter(function(x){return x.id!==id;});
+    LS.set('users',systemUsers);
+    renderUsers();
+    renderUserPills();
+    toast('✅ Usuario '+u.name+' eliminado','#3aaa6a');
+  }catch(e){toast('Error: '+e.message,'#e94560');}
 }
 
 function editUser(idx){
