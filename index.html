@@ -966,7 +966,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="eliminarDuplicadoNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado nómina Angel</button>
+              <button onclick="verificarCerveza()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e;font-weight:700">🍺 Verificar descuento CERVEZA</button>
+              <button onclick="eliminarDuplicadoNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado nómina Angel</button>
               <button onclick="sincronizarUsuarios()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d">👤 Sincronizar usuarios desde Firebase</button>
               <button onclick="corregirFechaPagoCremosin()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">📅 Corregir fecha pago CREMOSIN → 12/09</button>
               <button onclick="corregirStockChococonos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍫 Corregir stock CHOCOCONOS a 14</button>
@@ -7934,6 +7935,36 @@ async function sincronizarUsuarios(){
       html+='\n✅ '+fbUsers.length+' usuarios sincronizados\nRecarga la app en incógnito para ver DANNA';
     } else {
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
+    }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function verificarCerveza(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Verificando CERVEZA...';
+  try{
+    var prod=prods.find(function(p){return p.id===302||p.name==='CERVEZA';});
+    var invFB=await window.FB.getAll('inventario');
+    var invCerv=invFB.find(function(x){return String(x.id)==='302';});
+    var html='CERVEZA (ID 302):\n';
+    html+='  En prods: '+(prod?'stock='+prod.stock+' descuenta='+prod.descuenta:'NO ENCONTRADA')+'\n';
+    html+='  En Firebase inventario: '+(invCerv?JSON.stringify(invCerv):'NO EXISTE')+'\n';
+
+    if(prod){
+      // Asegurar descuenta:true
+      prod.descuenta=true;
+      LS.updProd(302,{descuenta:true});
+      await window.FB.set('productos','302',Object.assign({},prod,{descuenta:true}));
+      html+='✅ descuenta:true activado\n';
+      html+='Stock actual: '+prod.stock+'\n';
+      if(!prod.stock||prod.stock===0){
+        html+='⚠️ Stock en 0 — ¿cuántas cervezas hay en inventario?';
+      } else {
+        html+='✅ Al vender CERVEZA se descuenta automáticamente';
+      }
     }
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
