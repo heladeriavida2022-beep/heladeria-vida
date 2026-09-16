@@ -1956,7 +1956,7 @@ function logout(){
 function hasPerm(key){
   if(!currentUser)return false;
   if(currentUser.role==='admin')return true;
-  return currentUser.perms.includes(key);
+  return (currentUser.perms||[]).includes(key);
 }
 
 function applyPermissions(){
@@ -7900,6 +7900,7 @@ async function crearUsuarioDanna(){
       turno:'Variable',
       color:'#e91e8c',
       initials:'DA',
+      perms:[],
       active:true
     };
     // Solo guardar en Firebase — NO tocar localStorage de users
@@ -10900,8 +10901,11 @@ async function fbCargarTodo(){
         if(uCodigo){
           fbU.pass = uCodigo.pass;
           fbU.user = uCodigo.user;
-          fbU.perms = uCodigo.perms;
+          fbU.perms = uCodigo.perms||[];
           fbU.role = uCodigo.role;
+        } else {
+          fbU.perms = fbU.perms||[];
+          fbU.pass = fbU.pass||fbU.user||'';
         }
       });
       systemUsers = fbUsuarios.filter(function(u){return u.name&&u.name!=='?';});
