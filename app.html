@@ -7978,7 +7978,18 @@ async function limpiarTurnosFantasma(){
       html+='✅ Cerrado turno fantasma ago-27\n';
     }
 
-    html+='\n✅ Limpieza completada\nRecarga la app en incógnito para que getTurnoActivo funcione correctamente.';
+    html+='\n✅ Limpieza completada\n';
+
+    // También limpiar turnoActivo del localStorage si es un turno viejo
+    var taLocal=LS.g('turnoActivo');
+    var hoyStr=getFechaHoy();
+    if(taLocal&&taLocal.estado==='abierto'&&!(taLocal.timestampApertura||'').includes(hoyStr)){
+      LS.set('turnoActivo',null);
+      turnoActivo=null;
+      html+='✅ localStorage turnoActivo limpiado (era de '+( taLocal.timestampApertura||'').substring(0,10)+')\n';
+    }
+
+    html+='Recarga la app en incógnito para que getTurnoActivo funcione correctamente.';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
