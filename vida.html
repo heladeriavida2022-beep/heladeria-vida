@@ -7980,13 +7980,16 @@ async function limpiarTurnosFantasma(){
 
     html+='\n✅ Limpieza completada\n';
 
-    // También limpiar turnoActivo del localStorage si es un turno viejo
+    // Limpiar turnoActivo del localStorage si es un turno viejo (sin importar estado)
     var taLocal=LS.g('turnoActivo');
     var hoyStr=getFechaHoy();
-    if(taLocal&&taLocal.estado==='abierto'&&!(taLocal.timestampApertura||'').includes(hoyStr)){
+    if(taLocal&&!(taLocal.timestampApertura||'').includes(hoyStr)){
       LS.set('turnoActivo',null);
       turnoActivo=null;
-      html+='✅ localStorage turnoActivo limpiado (era de '+( taLocal.timestampApertura||'').substring(0,10)+')\n';
+      html+='✅ localStorage turnoActivo limpiado (era de '+(taLocal.timestampApertura||'').substring(0,10)+')\n';
+    } else if(!taLocal){
+      turnoActivo=null;
+      html+='✅ turnoActivo en memoria limpiado\n';
     }
 
     html+='Recarga la app en incógnito para que getTurnoActivo funcione correctamente.';
