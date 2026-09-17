@@ -7956,7 +7956,8 @@ async function limpiarTurnosFantasma(){
     // Encontrar todos los turnos "abierto" que NO son de hoy
     var fantasmas=turnosFB.filter(function(t){
       return t.estado==='abierto'&&
-             !(t.timestampApertura||'').includes(hoy);
+             !(t.timestampApertura||'').includes(hoy)&&
+             (t.turnoId||t.id)!==undefined;
     });
     html+='Turnos fantasma encontrados: '+fantasmas.length+'\n';
 
