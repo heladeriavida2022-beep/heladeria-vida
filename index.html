@@ -7986,29 +7986,43 @@ async function corregirPagoCremosin114(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando...';
+  div.innerHTML='⏳ Corrigiendo...';
   try{
-    var hoy='2026-09-17';var html='';
-    // 1. Corregir fecha de pago en la compra
-    var compras=await window.FB.getAll('compras');
-    var comp=compras.find(function(c){return(c.prov||'').toUpperCase().includes('CREMOSIN')&&(c.total||0)===114000&&c.pagada;});
-    if(comp){comp.fechaPago=hoy;await window.FB.set('compras',comp.id,comp);html+='✅ Fecha pago → '+hoy+'\n';}
-    else html+='⚠️ Compra no encontrada\n';
-    // 2. Buscar turno T2 hoy
-    var turnosFB=await window.FB.getAll('turnos');
-    var t2=turnosFB.find(function(t){return (t.turno===2||String(t.turno)==='2')&&(t.timestampApertura||'').includes('2026-09-17');});
-    var turnoId=t2?(t2.turnoId||t2.id||null):null;
-    html+='Turno T2: '+(turnoId||'no encontrado')+'\n';
-    // 3. Crear/corregir egreso en caja
+    var ta=getTurnoActivo();
+    var turnoId=ta?(ta.turnoId||ta.id||null):null;
+    var hoy=getFechaHoy();
+    var html='Turno activo: '+(turnoId||'NINGUNO')+'\n';
+    html+='Fecha hoy: '+hoy+'\n\n';
+
+    // Buscar el egreso de CREMOSIN en caja
     var cajaDocs=await window.FB.getAll('caja');
-    var egreso=cajaDocs.find(function(m){return m.tipo==='egreso'&&(m.monto||0)===114000&&(m.desc||'').toUpperCase().includes('CREMOSIN');});
-    if(egreso){egreso.fecha=hoy;egreso.turnoId=turnoId;await window.FB.set('caja',egreso.id,egreso);html+='✅ Egreso corregido\n';}
-    else{
-      var mov={id:'m_crem114_'+Date.now(),hora:'14:00',tipo:'egreso',desc:'Pago deuda: CREMOSIN — Compra: CUARTOS DE HELADO, MEDIO LITRO, PALETA DE COLORES',monto:114000,pago:'Efectivo',emp:'DANNA',fecha:hoy,timestamp:new Date().toISOString(),turnoId:turnoId};
-      await window.FB.set('caja',mov.id,mov);movCaja.unshift(mov);LS.set('movCaja',movCaja);html+='✅ Egreso creado en caja\n';
+    var egreso=cajaDocs.find(function(m){
+      return m.tipo==='egreso'&&(m.monto||0)===114000&&
+             (m.desc||'').toUpperCase().includes('CREMOSIN');
+    });
+
+    if(egreso){
+      egreso.turnoId=turnoId;
+      egreso.fecha=hoy;
+      await window.FB.set('caja',egreso.id,egreso);
+      // Actualizar en movCaja local
+      var local=movCaja.find(function(m){return m.id===egreso.id;});
+      if(local){local.turnoId=turnoId;local.fecha=hoy;}
+      else{movCaja.unshift(egreso);}
+      LS.set('movCaja',movCaja);
+      html+='✅ Egreso $114.000 asignado al turno activo\n';
+    } else {
+      // Crear el egreso si no existe
+      var mov={id:'m_crem114b_'+Date.now(),hora:'14:00',tipo:'egreso',
+        desc:'Pago deuda: CREMOSIN — Compra: CUARTOS DE HELADO, MEDIO LITRO, PALETA DE COLORES',
+        monto:114000,pago:'Efectivo',emp:'DANNA',
+        fecha:hoy,timestamp:new Date().toISOString(),turnoId:turnoId};
+      await window.FB.set('caja',mov.id,mov);
+      movCaja.unshift(mov);LS.set('movCaja',movCaja);
+      html+='✅ Egreso $114.000 creado con turnoId correcto\n';
     }
     try{renderCaja();}catch(e){}
-    div.innerHTML=html+'✅ Listo';
+    div.innerHTML=html+'✅ Listo — recarga el cierre de caja';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
