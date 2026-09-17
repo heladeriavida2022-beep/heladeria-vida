@@ -95,6 +95,33 @@ body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-hei
 #appShell{display:none;flex-direction:column;height:100vh;overflow:hidden}
 #appShell.show{display:flex}
 
+/* BOTÓN HAMBURGUESA */
+#menu-toggle{display:none;align-items:center;justify-content:center;width:38px;height:38px;border:none;background:none;cursor:pointer;color:var(--text);font-size:20px;flex-shrink:0}
+
+/* MÓVIL */
+@media(max-width:640px){
+  #menu-toggle{display:flex}
+  .sidebar{
+    position:fixed !important;
+    left:-220px;top:0;bottom:0;
+    width:220px !important;
+    z-index:500;
+    transition:left .25s ease;
+    box-shadow:4px 0 20px rgba(0,0,0,.15);
+    padding-top:48px;
+  }
+  .sidebar.mob-open{left:0 !important}
+  .sidebar.hidden{display:flex !important;left:-220px}
+  .sidebar.hidden.mob-open{left:0 !important}
+  #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:499}
+  #mob-overlay.show{display:block}
+  .tnav-tab .ti~span,.tnav-tab-label{display:none}
+  .tnav-tab{padding:0 10px;font-size:11px}
+  .tnav-logo{padding:0 10px}
+  .topnav{overflow-x:auto}
+  .adm-nav{flex-wrap:wrap;gap:4px}
+}
+
 /* TOP NAV */
 .topnav{background:#fff;border-bottom:1px solid var(--border);display:flex;align-items:center;overflow-x:auto;flex-shrink:0;min-height:48px;box-shadow:0 2px 8px rgba(160,110,70,.06);position:relative;z-index:100}
 .topnav::-webkit-scrollbar{display:none}
@@ -413,6 +440,7 @@ try{
 
   <!-- TOP NAV -->
   <div class="topnav">
+    <button id="menu-toggle" onclick="toggleSidebarMob()" title="Menú"><i class="ti ti-menu-2"></i></button>
     <div class="tnav-logo">🍦</div>
     <div class="tnav-tab active" id="tnav-carta" onclick="topNav('carta',this)"><i class="ti ti-layout-grid"></i><span>Carta & Productos</span></div>
     <div class="tnav-tab" id="tnav-cliente" onclick="topNav('cliente',this)"><i class="ti ti-device-mobile"></i><span>Vista QR</span></div>
@@ -429,6 +457,9 @@ try{
       <button class="btn btn-ghost btn-sm" onclick="logout()" style="padding:5px 8px"><i class="ti ti-logout" style="font-size:14px"></i></button>
     </div>
   </div>
+
+  <!-- Overlay móvil -->
+  <div id="mob-overlay" onclick="closeSidebarMob()"></div>
 
   <div class="body-wrap">
 
@@ -1955,6 +1986,21 @@ function logout(){
   closeM('perfil');
 }
 
+function toggleSidebarMob(){
+  var sb=document.getElementById('sidebar');
+  var ov=document.getElementById('mob-overlay');
+  if(!sb)return;
+  var isOpen=sb.classList.contains('mob-open');
+  if(isOpen){sb.classList.remove('mob-open');if(ov)ov.classList.remove('show');}
+  else{sb.classList.add('mob-open');if(ov)ov.classList.add('show');}
+}
+function closeSidebarMob(){
+  var sb=document.getElementById('sidebar');
+  var ov=document.getElementById('mob-overlay');
+  if(sb)sb.classList.remove('mob-open');
+  if(ov)ov.classList.remove('show');
+}
+
 function hasPerm(key){
   if(!currentUser)return false;
   if(currentUser.role==='admin')return true;
@@ -2040,6 +2086,7 @@ function topNav(id,btn){
 }
 
 function adminNav(id,btn){
+  closeSidebarMob();
   if(btn&&btn.classList.contains('locked')){toast('Sin permiso','var(--acc)');return;}
   document.querySelectorAll('.adm-view').forEach(function(v){v.style.display='none';v.classList.remove('active');});
   var v=document.getElementById('adv-'+id);
