@@ -997,7 +997,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🧹 Limpiar turnos fantasma</button>
+              <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado compra PULPIPARA</button>
+              <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
               <button onclick="corregirPagoCremosin114()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">🔧 Corregir pago CREMOSIN $114k → 17/09</button>
               <button onclick="verificarCerveza()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍺 Verificar descuento CERVEZA</button>
               <button onclick="eliminarDuplicadoNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado nómina Angel</button>
@@ -7987,6 +7988,46 @@ async function sincronizarUsuarios(){
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
     }
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function eliminarDuplicadoCompraPulpipara(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando duplicado...';
+  try{
+    var compras=await window.FB.getAll('compras');
+    var candidatas=compras.filter(function(c){
+      return (c.prov||'').toUpperCase().includes('PULPIPARA')&&
+             (c.total||0)===110000&&
+             (c.fecha||'').includes('2026-09-19');
+    });
+    var html='Compras PULPIPARA $110.000 del 19/09: '+candidatas.length+'\n';
+    candidatas.forEach(function(c){html+='  ID:'+c.id+' | fecha:'+c.fecha+'\n';});
+    if(candidatas.length<2){div.innerHTML=html+'ℹ️ Solo hay '+candidatas.length+' — no hay duplicado';return;}
+    // Eliminar la más reciente (mayor ID)
+    candidatas.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+    var eliminar=candidatas[candidatas.length-1];
+    // Revertir inventario
+    var detalle=eliminar.detalle||[];
+    for(var i=0;i<detalle.length;i++){
+      var d=detalle[i];
+      var p=prods.find(function(x){return String(x.id)===String(d.productoId)||x.name===d.producto;});
+      if(p){p.stock=Math.max(0,(p.stock||0)-(parseFloat(d.cantidad)||0));LS.updProd(p.id,{stock:p.stock});await window.FB.set('inventario',String(p.id),{id:String(p.id),stock:p.stock});}
+    }
+    await window.FB.del('compras',eliminar.id);
+    purchases=purchases.filter(function(c){return c.id!==eliminar.id;});
+    LS.set('purchases',purchases);
+    // Eliminar deuda duplicada si existe
+    var deudas=await window.FB.getAll('deudas');
+    var deudaDup=deudas.find(function(d){return String(d.compraId)===String(eliminar.id);});
+    if(deudaDup){await window.FB.del('deudas',deudaDup.id);}
+    try{renderIngTable();}catch(e){}
+    try{renderDeudas();}catch(e){}
+    try{renderInv();}catch(e){}
+    updateDeudasBadge();
+    div.innerHTML=html+'✅ Duplicado eliminado: '+eliminar.id+'\n✅ Inventario revertido\nQueda solo 1 compra de $110.000 a PULPIPARA';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
