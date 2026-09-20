@@ -997,7 +997,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado compra PULPIPARA</button>
+              <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
+              <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
               <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
               <button onclick="corregirPagoCremosin114()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">🔧 Corregir pago CREMOSIN $114k → 17/09</button>
               <button onclick="verificarCerveza()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍺 Verificar descuento CERVEZA</button>
@@ -7988,6 +7989,33 @@ async function sincronizarUsuarios(){
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
     }
     div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function eliminarEgresoDuplicadoPulpipara(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando egresos duplicados...';
+  try{
+    var cajaDocs=await window.FB.getAll('caja');
+    var egresos=cajaDocs.filter(function(m){
+      return m.tipo==='egreso'&&
+             (m.concepto||m.desc||'').toUpperCase().includes('PULPIPARA')&&
+             (m.valor||m.monto||0)===110000&&
+             (m.fecha||'').includes('2026-09-19');
+    });
+    var html='Egresos PULPIPARA $110.000 del 19/09 en caja: '+egresos.length+'\n';
+    egresos.forEach(function(m){html+='  ID:'+m.id+' | '+JSON.stringify({valor:m.valor||m.monto,desc:(m.concepto||m.desc||'').substring(0,30)})+'\n';});
+    if(egresos.length<2){div.innerHTML=html+'ℹ️ Solo hay '+egresos.length+' — no hay duplicado en caja';return;}
+    // Eliminar el más reciente
+    egresos.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+    var eliminar=egresos[egresos.length-1];
+    await window.FB.del('caja',eliminar.id);
+    movCaja=movCaja.filter(function(m){return m.id!==eliminar.id;});
+    LS.set('movCaja',movCaja);
+    try{renderCaja();}catch(e){}
+    div.innerHTML=html+'✅ Egreso duplicado eliminado: '+eliminar.id+'\nYa no se suma el $110.000 extra en el cierre';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
