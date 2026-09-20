@@ -7998,24 +7998,43 @@ async function eliminarEgresoDuplicadoPulpipara(){
   div.style.display='block';
   div.innerHTML='⏳ Buscando egresos duplicados...';
   try{
-    var cajaDocs=await window.FB.getAll('caja');
-    var egresos=cajaDocs.filter(function(m){
+    var html='';
+
+    // 1. Limpiar en movCaja local (localStorage)
+    var egresosLocal=movCaja.filter(function(m){
       return m.tipo==='egreso'&&
              (m.concepto||m.desc||'').toUpperCase().includes('PULPIPARA')&&
-             (m.valor||m.monto||0)===110000&&
-             (m.fecha||'').includes('2026-09-19');
+             (m.valor||m.monto||0)===110000;
     });
-    var html='Egresos PULPIPARA $110.000 del 19/09 en caja: '+egresos.length+'\n';
-    egresos.forEach(function(m){html+='  ID:'+m.id+' | '+JSON.stringify({valor:m.valor||m.monto,desc:(m.concepto||m.desc||'').substring(0,30)})+'\n';});
-    if(egresos.length<2){div.innerHTML=html+'ℹ️ Solo hay '+egresos.length+' — no hay duplicado en caja';return;}
-    // Eliminar el más reciente
-    egresos.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
-    var eliminar=egresos[egresos.length-1];
-    await window.FB.del('caja',eliminar.id);
-    movCaja=movCaja.filter(function(m){return m.id!==eliminar.id;});
-    LS.set('movCaja',movCaja);
+    html+='Egresos PULPIPARA $110.000 en movCaja local: '+egresosLocal.length+'\n';
+    if(egresosLocal.length>=2){
+      egresosLocal.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+      var elimLocal=egresosLocal[egresosLocal.length-1];
+      movCaja=movCaja.filter(function(m){return m.id!==elimLocal.id;});
+      LS.set('movCaja',movCaja);
+      html+='✅ Duplicado eliminado de localStorage: '+elimLocal.id+'\n';
+    }
+
+    // 2. Limpiar en Firebase caja
+    var cajaDocs=await window.FB.getAll('caja');
+    var egresosFB=cajaDocs.filter(function(m){
+      return (m.tipo==='egreso')&&
+             (m.valor||m.monto||0)===110000&&
+             ((m.concepto||m.desc||'').toUpperCase().includes('PULPIPARA')||
+              (m.concepto||m.desc||'').toUpperCase().includes('COMPRA'));
+    });
+    html+='Egresos en Firebase caja: '+egresosFB.length+'\n';
+    egresosFB.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||m.desc||'').substring(0,40)+'\n';});
+    if(egresosFB.length>=2){
+      egresosFB.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+      var elimFB=egresosFB[egresosFB.length-1];
+      await window.FB.del('caja',elimFB.id);
+      html+='✅ Duplicado eliminado de Firebase: '+elimFB.id+'\n';
+    }
+
+    try{renderCierre();}catch(e){}
     try{renderCaja();}catch(e){}
-    div.innerHTML=html+'✅ Egreso duplicado eliminado: '+eliminar.id+'\nYa no se suma el $110.000 extra en el cierre';
+    div.innerHTML=html+'✅ Listo — recarga el cierre';
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
