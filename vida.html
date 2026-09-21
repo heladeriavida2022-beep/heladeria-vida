@@ -4125,7 +4125,7 @@ async function calcularNomina(){
       var f=c.fecha||'';
       if(f.includes('/')){var p=f.split('/');if(p.length===3)f=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
       var turno=c.turno||1;
-      var valor=TARIFAS_TURNO.valorTurno(f,turno);
+      var valor=c.valorTurno||TARIFAS_TURNO.valorTurno(f,turno);
       porEmp[emp].turnos.push({fecha:f,turno:turno,valor:valor,cierreId:c.id});
       porEmp[emp].total+=valor;
     });
@@ -4168,7 +4168,10 @@ async function calcularNomina(){
                  t.valor===30000?'T1 mañana':'Lun–Jue';
         html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td>'+
               '<td>T'+t.turno+' <button onclick="editarTurnoCierre(\''+t.cierreId+'\',\''+t.turno+'\')" style="font-size:9px;padding:1px 4px;background:#f0f9ff;border:1px solid #3b82f6;border-radius:3px;color:#1d4ed8;cursor:pointer" title="Cambiar turno">✏️</button></td>'+
-              '<td>'+tipo+'</td><td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+'</td></tr>';
+              '<td>'+tipo+'</td>'+
+              '<td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+
+                ' <button onclick="editarValorTurno(\''+t.cierreId+'\','+t.valor+')" style="font-size:9px;padding:1px 4px;background:#f0fdf4;border:1px solid #16a34a;border-radius:3px;color:#15803d;cursor:pointer" title="Editar valor">💲</button>'+
+              '</td></tr>';
       });
       html+='</tbody></table></div>';
 
@@ -4269,6 +4272,23 @@ async function ejecutarPagoNomina(nombre, monto, desde, hasta, medio, esTotal){
   window._fondoAdminMovs.push(mov);
   toast('✅ Nómina pagada: $'+monto.toLocaleString('es-CO')+' desde Fondo '+medio,'#3aaa6a',4000);
   try{renderFondoAdmin();}catch(e){}
+}
+
+async function editarValorTurno(cierreId, valorActual){
+  var nuevoValor=prompt('Valor actual: $'+valorActual.toLocaleString('es-CO')+'\n\nIngresa el nuevo valor del turno:');
+  if(!nuevoValor)return;
+  nuevoValor=parseInt(nuevoValor.replace(/[^0-9]/g,''));
+  if(!nuevoValor||nuevoValor<=0){toast('Valor inválido','#e94560');return;}
+  if(!confirm('¿Cambiar valor de $'+valorActual.toLocaleString('es-CO')+' → $'+nuevoValor.toLocaleString('es-CO')+'?'))return;
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var c=cierres.find(function(x){return x.id===cierreId;});
+    if(!c){toast('Cierre no encontrado','#e94560');return;}
+    c.valorTurno=nuevoValor;
+    await window.FB.set('cierresTurno',c.id,c);
+    toast('✅ Valor actualizado a $'+nuevoValor.toLocaleString('es-CO'),'#3aaa6a');
+    calcularNomina();
+  }catch(e){toast('Error: '+e.message,'#e94560');}
 }
 
 async function editarTurnoCierre(cierreId, turnoActual){
