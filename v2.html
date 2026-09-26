@@ -10750,13 +10750,68 @@ async function renderCierres(){
   }).join('');
 }
 
-function verDetalleCierre(id){
+async function verDetalleCierre(id){
   cierresTurno = LS.g('cierresTurno')||[];
   var c = cierresTurno.find(function(x){return x.id===id;});
+  if(!c){
+    var fb=await window.FB.getAll('cierresTurno');
+    c=fb.find(function(x){return x.id===id;});
+  }
   if(!c) return;
   _cierreActivo = c;
   var est = c.estado||'correcto';
   var estColor = est==='correcto'?'#3aaa6a':est==='sobrante'?'#f0a500':'#e94560';
+  var fmt2=function(n){return '$'+(n||0).toLocaleString('es-CO');};
+
+  // Cargar ventas del turno desde Firebase
+  var turnoId=c.turnoId||c.id;
+  var fechaCierre=c.fecha||'';
+  if(fechaCierre.includes('/')){var p=fechaCierre.split('/');if(p.length===3)fechaCierre=p[2]+'-'+p[1].padStart(2,'0')+'-'+p[0].padStart(2,'0');}
+
+  // Cargar ventas, gastos y compras del turno
+  var [todasVentas,todosGastos,todasCompras,todosMovCaja]=await Promise.all([
+    window.FB.getAll('ventas').catch(function(){return[];}),
+    window.FB.getAll('gastos').catch(function(){return[];}),
+    window.FB.getAll('compras').catch(function(){return[];}),
+    window.FB.getAll('caja').catch(function(){return[];})
+  ]);
+
+  // Filtrar por turnoId o fecha
+  var ventasTurno=todasVentas.filter(function(v){
+    if(turnoId&&v.turnoId) return v.turnoId===turnoId;
+    return (v.fecha||v.date||'').includes(fechaCierre);
+  });
+  var gastosTurno=todosGastos.filter(function(g){
+    if(turnoId&&g.turnoId) return g.turnoId===turnoId;
+    return (g.fecha||'').includes(fechaCierre);
+  });
+  var comprasTurno=todasCompras.filter(function(cp){
+    if(turnoId&&cp.turnoId) return cp.turnoId===turnoId;
+    var f=cp.fecha||'';
+    if(f.includes('/')){var pp=f.split('/');if(pp.length===3)f=pp[2]+'-'+pp[1].padStart(2,'0')+'-'+pp[0].padStart(2,'0');}
+    return f.includes(fechaCierre);
+  });
+  var egresosMovCaja=todosMovCaja.filter(function(m){
+    return m.tipo==='egreso'&&(
+      (turnoId&&m.turnoId?m.turnoId===turnoId:(m.fecha||'').includes(fechaCierre))
+    );
+  });
+
+  // Agrupar productos vendidos por empleado
+  var porEmp={};
+  ventasTurno.forEach(function(v){
+    var emp=v.emp||v.vendedor||v.usuario||'—';
+    if(!porEmp[emp])porEmp[emp]={ventas:[],total:0};
+    var items=v.items||v.products||[];
+    if(!items.length&&v.name)items=[{name:v.name,qty:v.qty||1,total:v.total||0}];
+    items.forEach(function(it){
+      var existing=porEmp[emp].ventas.find(function(x){return x.name===it.name;});
+      if(existing){existing.qty+=(it.qty||1);existing.total+=(it.total||0);}
+      else porEmp[emp].ventas.push({name:it.name,qty:it.qty||1,total:it.total||0});
+    });
+    porEmp[emp].total+=(v.total||0);
+  });
+
   var html =
     '<div style="background:var(--bg3);border-radius:8px;padding:12px;margin-bottom:12px">' +
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px">' +
@@ -10766,21 +10821,74 @@ function verDetalleCierre(id){
     '<div><b>Usuario:</b> '+c.usuario+'</div>' +
     '</div></div>' +
     '<div style="font-size:12px">' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Fondo inicial:</span><span>'+fmt(c.fondo||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas efectivo:</span><span style="color:#3aaa6a">'+fmt(c.ventasEfectivo||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Nequi/Daviplata:</span><span style="color:#9b72cf">'+fmt(c.ventasNequi||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Tarjeta:</span><span style="color:#3b82f6">'+fmt(c.ventasTarjeta||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Transferencia:</span><span style="color:#f0a500">'+fmt(c.ventasTransferencia||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-weight:700"><span>Total ventas:</span><span style="color:#3aaa6a">'+fmt(c.totalVentas||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Total gastos:</span><span style="color:#e94560">'+fmt(c.gastos||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Número pedidos:</span><span>'+c.numPedidos+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo esperado:</span><span>'+fmt(c.esperado||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo contado:</span><span>'+fmt(c.contado||0)+'</span></div>' +
-    '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px"><span>Diferencia:</span><span style="color:'+(c.diferencia>=0?'#3aaa6a':'#e94560')+'">'+(c.diferencia>=0?'+':'')+fmt(c.diferencia||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Fondo inicial:</span><span>'+fmt2(c.fondo||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas efectivo:</span><span style="color:#3aaa6a">'+fmt2(c.ventasEfectivo||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Nequi/Daviplata:</span><span style="color:#9b72cf">'+fmt2(c.ventasNequi||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Ventas Transferencia:</span><span style="color:#f0a500">'+fmt2(c.ventasTransferencia||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border);font-weight:700"><span>Total ventas:</span><span style="color:#3aaa6a">'+fmt2(c.totalVentas||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Total gastos:</span><span style="color:#e94560">'+fmt2(c.gastos||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo esperado:</span><span>'+fmt2(c.esperado||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid var(--border)"><span>Efectivo contado:</span><span>'+fmt2(c.contado||0)+'</span></div>' +
+    '<div style="display:flex;justify-content:space-between;padding:8px 0;font-weight:700;font-size:13px"><span>Diferencia:</span><span style="color:'+(c.diferencia>=0?'#3aaa6a':'#e94560')+'">'+(c.diferencia>=0?'+':'')+fmt2(c.diferencia||0)+'</span></div>' +
     '<div style="background:'+(est==='correcto'?'#edfaf2':est==='sobrante'?'#fff8e1':'#fff5f5')+';border-radius:8px;padding:8px;text-align:center;font-weight:700;color:'+estColor+'">' +
     (est==='correcto'?'✅ CIERRE CORRECTO':est==='sobrante'?'🟡 SOBRANTE':'🔴 FALTANTE') + '</div>' +
     (c.observaciones?'<div style="margin-top:8px;font-size:12px"><b>Observaciones:</b> '+c.observaciones+'</div>':'') +
     '</div>';
+
+  // SECCIÓN: Productos vendidos por empleada
+  html+='<div style="margin-top:14px">';
+  html+='<div style="font-weight:700;font-size:12px;color:#7c3aed;margin-bottom:8px;padding:6px 10px;background:#f5f3ff;border-radius:6px">🛍️ PRODUCTOS VENDIDOS ('+ventasTurno.length+' ventas)</div>';
+  if(Object.keys(porEmp).length){
+    Object.entries(porEmp).forEach(function(entry){
+      var emp=entry[0];var datos=entry[1];
+      html+='<div style="background:#f8fafc;border:1px solid var(--border);border-radius:6px;padding:8px;margin-bottom:8px">';
+      html+='<div style="font-weight:700;font-size:12px;margin-bottom:6px">👤 '+emp+' — <span style="color:#3aaa6a">'+fmt2(datos.total)+'</span></div>';
+      html+='<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text2)"><th style="text-align:left">Producto</th><th style="text-align:center">Cant.</th><th style="text-align:right">Total</th></tr></thead><tbody>';
+      datos.ventas.sort(function(a,b){return(b.total||0)-(a.total||0);}).forEach(function(it){
+        html+='<tr><td>'+it.name+'</td><td style="text-align:center">'+it.qty+'</td><td style="text-align:right;font-weight:600">'+fmt2(it.total)+'</td></tr>';
+      });
+      html+='</tbody></table></div>';
+    });
+  } else {
+    html+='<div style="font-size:11px;color:var(--text2);padding:8px">No se encontraron ventas para este turno.</div>';
+  }
+
+  // SECCIÓN: Gastos del turno
+  html+='<div style="font-weight:700;font-size:12px;color:#e94560;margin:10px 0 6px;padding:6px 10px;background:#fff5f5;border-radius:6px">💸 GASTOS DEL TURNO ('+gastosTurno.length+')</div>';
+  if(gastosTurno.length){
+    html+='<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text2)"><th style="text-align:left">Descripción</th><th style="text-align:left">Tipo</th><th style="text-align:right">Monto</th></tr></thead><tbody>';
+    gastosTurno.forEach(function(g){
+      html+='<tr><td>'+g.desc+'</td><td style="color:var(--text2)">'+g.cat+'</td><td style="text-align:right;font-weight:600;color:#e94560">'+fmt2(g.monto)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+  } else {
+    html+='<div style="font-size:11px;color:var(--text2);padding:8px">No se encontraron gastos para este turno.</div>';
+  }
+
+  // SECCIÓN: Compras del turno
+  html+='<div style="font-weight:700;font-size:12px;color:#f0a500;margin:10px 0 6px;padding:6px 10px;background:#fff8e1;border-radius:6px">🛒 COMPRAS DEL TURNO ('+comprasTurno.length+')</div>';
+  if(comprasTurno.length){
+    html+='<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text2)"><th style="text-align:left">Proveedor</th><th style="text-align:left">Productos</th><th style="text-align:right">Total</th></tr></thead><tbody>';
+    comprasTurno.forEach(function(cp){
+      var prods2=(cp.detalle||[]).map(function(d){return d.producto;}).join(', ').substring(0,40);
+      html+='<tr><td>'+cp.prov+'</td><td style="color:var(--text2);font-size:10px">'+prods2+'</td><td style="text-align:right;font-weight:600;color:#f0a500">'+fmt2(cp.total)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+  } else {
+    html+='<div style="font-size:11px;color:var(--text2);padding:8px">No se encontraron compras para este turno.</div>';
+  }
+
+  // SECCIÓN: Egresos de caja
+  if(egresosMovCaja.length){
+    html+='<div style="font-weight:700;font-size:12px;color:#3b82f6;margin:10px 0 6px;padding:6px 10px;background:#eff6ff;border-radius:6px">📤 EGRESOS DE CAJA ('+egresosMovCaja.length+')</div>';
+    html+='<table style="width:100%;font-size:11px"><thead><tr style="color:var(--text2)"><th style="text-align:left">Descripción</th><th style="text-align:left">Empleado</th><th style="text-align:right">Monto</th></tr></thead><tbody>';
+    egresosMovCaja.forEach(function(m){
+      html+='<tr><td>'+(m.desc||m.concepto||'—')+'</td><td style="color:var(--text2)">'+(m.emp||m.usuario||'—')+'</td><td style="text-align:right;font-weight:600;color:#3b82f6">'+fmt2(m.monto||m.valor||0)+'</td></tr>';
+    });
+    html+='</tbody></table>';
+  }
+
+  html+='</div>';
 
   document.getElementById('detalle-cierre-content').innerHTML = html;
   openM('detalle-cierre');
