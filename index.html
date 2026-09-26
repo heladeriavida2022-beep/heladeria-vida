@@ -10779,22 +10779,23 @@ async function verDetalleCierre(id){
   // Filtrar por turnoId o fecha
   var ventasTurno=todasVentas.filter(function(v){
     if(turnoId&&v.turnoId) return v.turnoId===turnoId;
-    return (v.fecha||v.date||'').includes(fechaCierre);
+    var vf=v.fecha||v.date||'';
+    return vf===fechaCierre;
   });
   var gastosTurno=todosGastos.filter(function(g){
     if(turnoId&&g.turnoId) return g.turnoId===turnoId;
-    return (g.fecha||'').includes(fechaCierre);
+    return (g.fecha||'')===fechaCierre;
   });
   var comprasTurno=todasCompras.filter(function(cp){
     if(turnoId&&cp.turnoId) return cp.turnoId===turnoId;
     var f=cp.fecha||'';
     if(f.includes('/')){var pp=f.split('/');if(pp.length===3)f=pp[2]+'-'+pp[1].padStart(2,'0')+'-'+pp[0].padStart(2,'0');}
-    return f.includes(fechaCierre);
+    return f===fechaCierre;
   });
   var egresosMovCaja=todosMovCaja.filter(function(m){
-    return m.tipo==='egreso'&&(
-      (turnoId&&m.turnoId?m.turnoId===turnoId:(m.fecha||'').includes(fechaCierre))
-    );
+    if(!m||m.tipo!=='egreso')return false;
+    if(turnoId&&m.turnoId) return m.turnoId===turnoId;
+    return (m.fecha||'')===fechaCierre;
   });
 
   // Agrupar productos vendidos por empleado
@@ -10802,12 +10803,31 @@ async function verDetalleCierre(id){
   ventasTurno.forEach(function(v){
     var emp=v.emp||v.vendedor||v.usuario||'—';
     if(!porEmp[emp])porEmp[emp]={ventas:[],total:0};
-    var items=v.items||v.products||[];
-    if(!items.length&&v.name)items=[{name:v.name,qty:v.qty||1,total:v.total||0}];
-    items.forEach(function(it){
-      var existing=porEmp[emp].ventas.find(function(x){return x.name===it.name;});
-      if(existing){existing.qty+=(it.qty||1);existing.total+=(it.total||0);}
-      else porEmp[emp].ventas.push({name:it.name,qty:it.qty||1,total:it.total||0});
+    // name puede ser array de items o string
+    var rawItems=v.name;
+    var itemsArr=[];
+    if(Array.isArray(rawItems)){
+      itemsArr=rawItems; // es el array del carrito
+    } else if(typeof rawItems==='string'){
+      // puede ser "2x CONO DOBLE" o "CONO DOBLE"
+      itemsArr=[{name:rawItems,qty:v.qty||1,total:v.total||0}];
+    }
+    // Cada item puede ser objeto {name, qty, total} o string "Nx NOMBRE"
+    itemsArr.forEach(function(it){
+      var nombre,qty,total;
+      if(typeof it==='object'&&it!==null){
+        nombre=it.name||it.n||'—';
+        qty=it.qty||it.q||1;
+        total=(it.precioFinal||it.price||0)*qty||(it.total||0);
+      } else if(typeof it==='string'){
+        var m2=it.match(/^(\d+)x?\s*(.+)$/);
+        nombre=m2?m2[2]:it;
+        qty=m2?parseInt(m2[1]):1;
+        total=0;
+      } else return;
+      var existing=porEmp[emp].ventas.find(function(x){return x.name===nombre;});
+      if(existing){existing.qty+=qty;existing.total+=total;}
+      else porEmp[emp].ventas.push({name:nombre,qty:qty,total:total});
     });
     porEmp[emp].total+=(v.total||0);
   });
