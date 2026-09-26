@@ -10782,14 +10782,24 @@ async function verDetalleCierre(id){
   var tsApertura=turnoObj?(turnoObj.timestampApertura||null):null;
   var tsCierre=c.timestamp||null;
 
-  // Filtrar ventas: por turnoId exacto O por timestamps del turno
+  // Filtrar ventas: por turnoId exacto, O por empleada+fecha del cierre
+  var usuarioCierre=c.usuario||'';
   var ventasTurno=todasVentas.filter(function(v){
+    // 1. turnoId exacto
     if(v.turnoId&&turnoId&&v.turnoId===turnoId) return true;
-    // Fallback: misma fecha y dentro del horario del turno
+    // 2. misma fecha
     var vf=v.fecha||v.date||'';
     if(vf!==fechaCierre) return false;
-    if(tsApertura&&v.timestamp) return v.timestamp>=tsApertura&&(!tsCierre||v.timestamp<=tsCierre);
-    return true; // si no hay timestamps, incluir toda la fecha
+    // 3. si hay timestamps del turno, filtrar por horario
+    if(tsApertura&&tsCierre&&v.timestamp){
+      return v.timestamp>=tsApertura&&v.timestamp<=tsCierre;
+    }
+    // 4. si no hay timestamps, mostrar ventas de la empleada del cierre ese día
+    if(usuarioCierre){
+      var empVenta=v.emp||v.vendedor||v.usuario||'';
+      return empVenta===usuarioCierre;
+    }
+    return false;
   });
   var gastosTurno=todosGastos.filter(function(g){
     if(turnoId&&g.turnoId) return g.turnoId===turnoId;
