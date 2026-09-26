@@ -10803,31 +10803,28 @@ async function verDetalleCierre(id){
   ventasTurno.forEach(function(v){
     var emp=v.emp||v.vendedor||v.usuario||'—';
     if(!porEmp[emp])porEmp[emp]={ventas:[],total:0};
-    // name puede ser array de items o string
-    var rawItems=v.name;
+    // detalle tiene cada producto individual del carrito
     var itemsArr=[];
-    if(Array.isArray(rawItems)){
-      itemsArr=rawItems; // es el array del carrito
-    } else if(typeof rawItems==='string'){
-      // puede ser "2x CONO DOBLE" o "CONO DOBLE"
-      itemsArr=[{name:rawItems,qty:v.qty||1,total:v.total||0}];
+    if(Array.isArray(v.detalle)&&v.detalle.length){
+      itemsArr=v.detalle; // [{name, qty, price, ...}]
+    } else if(typeof v.name==='string'){
+      // fallback: parsear string "2x CONO DOBLE, 1x ARTESANAL"
+      v.name.split(',').forEach(function(s){
+        s=s.trim();
+        var m2=s.match(/^(\d+)x?\s*(.+)$/);
+        itemsArr.push({name:m2?m2[2].trim():s, qty:m2?parseInt(m2[1]):1, price:0});
+      });
+    } else if(Array.isArray(v.name)){
+      itemsArr=v.name;
     }
-    // Cada item puede ser objeto {name, qty, total} o string "Nx NOMBRE"
     itemsArr.forEach(function(it){
-      var nombre,qty,total;
-      if(typeof it==='object'&&it!==null){
-        nombre=it.name||it.n||'—';
-        qty=it.qty||it.q||1;
-        total=(it.precioFinal||it.price||0)*qty||(it.total||0);
-      } else if(typeof it==='string'){
-        var m2=it.match(/^(\d+)x?\s*(.+)$/);
-        nombre=m2?m2[2]:it;
-        qty=m2?parseInt(m2[1]):1;
-        total=0;
-      } else return;
+      var nombre=it.name||it.n||'—';
+      var qty=it.qty||it.q||1;
+      var precio=it.precioFinal||it.price||it.p||0;
+      var totalIt=precio*qty;
       var existing=porEmp[emp].ventas.find(function(x){return x.name===nombre;});
-      if(existing){existing.qty+=qty;existing.total+=total;}
-      else porEmp[emp].ventas.push({name:nombre,qty:qty,total:total});
+      if(existing){existing.qty+=qty;existing.total+=totalIt;}
+      else porEmp[emp].ventas.push({name:nombre,qty:qty,total:totalIt});
     });
     porEmp[emp].total+=(v.total||0);
   });
