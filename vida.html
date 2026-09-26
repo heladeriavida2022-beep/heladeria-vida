@@ -10776,11 +10776,20 @@ async function verDetalleCierre(id){
     window.FB.getAll('caja').catch(function(){return[];})
   ]);
 
-  // Filtrar por turnoId o fecha
+  // Buscar info del turno para filtrar por timestamps
+  var turnosFB2=await window.FB.getAll('turnos').catch(function(){return[];});
+  var turnoObj=turnosFB2.find(function(t){return (t.turnoId||t.id)===turnoId;});
+  var tsApertura=turnoObj?(turnoObj.timestampApertura||null):null;
+  var tsCierre=c.timestamp||null;
+
+  // Filtrar ventas: por turnoId exacto O por timestamps del turno
   var ventasTurno=todasVentas.filter(function(v){
-    if(turnoId&&v.turnoId) return v.turnoId===turnoId;
+    if(v.turnoId&&turnoId&&v.turnoId===turnoId) return true;
+    // Fallback: misma fecha y dentro del horario del turno
     var vf=v.fecha||v.date||'';
-    return vf===fechaCierre;
+    if(vf!==fechaCierre) return false;
+    if(tsApertura&&v.timestamp) return v.timestamp>=tsApertura&&(!tsCierre||v.timestamp<=tsCierre);
+    return true; // si no hay timestamps, incluir toda la fecha
   });
   var gastosTurno=todosGastos.filter(function(g){
     if(turnoId&&g.turnoId) return g.turnoId===turnoId;
