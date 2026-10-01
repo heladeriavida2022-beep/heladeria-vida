@@ -997,7 +997,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46;font-weight:700">📋 Registrar cierre T2 DANNA 30/09</button>
+              <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
+              <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
               <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
@@ -8008,6 +8009,49 @@ async function sincronizarUsuarios(){
       html+='\n✅ '+fbUsers.length+' usuarios sincronizados\nRecarga la app en incógnito para ver DANNA';
     } else {
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
+    }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function eliminarDuplicadoCierreDanna(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando duplicado...';
+  try{
+    var movs=await window.FB.getAll('fondoAdmin');
+    var retirosDanna=movs.filter(function(m){
+      return (m.concepto||m.desc||'').toUpperCase().includes('DANNA')&&
+             (m.tipo==='ingreso'||m.tipo==='retiro'||m.concepto&&m.concepto.includes('Cierre'))&&
+             (m.fecha||'').includes('2026-09-30');
+    });
+    var html='Movimientos DANNA 30/09 en Fondo: '+retirosDanna.length+'\n';
+    retirosDanna.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||'')+'| $'+(m.valor||m.monto||0).toLocaleString('es-CO')+'\n';});
+    if(retirosDanna.length<2){
+      // Buscar también por valor
+      var todos66=movs.filter(function(m){
+        return (m.valor||m.monto||0)===66800&&(m.fecha||'').includes('2026-09-30');
+      });
+      html+='Movimientos $66.800 del 30/09: '+todos66.length+'\n';
+      todos66.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||'—')+'\n';});
+      if(todos66.length>=2){
+        todos66.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+        var eliminar=todos66[todos66.length-1];
+        await window.FB.del('fondoAdmin',eliminar.id);
+        html+='✅ Duplicado eliminado: '+eliminar.id;
+        if(window._fondoAdminMovs)window._fondoAdminMovs=window._fondoAdminMovs.filter(function(m){return m.id!==eliminar.id;});
+        try{renderFondoAdmin();}catch(e){}
+      } else {
+        html+='ℹ️ No se encontró duplicado';
+      }
+    } else {
+      retirosDanna.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+      var elim=retirosDanna[retirosDanna.length-1];
+      await window.FB.del('fondoAdmin',elim.id);
+      html+='✅ Duplicado eliminado: '+elim.id;
+      if(window._fondoAdminMovs)window._fondoAdminMovs=window._fondoAdminMovs.filter(function(m){return m.id!==elim.id;});
+      try{renderFondoAdmin();}catch(e){}
     }
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
