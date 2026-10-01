@@ -4207,19 +4207,37 @@ async function calcularNomina(){
       });
       html+='</tbody></table></div>';
 
-      // Verificar si ya fue pagada
-      var yaFuePagada=gastosDB.find(function(g){
+      // Buscar TODOS los pagos relacionados con esta empleada en el período ampliado
+      var primerNombre=e.nombre.toUpperCase().split(' ')[0];
+      var pagosRealizados=gastosDB.filter(function(g){
         return g.cat==='Nómina'&&
-               (g.terceroNombre||'').toUpperCase().includes(e.nombre.toUpperCase().split(' ')[0])&&
-               (g.monto||0)===e.total&&
-               (g.fecha||'')>=desde&&(g.fecha||'')<=hasta;
+               (g.terceroNombre||'').toUpperCase().includes(primerNombre)&&
+               (g.fecha||'')>='2026-01-01'; // buscar en todo el año
       });
+      // Filtrar los que cubran algún período solapado con el actual
+      var totalPagado=pagosRealizados.reduce(function(s,g){return s+(g.monto||0);},0);
+      var pendiente=Math.max(0,e.total-totalPagado);
 
-      // Botón pagar o estado pagada
-      if(yaFuePagada){
-        html+='<div style="margin-top:10px;text-align:right">'+
-          '<span style="background:#ecfdf5;color:#166534;padding:6px 12px;border-radius:8px;font-size:12px;font-weight:700">'+
-          '✅ PAGADA el '+yaFuePagada.fecha+' · $'+fmt2(e.total)+'</span></div></div>';
+      // Mostrar resumen de pagos
+      if(pagosRealizados.length){
+        html+='<div style="margin-top:10px;background:#f0fdf4;border:1px solid #16a34a;border-radius:8px;padding:8px;font-size:11px">';
+        html+='<div style="font-weight:700;color:#166534;margin-bottom:4px">💰 Pagos registrados:</div>';
+        pagosRealizados.forEach(function(g){
+          html+='<div style="display:flex;justify-content:space-between"><span>'+g.fecha+' — '+( g.medioPago||'Efectivo')+'</span><span style="font-weight:700">'+fmt2(g.monto)+'</span></div>';
+        });
+        html+='<div style="display:flex;justify-content:space-between;margin-top:4px;padding-top:4px;border-top:1px solid #bbf7d0"><span style="font-weight:700">Total pagado:</span><span style="font-weight:700;color:#16a34a">'+fmt2(totalPagado)+'</span></div>';
+        if(pendiente>0){
+          html+='<div style="display:flex;justify-content:space-between"><span style="font-weight:700;color:#dc2626">Saldo pendiente:</span><span style="font-weight:700;color:#dc2626">'+fmt2(pendiente)+'</span></div>';
+        } else {
+          html+='<div style="text-align:center;margin-top:4px;font-weight:700;color:#166534">✅ TOTALMENTE PAGADA</div>';
+        }
+        html+='</div>';
+        if(pendiente>0){
+          html+='<div style="display:flex;gap:8px;margin-top:8px;justify-content:flex-end">'+
+            '<button class="btn btn-ghost btn-sm" style="font-size:11px;color:#dc2626;border-color:#dc2626" onclick="pagarNomina(\''+e.nombre+'\','+pendiente+')">'+
+            '<i class="ti ti-cash"></i> Pagar pendiente '+fmt2(pendiente)+'</button></div>';
+        }
+        html+='</div>';
       } else {
         html+='<div style="display:flex;gap:8px;margin-top:10px;justify-content:flex-end">'+
           '<button class="btn btn-ghost btn-sm" style="font-size:11px" onclick="pagarNomina(\''+e.nombre+'\','+e.total+')">'+
