@@ -8018,40 +8018,42 @@ async function eliminarDuplicadoCierreDanna(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando duplicado...';
+  div.innerHTML='⏳ Buscando duplicado en cierresTurno...';
   try{
-    var movs=await window.FB.getAll('fondoAdmin');
-    var retirosDanna=movs.filter(function(m){
-      return (m.concepto||m.desc||'').toUpperCase().includes('DANNA')&&
-             (m.tipo==='ingreso'||m.tipo==='retiro'||m.concepto&&m.concepto.includes('Cierre'))&&
-             (m.fecha||'').includes('2026-09-30');
+    var cierres=await window.FB.getAll('cierresTurno');
+    var cierresDanna30=cierres.filter(function(c){
+      return (c.usuario||'').toUpperCase().includes('DANNA')&&
+             (c.turno===2||String(c.turno)==='2')&&
+             (c.fecha||'').includes('2026-09-30');
     });
-    var html='Movimientos DANNA 30/09 en Fondo: '+retirosDanna.length+'\n';
-    retirosDanna.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||'')+'| $'+(m.valor||m.monto||0).toLocaleString('es-CO')+'\n';});
-    if(retirosDanna.length<2){
-      // Buscar también por valor
-      var todos66=movs.filter(function(m){
-        return (m.valor||m.monto||0)===66800&&(m.fecha||'').includes('2026-09-30');
-      });
-      html+='Movimientos $66.800 del 30/09: '+todos66.length+'\n';
-      todos66.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||'—')+'\n';});
-      if(todos66.length>=2){
-        todos66.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
-        var eliminar=todos66[todos66.length-1];
-        await window.FB.del('fondoAdmin',eliminar.id);
-        html+='✅ Duplicado eliminado: '+eliminar.id;
-        if(window._fondoAdminMovs)window._fondoAdminMovs=window._fondoAdminMovs.filter(function(m){return m.id!==eliminar.id;});
-        try{renderFondoAdmin();}catch(e){}
-      } else {
-        html+='ℹ️ No se encontró duplicado';
+    var html='Cierres T2 DANNA 30/09: '+cierresDanna30.length+'\n';
+    cierresDanna30.forEach(function(c){html+='  '+c.id+' | retroactivo:'+(c.retroactivo||false)+'\n';});
+    if(cierresDanna30.length>=2){
+      // Eliminar los retroactivos extra (mantener solo el primero)
+      cierresDanna30.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
+      for(var i=1;i<cierresDanna30.length;i++){
+        await window.FB.del('cierresTurno',cierresDanna30[i].id);
+        html+='✅ Duplicado eliminado: '+cierresDanna30[i].id+'\n';
       }
-    } else {
-      retirosDanna.sort(function(a,b){return(a.id||'')>(b.id||'')?1:-1;});
-      var elim=retirosDanna[retirosDanna.length-1];
-      await window.FB.del('fondoAdmin',elim.id);
-      html+='✅ Duplicado eliminado: '+elim.id;
-      if(window._fondoAdminMovs)window._fondoAdminMovs=window._fondoAdminMovs.filter(function(m){return m.id!==elim.id;});
+      var lc=LS.g('cierresTurno')||[];
+      var keepId=cierresDanna30[0].id;
+      lc=lc.filter(function(c){
+        return !(c.usuario||'').toUpperCase().includes('DANNA')||
+               !(c.turno===2||String(c.turno)==='2')||
+               !(c.fecha||'').includes('2026-09-30')||
+               c.id===keepId;
+      });
+      LS.set('cierresTurno',lc);
+      try{renderCierres();}catch(e){}
       try{renderFondoAdmin();}catch(e){}
+      html+='✅ Queda solo 1 cierre DANNA 30/09';
+    } else {
+      html+='ℹ️ Solo hay '+cierresDanna30.length+' cierre — no hay duplicado\n';
+      // Buscar en cualquier colección por texto
+      var allFondo=await window.FB.getAll('fondoAdmin');
+      var mov30=allFondo.filter(function(m){return (m.fecha||m.timestamp||'').includes('2026-09-30')&&(m.valor||m.monto||0)>50000;});
+      html+='Movimientos fondo >$50k del 30/09: '+mov30.length+'\n';
+      mov30.forEach(function(m){html+='  '+m.id+' | '+(m.concepto||m.desc||'—')+' | $'+(m.valor||m.monto)+'\n';});
     }
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
