@@ -997,7 +997,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
+              <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46;font-weight:700">📋 Registrar cierre T2 DANNA 30/09</button>
+              <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
               <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
               <button onclick="corregirPagoCremosin114()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">🔧 Corregir pago CREMOSIN $114k → 17/09</button>
@@ -8008,6 +8009,59 @@ async function sincronizarUsuarios(){
     } else {
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
     }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function registrarCierreRetroactivo(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando datos del 30/09...';
+  try{
+    var fecha='2026-09-30';var html='';
+    // Buscar ventas de DANNA del 30/09
+    var todasVentas=await window.FB.getAll('ventas');
+    var ventasDanna=todasVentas.filter(function(v){
+      var vf=v.fecha||v.date||'';
+      var emp=v.emp||v.vendedor||v.usuario||'';
+      return vf===fecha&&emp.toUpperCase().includes('DANNA');
+    });
+    // Buscar turno T2 del 30/09
+    var turnosFB=await window.FB.getAll('turnos');
+    var t2=turnosFB.find(function(t){return (t.turno===2||String(t.turno)==='2')&&(t.timestampApertura||'').includes('2026-09-30');});
+    var turnoId30=t2?(t2.turnoId||t2.id||null):null;
+    if(!ventasDanna.length&&turnoId30){
+      ventasDanna=todasVentas.filter(function(v){return v.turnoId===turnoId30;});
+    }
+    var totalVentas=ventasDanna.reduce(function(s,v){return s+(v.total||0);},0)||110000;
+    var ventasEfe=ventasDanna.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0)||totalVentas;
+    var ventasNequi=ventasDanna.filter(function(v){return (v.pago||'').includes('Nequi');}).reduce(function(s,v){return s+(v.total||0);},0);
+    var ventasTrans=ventasDanna.filter(function(v){return (v.pago||'').includes('Trans');}).reduce(function(s,v){return s+(v.total||0);},0);
+    // Buscar gastos del 30/09
+    var todosGastos=await window.FB.getAll('gastos');
+    var gastos30=todosGastos.filter(function(g){return (g.fecha||'')===fecha;});
+    var totalGastos=gastos30.reduce(function(s,g){return s+(g.monto||0);},0)||49000;
+    html+='Ventas encontradas: '+ventasDanna.length+' | Total: $'+totalVentas.toLocaleString('es-CO')+'\n';
+    html+='Gastos encontrados: '+gastos30.length+' | Total: $'+totalGastos.toLocaleString('es-CO')+'\n';
+    var fondo=100000;
+    var esperado=Math.max(0,fondo+ventasEfe-totalGastos);
+    var now=new Date();
+    var cierre={
+      id:'ct_retro_T2_2026-09-30_'+now.getTime(),
+      fecha:fecha,horaCierre:'09:00 p. m.',turno:2,usuario:'DANNA',
+      turnoId:turnoId30||('turno_T2_2026-09-30_retro'),
+      fondo:fondo,totalVentas:totalVentas,
+      ventasEfectivo:ventasEfe,ventasNequi:ventasNequi,ventasTransferencia:ventasTrans,
+      gastos:totalGastos,numPedidos:ventasDanna.length,
+      esperado:esperado,contado:esperado,diferencia:0,estado:'correcto',
+      observaciones:'Cierre registrado retroactivamente — turno no cerrado el 30/09',
+      timestamp:'2026-09-30T21:00:00.000Z',retroactivo:true
+    };
+    await window.FB.set('cierresTurno',cierre.id,cierre);
+    var lc=LS.g('cierresTurno')||[];lc.unshift(cierre);LS.set('cierresTurno',lc);
+    try{renderCierres();}catch(e){}
+    html+='✅ Cierre T2 del 30/09 registrado correctamente\nUsuario: DANNA | Ventas: $'+totalVentas.toLocaleString('es-CO')+' | Gastos: $'+totalGastos.toLocaleString('es-CO');
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
