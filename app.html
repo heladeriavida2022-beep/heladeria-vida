@@ -8074,16 +8074,14 @@ async function corregirUsuarioCierreT2Oct1(){
   try{
     var cierres=await window.FB.getAll('cierresTurno');
     var c=cierres.find(function(x){
-      return (x.turno===2||String(x.turno)==='2')&&
-             (x.fecha||'').includes('2026-10-01');
+      var f=x.fecha||'';
+      var ts=x.timestamp||'';
+      var esTurno2=x.turno===2||String(x.turno)==='2';
+      return esTurno2&&(
+        f.includes('2026-10-01')||f==='1/10/2026'||f==='01/10/2026'||
+        ts.includes('2026-10-01')
+      );
     });
-    if(!c){
-      // Buscar por timestamp
-      c=cierres.find(function(x){
-        return (x.turno===2||String(x.turno)==='2')&&
-               (x.timestamp||'').includes('2026-10-01');
-      });
-    }
     if(!c){div.innerHTML='⚠️ No se encontró cierre T2 del 01/10\nCierres disponibles:\n'+
       cierres.filter(function(x){return (x.timestamp||x.fecha||'').includes('2026-10');})
              .map(function(x){return x.id+' | T'+(x.turno||'?')+' | '+x.fecha+' | '+x.usuario;}).join('\n');
