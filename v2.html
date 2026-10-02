@@ -1019,7 +1019,8 @@ try{
               <button onclick="corregirEstadoCompras()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#15803d;font-weight:700">✅ Marcar compras como pagadas</button>
               <button onclick="generarInformeAgosto()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#059669;color:#065f46;font-weight:700">📊 Descargar Informe Agosto 2026</button>
               <button onclick="crearUsuarioDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">👤 Crear usuario DANNA</button>
-              <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b;font-weight:700">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
+              <button onclick="corregirUsuarioCierreT2Oct1()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">✏️ Corregir cierre T2 01/10 → ERIKA ZEA</button>
+              <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
               <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
@@ -8061,6 +8062,45 @@ async function sincronizarUsuarios(){
     } else {
       html+='\n⚠️ No se encontraron usuarios en Firebase\nBusca a DANNA en la sección de Configuración → Usuarios';
     }
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function corregirUsuarioCierreT2Oct1(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando cierre T2 del 01/10...';
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var c=cierres.find(function(x){
+      return (x.turno===2||String(x.turno)==='2')&&
+             (x.fecha||'').includes('2026-10-01');
+    });
+    if(!c){
+      // Buscar por timestamp
+      c=cierres.find(function(x){
+        return (x.turno===2||String(x.turno)==='2')&&
+               (x.timestamp||'').includes('2026-10-01');
+      });
+    }
+    if(!c){div.innerHTML='⚠️ No se encontró cierre T2 del 01/10\nCierres disponibles:\n'+
+      cierres.filter(function(x){return (x.timestamp||x.fecha||'').includes('2026-10');})
+             .map(function(x){return x.id+' | T'+(x.turno||'?')+' | '+x.fecha+' | '+x.usuario;}).join('\n');
+      return;
+    }
+    var html='Cierre encontrado: '+c.id+'\n';
+    html+='Usuario antes: '+c.usuario+'\n';
+    html+='Fecha: '+c.fecha+'\n';
+    c.usuario='ERIKA ZEA';
+    await window.FB.set('cierresTurno',c.id,c);
+    var lc=LS.g('cierresTurno')||[];
+    var local=lc.find(function(x){return x.id===c.id;});
+    if(local) local.usuario='ERIKA ZEA';
+    LS.set('cierresTurno',lc);
+    try{renderCierres();}catch(e){}
+    html+='Usuario ahora: ERIKA ZEA ✅\n';
+    html+='El cierre T2 del 01/10 ya aparece a nombre de ERIKA ZEA en la nómina.';
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
