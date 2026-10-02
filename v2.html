@@ -4207,14 +4207,18 @@ async function calcularNomina(){
       });
       html+='</tbody></table></div>';
 
-      // Buscar TODOS los pagos relacionados con esta empleada en el período ampliado
+      // Buscar pagos del período actual (desde hasta 14 días después)
       var primerNombre=e.nombre.toUpperCase().split(' ')[0];
+      // Calcular fecha límite: hasta + 14 días
+      var fechaLimite=new Date(hasta);
+      fechaLimite.setDate(fechaLimite.getDate()+14);
+      var hastaExt=fechaLimite.toISOString().split('T')[0];
       var pagosRealizados=gastosDB.filter(function(g){
         return g.cat==='Nómina'&&
                (g.terceroNombre||'').toUpperCase().includes(primerNombre)&&
-               (g.fecha||'')>='2026-01-01'; // buscar en todo el año
+               (g.fecha||'')>=desde&&
+               (g.fecha||'')<=hastaExt;
       });
-      // Filtrar los que cubran algún período solapado con el actual
       var totalPagado=pagosRealizados.reduce(function(s,g){return s+(g.monto||0);},0);
       var pendiente=Math.max(0,e.total-totalPagado);
 
