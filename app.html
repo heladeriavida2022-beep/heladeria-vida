@@ -1022,6 +1022,7 @@ try{
               <button onclick="corregirUsuarioCierreT2Oct1()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">✏️ Corregir cierre T2 01/10 → ERIKA ZEA</button>
               <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
               <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
+              <button onclick="desactivarDescuentaSandia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#a21caf;color:#701a75;font-weight:700">🍉 Desactivar descuento SANDIA (no descontar inventario)</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
               <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
@@ -1165,7 +1166,15 @@ try{
   <input type="hidden" id="edit-id">
   <div class="fr"><div class="fg"><label class="fgrp-label">Nombre</label><input class="finput" id="edit-nm"></div><div class="fg"><label class="fgrp-label">Emoji</label><input class="finput" id="edit-em" maxlength="2" style="text-align:center;font-size:17px"></div></div>
   <div class="fr"><div class="fg"><label class="fgrp-label">Precio ($)</label><input class="finput" type="number" id="edit-pr"></div><div class="fg"><label class="fgrp-label">Stock mínimo</label><input class="finput" type="number" id="edit-min"></div></div>
-  <div style="display:flex;gap:7px;margin-top:4px"><button class="btn btn-acc" style="flex:1" onclick="guardarEdit()"><i class="ti ti-check"></i> Guardar</button><button class="btn btn-ghost" onclick="closeM('editar')">Cancelar</button></div>
+  <div class="fg" style="margin-top:6px">
+    <label class="fgrp-label">¿Descuenta inventario al vender?</label>
+    <select class="finput" id="edit-descuenta">
+      <option value="1">✅ Sí — descuenta inventario</option>
+      <option value="0">🚫 No — NO descuenta inventario</option>
+    </select>
+    <small style="color:var(--muted);font-size:10px">Úsalo en productos como SANDIA que se venden pero no reducen stock</small>
+  </div>
+  <div style="display:flex;gap:7px;margin-top:8px"><button class="btn btn-acc" style="flex:1" onclick="guardarEdit()"><i class="ti ti-check"></i> Guardar</button><button class="btn btn-ghost" onclick="closeM('editar')">Cancelar</button></div>
 </div></div>
 
 <!-- GESTIÓN DE IMAGEN DE PRODUCTO -->
@@ -3382,7 +3391,7 @@ function renderProdTable(){
   </tr>`}).join('');
 }
 function toggleProd(id){const p=gP(id);if(p)p.active=!p.active;renderProdTable();renderCarta();}
-function editProd(id){const p=gP(id);if(!p)return;document.getElementById('edit-id').value=id;document.getElementById('edit-nm').value=p.name;document.getElementById('edit-em').value=p.emoji;document.getElementById('edit-pr').value=p.price;document.getElementById('edit-min').value=p.min;document.getElementById('ov-editar').classList.add('open');}
+function editProd(id){const p=gP(id);if(!p)return;document.getElementById('edit-id').value=id;document.getElementById('edit-nm').value=p.name;document.getElementById('edit-em').value=p.emoji;document.getElementById('edit-pr').value=p.price;document.getElementById('edit-min').value=p.min;var selDesc=document.getElementById('edit-descuenta');if(selDesc)selDesc.value=(p.descuenta===false)?'0':'1';document.getElementById('ov-editar').classList.add('open');}
 // ══════════════════════════════════════════════
 // GESTIÓN DE IMÁGENES DE PRODUCTOS
 // ══════════════════════════════════════════════
@@ -3534,8 +3543,15 @@ function guardarEdit(){
   p.emoji=document.getElementById('edit-em').value||p.emoji;
   p.price=parseFloat(document.getElementById('edit-pr').value)||0;
   p.min=parseInt(document.getElementById('edit-min').value)||0;
-  logAction('admin',`Editó producto ${p.name}`);
-  closeM('editar');renderProdTable();renderCarta();renderPOS();updateBadges();toast('Producto actualizado ✓');
+  var selDesc=document.getElementById('edit-descuenta');
+  if(selDesc) p.descuenta=(selDesc.value==='1');
+  // Guardar en Firebase también
+  if(typeof window.FB!=='undefined'&&window.FB.set){
+    window.FB.set('productos', String(p.id), Object.assign({},p));
+  }
+  logAction('admin',`Editó producto ${p.name} (descuenta:${p.descuenta})`);
+  closeM('editar');renderProdTable();renderCarta();renderPOS();updateBadges();
+  toast('Producto actualizado ✓ (descuenta inventario: '+(p.descuenta?'Sí':'No')+')');
 }
 function crearProd(){
   const nm=document.getElementById('np-nm').value.trim().toUpperCase();
@@ -8199,6 +8215,38 @@ async function registrarCierreRetroactivo(){
     html+='✅ Cierre T2 del 30/09 registrado correctamente\nUsuario: DANNA | Ventas: $'+totalVentas.toLocaleString('es-CO')+' | Gastos: $'+totalGastos.toLocaleString('es-CO');
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function desactivarDescuentaSandia(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando producto SANDIA...';
+  try{
+    // Buscar en prods (localStorage)
+    var prod=prods.find(function(p){return (p.name||'').toUpperCase().includes('SANDIA');});
+    if(!prod){
+      // Si no está en memoria, buscar en Firebase
+      var fProds=await window.FB.getAll('productos');
+      prod=fProds.find(function(p){return (p.name||'').toUpperCase().includes('SANDIA');});
+    }
+    if(!prod){
+      div.innerHTML='⚠️ Producto SANDIA no encontrado en inventario ni en Firebase.';
+      return;
+    }
+    var idProd=String(prod.id||prod._id||'');
+    // Actualizar en localStorage
+    if(typeof LS.updProd==='function') LS.updProd(idProd,{descuenta:false});
+    // Actualizar en prods en memoria
+    var idx=prods.findIndex(function(p){return String(p.id||p._id||'')===idProd;});
+    if(idx>=0) prods[idx].descuenta=false;
+    // Actualizar en Firebase
+    await window.FB.set('productos',idProd,Object.assign({},prod,{descuenta:false}));
+    div.innerHTML='✅ SANDIA actualizada — ya NO descuenta inventario al vender.<br>'
+      +'<small>ID: '+idProd+' | Nombre: '+(prod.name||'SANDIA')+'</small>';
+  }catch(e){
+    div.innerHTML='❌ Error: '+e.message;
+  }
 }
 
 async function eliminarEgresoDuplicadoPulpipara(){
