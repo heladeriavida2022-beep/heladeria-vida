@@ -1026,6 +1026,8 @@ try{
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
               <button onclick="limpiarTurnosFantasma()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🧹 Limpiar turnos fantasma</button>
+              <button onclick="abrirCorreccionTurno()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:12px;background:linear-gradient(135deg,#fff7ed,#fef3c7);border:2px solid #ea580c;color:#c2410c;font-weight:800;box-shadow:0 2px 8px rgba(234,88,12,.18)">✏️ CORREGIR TURNO DE CAJA (Admin)</button>
+              <button onclick="verHistorialCorreccionTurnos()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0f9ff;border-color:#0ea5e9;color:#0369a1;font-weight:700">📋 Historial de correcciones de turno</button>
               <button onclick="corregirPagoCremosin114()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#ecfdf5;border-color:#10b981;color:#065f46">🔧 Corregir pago CREMOSIN $114k → 17/09</button>
               <button onclick="verificarCerveza()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef9c3;border-color:#ca8a04;color:#92400e">🍺 Verificar descuento CERVEZA</button>
               <button onclick="eliminarDuplicadoNominaAngel()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado nómina Angel</button>
@@ -4216,7 +4218,8 @@ async function calcularNomina(){
         var tipo=t.valor===50000?'Sáb/Dom T2':t.valor===40000&&dow===5?'Vie T2':
                  t.valor===30000?'T1 mañana':'Lun–Jue';
         html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td>'+
-              '<td>T'+t.turno+' <button onclick="editarTurnoCierre(\''+t.cierreId+'\',\''+t.turno+'\')" style="font-size:9px;padding:1px 4px;background:#f0f9ff;border:1px solid #3b82f6;border-radius:3px;color:#1d4ed8;cursor:pointer" title="Cambiar turno">✏️</button></td>'+
+              '<td>T'+t.turno+' <button onclick="editarTurnoCierre(\''+t.cierreId+'\',\''+t.turno+'\')" style="font-size:9px;padding:1px 4px;background:#f0f9ff;border:1px solid #3b82f6;border-radius:3px;color:#1d4ed8;cursor:pointer" title="Cambiar T1/T2">✏️</button>'+
+              ' <button onclick="eliminarTurnoCierre(\''+t.cierreId+'\',\''+t.fecha+'\')" style="font-size:9px;padding:1px 4px;background:#fff1f2;border:1px solid #e11d48;border-radius:3px;color:#be123c;cursor:pointer" title="Eliminar turno duplicado">🗑️</button></td>'+
               '<td>'+tipo+'</td>'+
               '<td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+
                 ' <button onclick="editarValorTurno(\''+t.cierreId+'\','+t.valor+')" style="font-size:9px;padding:1px 4px;background:#f0fdf4;border:1px solid #16a34a;border-radius:3px;color:#15803d;cursor:pointer" title="Editar valor">💲</button>'+
@@ -4358,6 +4361,27 @@ async function editarValorTurno(cierreId, valorActual){
     c.valorTurno=nuevoValor;
     await window.FB.set('cierresTurno',c.id,c);
     toast('✅ Valor actualizado a $'+nuevoValor.toLocaleString('es-CO'),'#3aaa6a');
+    calcularNomina();
+  }catch(e){toast('Error: '+e.message,'#e94560');}
+}
+
+async function eliminarTurnoCierre(cierreId, fecha){
+  if(!confirm('⚠️ ¿Eliminar este turno del '+fecha+'?\n\nUsa esto SOLO para turnos duplicados. El turno real debe quedar.\n\nEsta acción no se puede deshacer.'))return;
+  var motivo=prompt('Motivo de la eliminación (obligatorio):');
+  if(!motivo||!motivo.trim()){toast('Debes escribir un motivo','#e94560');return;}
+  try{
+    // Registrar auditoría antes de eliminar
+    var auditId='audit_del_'+Date.now();
+    await window.FB.set('auditoriaCorreccionTurnos',auditId,{
+      tipo:'eliminacion_duplicado',
+      cierreId:cierreId,
+      fecha:fecha,
+      motivo:motivo.trim(),
+      usuario:currentUser?currentUser.user:'admin',
+      timestamp:new Date().toISOString()
+    });
+    await window.FB.del('cierresTurno',cierreId);
+    toast('✅ Turno eliminado','#3aaa6a');
     calcularNomina();
   }catch(e){toast('Error: '+e.message,'#e94560');}
 }
@@ -11333,6 +11357,140 @@ window.onerror = function(msg, src, line, col, err){
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════════════════
+     OVERLAY: CORREGIR TURNO DE CAJA (Solo Admin Viviana.Rojas)
+     ══════════════════════════════════════════════════════════════ -->
+<div class="ov" id="ov-correccion-turno">
+  <div class="modal" style="max-width:660px;max-height:92vh;overflow-y:auto;width:96%">
+    <button class="mx" onclick="cerrarCorreccionTurno()"><i class="ti ti-x"></i></button>
+    <div class="mt">✏️ Corregir turno de caja</div>
+    <div style="font-size:11px;color:var(--text3);margin:-6px 0 14px;padding:6px 10px;background:linear-gradient(135deg,#fff7ed,#fef3c7);border-radius:6px;border-left:3px solid #ea580c">
+      🔒 Función exclusiva para <b>Viviana Rojas</b> — Toda corrección queda registrada en auditoría.
+    </div>
+
+    <!-- ── PASO 1: BUSCAR TURNO ── -->
+    <div id="ct-paso1">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text1)">1. Selecciona el turno a corregir</div>
+      <!-- Filtros -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Desde</div>
+          <input class="finput" type="date" id="ct-f-desde" style="font-size:11px;padding:5px 8px;width:130px" onchange="filtrarTurnosCorreccion()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Hasta</div>
+          <input class="finput" type="date" id="ct-f-hasta" style="font-size:11px;padding:5px 8px;width:130px" onchange="filtrarTurnosCorreccion()">
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Usuario</div>
+          <select class="finput" id="ct-f-usuario" style="font-size:11px;padding:5px 8px;width:130px" onchange="filtrarTurnosCorreccion()">
+            <option value="ALL">Todos</option>
+            <option value="Erika Zea">Erika Zea</option>
+            <option value="Danna">Danna</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Turno</div>
+          <select class="finput" id="ct-f-turno" style="font-size:11px;padding:5px 8px;width:100px" onchange="filtrarTurnosCorreccion()">
+            <option value="ALL">Todos</option>
+            <option value="T1">T1</option>
+            <option value="T2">T2</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:3px">Estado</div>
+          <select class="finput" id="ct-f-estado" style="font-size:11px;padding:5px 8px;width:110px" onchange="filtrarTurnosCorreccion()">
+            <option value="ALL">Todos</option>
+            <option value="abierto">Abierto</option>
+            <option value="cerrado">Cerrado</option>
+          </select>
+        </div>
+      </div>
+      <!-- Lista de turnos -->
+      <div style="border:1px solid var(--bg3);border-radius:8px;max-height:340px;overflow-y:auto;background:var(--bg1)" id="ct-lista-turnos">
+        <div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">Cargando turnos...</div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:12px">
+        <button class="btn btn-ghost" onclick="cerrarCorreccionTurno()">Cancelar</button>
+      </div>
+    </div>
+
+    <!-- ── PASO 2: DETALLES Y SELECCIÓN DEL NUEVO TURNO ── -->
+    <div id="ct-paso2" style="display:none">
+      <div id="ct-turno-info"></div>
+      <div id="ct-dependencias" style="margin-bottom:14px"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">
+        <div class="fg">
+          <label class="fgrp-label">Turno correcto *</label>
+          <select class="finput" id="ct-nuevo-turno" style="font-size:14px;font-weight:700;text-align:center">
+            <option value="SEL">— Seleccionar —</option>
+            <option value="T1">T1 (Turno 1 — Mañana)</option>
+            <option value="T2">T2 (Turno 2 — Tarde/Noche)</option>
+          </select>
+        </div>
+      </div>
+      <div class="fg" style="margin-bottom:14px">
+        <label class="fgrp-label">Motivo de la corrección * <span style="color:#e94560">(obligatorio)</span></label>
+        <textarea class="finput" id="ct-motivo" rows="3" placeholder="Ej: Danna seleccionó T2 por error al abrir la caja. El turno correcto es T1." style="font-size:12px;resize:vertical"></textarea>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end">
+        <button class="btn btn-ghost" onclick="document.getElementById('ct-paso2').style.display='none';document.getElementById('ct-paso1').style.display=''">← Volver</button>
+        <button class="btn btn-acc" onclick="prepararConfirmacionCorreccion()" style="background:#ea580c;border-color:#ea580c">Revisar y confirmar →</button>
+      </div>
+    </div>
+
+    <!-- ── PASO 3: CONFIRMACIÓN ── -->
+    <div id="ct-paso3" style="display:none">
+      <div id="ct-confirm-msg"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+        <button class="btn btn-ghost" onclick="document.getElementById('ct-paso3').style.display='none';document.getElementById('ct-paso2').style.display=''">← Volver</button>
+        <button class="btn btn-acc" id="ct-btn-ejecutar" onclick="ejecutarCorreccionTurno()" style="background:#16a34a;border-color:#16a34a;font-weight:700">✅ Confirmar corrección</button>
+      </div>
+    </div>
+
+    <!-- ── RESULTADO ── -->
+    <div id="ct-resultado" style="display:none">
+      <div id="ct-resultado-contenido"></div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:14px">
+        <button class="btn btn-ghost" onclick="cerrarCorreccionTurno()">Cerrar</button>
+        <button class="btn btn-acc" onclick="abrirCorreccionTurno()" style="background:#7c3aed;border-color:#7c3aed">Hacer otra corrección</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════════
+     OVERLAY: HISTORIAL DE CORRECCIONES DE TURNO (Solo Admin)
+     ══════════════════════════════════════════════════════════════ -->
+<div class="ov" id="ov-historial-correcciones">
+  <div class="modal" style="max-width:900px;max-height:90vh;overflow-y:auto;width:97%">
+    <button class="mx" onclick="closeM('historial-correcciones')"><i class="ti ti-x"></i></button>
+    <div class="mt">📋 Historial de correcciones de turno</div>
+    <div style="font-size:11px;color:var(--text3);margin:-6px 0 14px">Registro de auditoría inmutable — colección <code>auditoriaCorreccionTurnos</code> en Firebase</div>
+    <div class="tw">
+      <table>
+        <thead>
+          <tr>
+            <th>Fecha corrección</th>
+            <th>Admin</th>
+            <th>Empleada</th>
+            <th>Fecha turno</th>
+            <th style="text-align:center">Cambio</th>
+            <th>Motivo</th>
+            <th>Turno ID</th>
+          </tr>
+        </thead>
+        <tbody id="ct-historial-tbl">
+          <tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3)">Cargando...</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:14px;text-align:right">
+      <button class="btn btn-ghost" onclick="closeM('historial-correcciones')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/11.9.0/firebase-app.js";
@@ -11815,6 +11973,485 @@ if(document.readyState === 'complete' || document.readyState === 'interactive'){
     fbPatchFunctions();
     fbCargarTodo();
   }, 1000);
+}
+</script>
+
+<!-- ══════════════════════════════════════════════════════════════
+     CORRECCIÓN ADMINISTRATIVA DE TURNOS — Heladería Vida
+     Solo disponible para Viviana Rojas (admin)
+     Colecciones: turnos, cierresTurno, ventas, auditoriaCorreccionTurnos
+     ══════════════════════════════════════════════════════════════ -->
+<script>
+// Estado del corrector de turno
+var _ctState = {
+  turnoSeleccionado: null,
+  nuevoTurno: null,
+  motivo: '',
+  cierresRelacionados: [],
+  ventasRelacionadas: [],
+  paso: 1
+};
+
+// ─── ABRIR CORRECTOR ───────────────────────────────────────────
+function abrirCorreccionTurno() {
+  // Validación doble: rol Y usuario específico
+  if (!currentUser || currentUser.role !== 'admin') {
+    toast('Solo el administrador puede corregir turnos de caja', '#e94560');
+    return;
+  }
+  if ((currentUser.user || '').toLowerCase() !== 'viviana.rojas') {
+    toast('Esta función está restringida a Viviana Rojas', '#e94560');
+    return;
+  }
+
+  // Reiniciar estado
+  _ctState = {
+    turnoSeleccionado: null,
+    nuevoTurno: null,
+    motivo: '',
+    cierresRelacionados: [],
+    ventasRelacionadas: []
+  };
+
+  // Resetear UI al paso 1
+  ['ct-paso1','ct-paso2','ct-paso3','ct-resultado'].forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) el.style.display = (id === 'ct-paso1') ? '' : 'none';
+  });
+
+  // Poner fecha de hoy y últimos 30 días como filtro por defecto
+  var hoy = new Date();
+  var hace30 = new Date(hoy); hace30.setDate(hoy.getDate() - 30);
+  var toISO = function(d){ return d.toISOString().split('T')[0]; };
+  var fDesde = document.getElementById('ct-f-desde');
+  var fHasta = document.getElementById('ct-f-hasta');
+  if(fDesde) fDesde.value = toISO(hace30);
+  if(fHasta) fHasta.value = toISO(hoy);
+
+  document.getElementById('ov-correccion-turno').classList.add('open');
+  cargarTurnosParaCorreccion();
+}
+
+// ─── CERRAR CORRECTOR ──────────────────────────────────────────
+function cerrarCorreccionTurno() {
+  var el = document.getElementById('ov-correccion-turno');
+  if(el) el.classList.remove('open');
+}
+
+// ─── CARGAR TURNOS DESDE FIREBASE ─────────────────────────────
+function cargarTurnosParaCorreccion() {
+  var listEl = document.getElementById('ct-lista-turnos');
+  if(!listEl) return;
+  listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">⏳ Cargando turnos desde Firebase...</div>';
+
+  if(!window.FB || !window.FB.getAll) {
+    // FB aún no listo, reintentar en 800ms
+    setTimeout(cargarTurnosParaCorreccion, 800);
+    return;
+  }
+
+  window.FB.getAll('turnos').then(function(turnos){
+    // Ordenar por fecha descendente
+    turnos.sort(function(a, b){ return (b.fecha||'').localeCompare(a.fecha||''); });
+    window._ctTurnosCached = turnos;
+    filtrarTurnosCorreccion();
+  }).catch(function(e){
+    listEl.innerHTML = '<div style="color:#e94560;padding:16px;font-size:12px">❌ Error al cargar turnos: ' + e.message + '</div>';
+  });
+}
+
+// ─── FILTRAR Y RENDERIZAR LISTA ────────────────────────────────
+function filtrarTurnosCorreccion() {
+  var turnos = window._ctTurnosCached || [];
+  var fDesde  = (document.getElementById('ct-f-desde')||{}).value || '';
+  var fHasta  = (document.getElementById('ct-f-hasta')||{}).value || '';
+  var fUser   = (document.getElementById('ct-f-usuario')||{}).value || 'ALL';
+  var fTurno  = (document.getElementById('ct-f-turno')||{}).value || 'ALL';
+  var fEstado = (document.getElementById('ct-f-estado')||{}).value || 'ALL';
+
+  var filtrados = turnos.filter(function(t){
+    if(fDesde && (t.fecha||'') < fDesde) return false;
+    if(fHasta && (t.fecha||'') > fHasta) return false;
+    if(fUser !== 'ALL' && t.usuario !== fUser) return false;
+    if(fTurno !== 'ALL' && t.turno !== fTurno) return false;
+    if(fEstado !== 'ALL' && t.estado !== fEstado) return false;
+    return true;
+  });
+
+  renderListaTurnosCorreccion(filtrados);
+}
+
+function renderListaTurnosCorreccion(turnos) {
+  var listEl = document.getElementById('ct-lista-turnos');
+  if(!listEl) return;
+
+  if(!turnos.length) {
+    listEl.innerHTML = '<div style="text-align:center;padding:24px;color:var(--text3);font-size:12px">No se encontraron turnos con los filtros aplicados.</div>';
+    return;
+  }
+
+  var html = '';
+  turnos.forEach(function(t){
+    var estadoColor = t.estado === 'abierto' ? '#d97706' : '#16a34a';
+    var estadoIcon  = t.estado === 'abierto' ? '🔓' : '🔒';
+    var turnoColor  = t.turno === 'T1' ? '#7c3aed' : '#0891b2';
+    var idCorto = (t.turnoId || '').substring(0, 36) + '...';
+
+    html += '<div onclick="seleccionarTurnoCorreccion(\'' + (t.turnoId||'').replace(/'/g,"\\'") + '\')" '
+      + 'style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;'
+      + 'border-bottom:1px solid var(--bg3);cursor:pointer;transition:background .12s" '
+      + 'onmouseover="this.style.background=\'var(--bg3)\'" onmouseout="this.style.background=\'\'">'
+      + '<div style="flex:1;min-width:0">'
+      + '<div style="font-size:12px;font-weight:700;color:var(--text1)">'
+      + (t.fecha||'—') + ' — <span style="color:' + turnoColor + ';font-size:14px">' + (t.turno||'?') + '</span>'
+      + ' — ' + (t.usuario||'Desconocido') + '</div>'
+      + '<div style="font-size:10px;color:var(--text3);margin-top:2px">Apertura: '
+      + (t.horaApertura||'—') + ' · ' + idCorto + '</div>'
+      + '</div>'
+      + '<div style="text-align:right;flex-shrink:0;margin-left:10px">'
+      + '<span style="font-size:11px;font-weight:700;color:' + estadoColor + '">' + estadoIcon + ' ' + (t.estado||'?') + '</span>'
+      + '</div></div>';
+  });
+
+  listEl.innerHTML = html;
+}
+
+// ─── SELECCIONAR TURNO ─────────────────────────────────────────
+function seleccionarTurnoCorreccion(turnoId) {
+  var turnos = window._ctTurnosCached || [];
+  var turno = null;
+  for(var i=0; i<turnos.length; i++){ if(turnos[i].turnoId === turnoId){ turno=turnos[i]; break; } }
+
+  if(!turno) {
+    toast('Turno no encontrado', '#e94560');
+    return;
+  }
+
+  _ctState.turnoSeleccionado = turno;
+
+  // Limpiar motivo y preseleccionar turno opuesto
+  var motEl = document.getElementById('ct-motivo');
+  if(motEl) motEl.value = '';
+  var nuevoSel = document.getElementById('ct-nuevo-turno');
+  if(nuevoSel) nuevoSel.value = turno.turno === 'T1' ? 'T2' : 'T1';
+
+  // Mostrar info del turno
+  var estadoColor = turno.estado === 'abierto' ? '#d97706' : '#16a34a';
+  var infoEl = document.getElementById('ct-turno-info');
+  if(infoEl) infoEl.innerHTML = ''
+    + '<div style="background:var(--bg3);border-radius:10px;padding:14px;margin-bottom:14px">'
+    + '<div style="font-size:12px;font-weight:700;margin-bottom:8px;color:var(--text1)">📌 Turno seleccionado para corregir</div>'
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px 16px;font-size:12px">'
+    + '<div><span style="color:var(--text3)">Fecha:</span> <b>' + (turno.fecha||'—') + '</b></div>'
+    + '<div><span style="color:var(--text3)">Turno actual:</span> <b style="color:#7c3aed;font-size:16px">' + (turno.turno||'?') + '</b></div>'
+    + '<div><span style="color:var(--text3)">Empleada:</span> <b>' + (turno.usuario||'—') + '</b></div>'
+    + '<div><span style="color:var(--text3)">Estado:</span> <b style="color:' + estadoColor + '">' + (turno.estado||'—') + '</b></div>'
+    + '<div><span style="color:var(--text3)">Apertura:</span> <b>' + (turno.horaApertura||'—') + '</b></div>'
+    + '<div><span style="color:var(--text3)">Base inicial:</span> <b>$100.000 (no modificable)</b></div>'
+    + '</div>'
+    + '<div style="font-size:10px;color:var(--text3);margin-top:6px;word-break:break-all">ID: ' + (turno.turnoId||'—') + '</div>'
+    + '</div>';
+
+  // Paso 1 → 2
+  document.getElementById('ct-paso1').style.display = 'none';
+  document.getElementById('ct-paso2').style.display  = '';
+
+  // Cargar dependencias
+  cargarDependenciasTurno(turno);
+}
+
+// ─── VERIFICAR DEPENDENCIAS ────────────────────────────────────
+function cargarDependenciasTurno(turno) {
+  var depEl = document.getElementById('ct-dependencias');
+  if(!depEl) return;
+  depEl.innerHTML = '<div style="font-size:11px;color:var(--text3);padding:8px 0">🔍 Verificando registros relacionados en Firebase...</div>';
+
+  // Cargar cierresTurno y ventas en paralelo
+  Promise.all([
+    window.FB.getAll('cierresTurno'),
+    window.FB.getAll('ventas')
+  ]).then(function(resultados){
+    var cierres = resultados[0];
+    var ventas  = resultados[1];
+
+    var cierresRel = cierres.filter(function(c){ return c.turnoId === turno.turnoId; });
+    var ventasRel  = ventas.filter(function(v){ return v.turnoId === turno.turnoId; });
+
+    _ctState.cierresRelacionados = cierresRel;
+    _ctState.ventasRelacionadas  = ventasRel;
+
+    var html = '<div style="margin-bottom:14px">'
+      + '<div style="font-size:12px;font-weight:700;margin-bottom:8px">📦 Documentos relacionados que se actualizarán:</div>'
+      + '<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
+      + '<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:7px;padding:6px 14px;font-size:12px">🔒 Cierres de turno: <b>' + cierresRel.length + '</b></div>'
+      + '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:7px;padding:6px 14px;font-size:12px">🛒 Ventas: <b>' + ventasRel.length + '</b></div>'
+      + '</div>';
+
+    if(turno.estado === 'abierto'){
+      html += '<div style="padding:8px 12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:7px;font-size:11px;color:#92400e;margin-bottom:8px">'
+        + '⚠️ <b>Turno ABIERTO:</b> La corrección actualizará el turno activo. Verifique que no interfiera con la operación en curso.'
+        + '</div>';
+    }
+
+    if(cierresRel.length > 0){
+      var detallesCierres = cierresRel.map(function(c){ return c.fecha + ' (turno ' + c.turno + ')'; }).join(' · ');
+      html += '<div style="font-size:10px;color:var(--text3)">Cierres: ' + detallesCierres + '</div>';
+    }
+
+    // Campos que se cambiarán por colección
+    html += '<div style="margin-top:8px;padding:8px 12px;background:var(--bg3);border-radius:7px;font-size:11px">'
+      + '<b>Campos que se modificarán:</b><br>'
+      + '• <code>turnos</code>: campo <code>turno</code> (' + turno.turno + ' → nuevo)<br>'
+      + '• <code>cierresTurno</code>: campo <code>turno</code> (número: 1↔2)<br>'
+      + '• <code>ventas</code>: campo <code>turno</code> (T1↔T2)<br>'
+      + '• <b>No se modifican:</b> baseInicial, ventas ($), fechas, medios de pago, turnoId'
+      + '</div>';
+
+    html += '</div>';
+    depEl.innerHTML = html;
+
+  }).catch(function(e){
+    depEl.innerHTML = '<div style="color:#e94560;font-size:11px;padding:8px">❌ Error al verificar dependencias: ' + e.message + '</div>';
+  });
+}
+
+// ─── PREPARAR CONFIRMACIÓN ─────────────────────────────────────
+function prepararConfirmacionCorreccion() {
+  var nuevoTurno = (document.getElementById('ct-nuevo-turno')||{}).value || '';
+  var motivo = ((document.getElementById('ct-motivo')||{}).value || '').trim();
+  var turno = _ctState.turnoSeleccionado;
+
+  if(!nuevoTurno || nuevoTurno === 'SEL'){
+    toast('Selecciona el turno correcto', '#e94560');
+    return;
+  }
+  if(!motivo){
+    toast('El motivo de la corrección es obligatorio', '#e94560');
+    var m = document.getElementById('ct-motivo');
+    if(m){ m.focus(); m.style.border='2px solid #e94560'; }
+    return;
+  }
+  if(turno.turno === nuevoTurno){
+    toast('El turno seleccionado es igual al actual. No hay nada que cambiar.', '#d97706');
+    return;
+  }
+  // Limpiar borde de error
+  var m2 = document.getElementById('ct-motivo');
+  if(m2) m2.style.border='';
+
+  _ctState.nuevoTurno = nuevoTurno;
+  _ctState.motivo = motivo;
+
+  // Mostrar confirmación
+  document.getElementById('ct-paso2').style.display = 'none';
+  document.getElementById('ct-paso3').style.display  = '';
+
+  document.getElementById('ct-confirm-msg').innerHTML = ''
+    + '<div style="text-align:center;padding:6px 0">'
+    + '<div style="font-size:32px;margin-bottom:10px">⚠️</div>'
+    + '<div style="font-size:14px;font-weight:700;margin-bottom:14px;line-height:1.5;color:var(--text1)">'
+    + 'Está a punto de cambiar el turno de caja de '
+    + '<span style="color:#e94560;font-size:18px;font-weight:900">' + turno.turno + '</span> a '
+    + '<span style="color:#16a34a;font-size:18px;font-weight:900">' + nuevoTurno + '</span>'
+    + ' para <b>' + turno.usuario + '</b>, correspondiente al <b>' + turno.fecha + '</b>.'
+    + '</div>'
+    + '<div style="background:var(--bg3);border-radius:10px;padding:14px;font-size:12px;text-align:left;margin-bottom:14px">'
+    + '<div style="margin-bottom:4px">🆔 <b>Turno ID:</b> ' + turno.turnoId + '</div>'
+    + '<div style="margin-bottom:4px">🔄 <b>Cambio:</b> <span style="color:#e94560;font-weight:700">' + turno.turno + '</span> → <span style="color:#16a34a;font-weight:700">' + nuevoTurno + '</span></div>'
+    + '<div style="margin-bottom:4px">🔒 <b>Cierres a actualizar:</b> ' + _ctState.cierresRelacionados.length + '</div>'
+    + '<div style="margin-bottom:4px">🛒 <b>Ventas a actualizar:</b> ' + _ctState.ventasRelacionadas.length + '</div>'
+    + '<div style="margin-bottom:4px">💬 <b>Motivo:</b> ' + motivo + '</div>'
+    + '</div>'
+    + '<div style="color:#dc2626;font-size:12px;font-weight:600">Esta operación quedará registrada en la auditoría de Firebase.</div>'
+    + '<div style="color:#dc2626;font-size:11px;margin-top:4px">¿Desea continuar?</div>'
+    + '</div>';
+}
+
+// ─── EJECUTAR CORRECCIÓN ───────────────────────────────────────
+function ejecutarCorreccionTurno() {
+  // Validación final de permisos (doble protección)
+  if(!currentUser || currentUser.role !== 'admin'){
+    toast('Permiso denegado — Solo admin puede ejecutar esta operación', '#e94560');
+    return;
+  }
+  if((currentUser.user||'').toLowerCase() !== 'viviana.rojas'){
+    toast('Permiso denegado — Solo Viviana Rojas', '#e94560');
+    return;
+  }
+
+  var turno     = _ctState.turnoSeleccionado;
+  var nuevoTurno = _ctState.nuevoTurno;
+  var motivo     = _ctState.motivo;
+
+  if(!turno || !nuevoTurno || !motivo){
+    toast('Datos incompletos para la corrección', '#e94560');
+    return;
+  }
+
+  var btnEjecutar = document.getElementById('ct-btn-ejecutar');
+  if(btnEjecutar){ btnEjecutar.disabled = true; btnEjecutar.textContent = '⏳ Guardando en Firebase...'; }
+
+  var errores = [];
+  var actualizados = { turno: false, cierres: 0, ventas: 0, auditoria: false };
+  var ahora = new Date();
+  var turnoAnterior = turno.turno;
+
+  // En cierresTurno el campo turno es '1' o '2' (sin T)
+  var nuevoCierreNumero = nuevoTurno.replace('T','');
+
+  // ── Promesa encadenada para garantizar atomicidad secuencial ──
+  // 1. Actualizar turno principal
+  window.FB.set('turnos', turno.turnoId, { turno: nuevoTurno })
+  .then(function(){
+    actualizados.turno = true;
+
+    // 2. Actualizar cierres en serie
+    var promesasCierres = (_ctState.cierresRelacionados||[]).map(function(cierre){
+      return window.FB.set('cierresTurno', cierre.id, { turno: nuevoCierreNumero })
+        .then(function(){ actualizados.cierres++; })
+        .catch(function(e){ errores.push('Cierre ' + cierre.id + ': ' + e.message); });
+    });
+    return Promise.all(promesasCierres);
+  })
+  .then(function(){
+    // 3. Actualizar ventas en serie
+    var promesasVentas = (_ctState.ventasRelacionadas||[]).map(function(venta){
+      return window.FB.set('ventas', venta.id, { turno: nuevoTurno })
+        .then(function(){ actualizados.ventas++; })
+        .catch(function(e){ errores.push('Venta ' + venta.id + ': ' + e.message); });
+    });
+    return Promise.all(promesasVentas);
+  })
+  .then(function(){
+    // 4. Registro de auditoría inmutable en Firebase
+    var auditId = 'audit_ct_' + Date.now();
+    var registro = {
+      id: auditId,
+      tipo: 'correccion_turno_caja',
+      adminId: currentUser.id,
+      admin: currentUser.name,
+      adminUser: currentUser.user,
+      fechaCorreccion: ahora.toISOString(),
+      fechaCorreccionLocal: ahora.toLocaleDateString('es-CO') + ' ' + ahora.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'}),
+      turnoId: turno.turnoId,
+      turnoAnterior: turnoAnterior,
+      turnoNuevo: nuevoTurno,
+      empleado: turno.usuario,
+      empleadoId: turno.usuarioId || '',
+      fechaOriginalTurno: turno.fecha,
+      estadoTurno: turno.estado,
+      horaApertura: turno.horaApertura || '',
+      motivo: motivo,
+      documentosActualizados: {
+        turno: actualizados.turno,
+        cierresActualizados: actualizados.cierres,
+        ventasActualizadas: actualizados.ventas
+      },
+      errores: errores
+    };
+    return window.FB.set('auditoriaCorreccionTurnos', auditId, registro)
+      .then(function(){ actualizados.auditoria = true; actualizados.auditId = auditId; })
+      .catch(function(e){ errores.push('Auditoría: ' + e.message); });
+  })
+  .then(function(){
+    // 5. Mostrar resultado
+    mostrarResultadoCorreccion(turnoAnterior, nuevoTurno, actualizados, errores);
+  })
+  .catch(function(e){
+    // Error crítico no capturado
+    document.getElementById('ct-paso3').style.display = 'none';
+    document.getElementById('ct-resultado').style.display = '';
+    document.getElementById('ct-resultado-contenido').innerHTML = ''
+      + '<div style="text-align:center;padding:16px">'
+      + '<div style="font-size:32px;margin-bottom:10px">❌</div>'
+      + '<div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:8px">Error crítico en la corrección</div>'
+      + '<div style="color:#e94560;font-size:12px">' + e.message + '</div>'
+      + '<div style="font-size:11px;color:var(--text3);margin-top:8px">Revise la consola del navegador y el estado de Firebase.</div>'
+      + '</div>';
+  })
+  .finally(function(){
+    if(btnEjecutar){ btnEjecutar.disabled = false; btnEjecutar.textContent = '✅ Confirmar corrección'; }
+  });
+}
+
+function mostrarResultadoCorreccion(turnoAnterior, nuevoTurno, actualizados, errores) {
+  document.getElementById('ct-paso3').style.display = 'none';
+  document.getElementById('ct-resultado').style.display = '';
+
+  var tieneErrores = errores.length > 0;
+  var iconRes = tieneErrores ? '⚠️' : '✅';
+  var colorRes = tieneErrores ? '#d97706' : '#16a34a';
+  var bgRes = tieneErrores ? '#fff7ed' : '#f0fdf4';
+  var msgRes = tieneErrores ? 'Corrección completada con advertencias' : 'Corrección realizada exitosamente';
+
+  var html = '<div style="text-align:center;padding:8px 0">'
+    + '<div style="font-size:36px;margin-bottom:10px">' + iconRes + '</div>'
+    + '<div style="font-size:15px;font-weight:700;color:' + colorRes + ';margin-bottom:14px">' + msgRes + '</div>'
+    + '<div style="background:' + bgRes + ';border-radius:10px;padding:14px;font-size:12px;text-align:left;margin-bottom:12px">'
+    + '<div style="margin-bottom:5px">🔄 Turno actualizado: <b style="color:#e94560">' + turnoAnterior + '</b> → <b style="color:#16a34a">' + nuevoTurno + '</b></div>'
+    + '<div style="margin-bottom:5px">🔒 Cierres actualizados: <b>' + actualizados.cierres + '</b></div>'
+    + '<div style="margin-bottom:5px">🛒 Ventas actualizadas: <b>' + actualizados.ventas + '</b></div>'
+    + '<div style="margin-bottom:5px">📋 Auditoría registrada: <b>' + (actualizados.auditoria ? 'Sí — ID: ' + actualizados.auditId : 'No (ver errores)') + '</b></div>';
+
+  if(errores.length > 0){
+    html += '<div style="color:#dc2626;margin-top:10px;padding:8px;background:#fef2f2;border-radius:6px">'
+      + '<b>⚠️ Advertencias:</b><br>' + errores.join('<br>') + '</div>';
+  }
+
+  html += '</div>'
+    + '<div style="font-size:11px;color:var(--text3)">Los reportes de nómina y cierres ahora reflejan el turno correcto <b style="color:' + colorRes + '">' + nuevoTurno + '</b>.</div>'
+    + '</div>';
+
+  document.getElementById('ct-resultado-contenido').innerHTML = html;
+}
+
+// ─── HISTORIAL DE CORRECCIONES ─────────────────────────────────
+function verHistorialCorreccionTurnos() {
+  if(!currentUser || currentUser.role !== 'admin'){
+    toast('Solo el administrador puede ver el historial de correcciones', '#e94560');
+    return;
+  }
+
+  document.getElementById('ov-historial-correcciones').classList.add('open');
+  var tblEl = document.getElementById('ct-historial-tbl');
+  if(!tblEl) return;
+  tblEl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">⏳ Cargando historial desde Firebase...</td></tr>';
+
+  if(!window.FB || !window.FB.getAll){
+    setTimeout(verHistorialCorreccionTurnos, 800);
+    return;
+  }
+
+  window.FB.getAll('auditoriaCorreccionTurnos').then(function(registros){
+    // Orden cronológico descendente
+    registros.sort(function(a,b){ return (b.fechaCorreccion||'').localeCompare(a.fechaCorreccion||''); });
+
+    if(!registros.length){
+      tblEl.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">No hay correcciones registradas</td></tr>';
+      return;
+    }
+
+    var html = '';
+    registros.forEach(function(r){
+      var cambioHtml = '<span style="color:#e94560;font-weight:700">' + (r.turnoAnterior||'?') + '</span>'
+        + ' <span style="color:var(--text3)">→</span> '
+        + '<span style="color:#16a34a;font-weight:700">' + (r.turnoNuevo||'?') + '</span>';
+      var tieneErr = r.errores && r.errores.length > 0;
+      html += '<tr style="background:' + (tieneErr?'#fff7ed':'') + '">'
+        + '<td style="font-size:11px">' + (r.fechaCorreccionLocal||r.fechaCorreccion||'—').substring(0,16) + '</td>'
+        + '<td style="font-size:11px">' + (r.admin||'—') + '</td>'
+        + '<td style="font-size:11px">' + (r.empleado||'—') + '</td>'
+        + '<td style="font-size:11px">' + (r.fechaOriginalTurno||'—') + '</td>'
+        + '<td style="font-size:11px;text-align:center">' + cambioHtml + '</td>'
+        + '<td style="font-size:11px;max-width:200px;word-break:break-word">' + (r.motivo||'—') + '</td>'
+        + '<td style="font-size:10px;color:var(--text3);font-family:monospace">' + (r.turnoId||'—').substring(0,24) + '…</td>'
+        + '</tr>';
+    });
+    tblEl.innerHTML = html;
+
+  }).catch(function(e){
+    tblEl.innerHTML = '<tr><td colspan="7" style="color:#e94560;padding:14px">❌ Error: ' + e.message + '</td></tr>';
+  });
 }
 </script>
 </body>
