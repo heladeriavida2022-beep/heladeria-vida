@@ -4219,7 +4219,8 @@ async function calcularNomina(){
                  t.valor===30000?'T1 mañana':'Lun–Jue';
         html+='<tr><td>'+t.fecha+' ('+dias[dow]+')</td>'+
               '<td>T'+t.turno+' <button onclick="editarTurnoCierre(\''+t.cierreId+'\',\''+t.turno+'\')" style="font-size:9px;padding:1px 4px;background:#f0f9ff;border:1px solid #3b82f6;border-radius:3px;color:#1d4ed8;cursor:pointer" title="Cambiar T1/T2">✏️</button>'+
-              ' <button onclick="eliminarTurnoCierre(\''+t.cierreId+'\',\''+t.fecha+'\')" style="font-size:9px;padding:1px 4px;background:#fff1f2;border:1px solid #e11d48;border-radius:3px;color:#be123c;cursor:pointer" title="Eliminar turno duplicado">🗑️</button></td>'+
+              ' <button onclick="eliminarTurnoCierre(\''+t.cierreId+'\',\''+t.fecha+'\')" style="font-size:9px;padding:1px 4px;background:#fff1f2;border:1px solid #e11d48;border-radius:3px;color:#be123c;cursor:pointer" title="Eliminar turno duplicado">🗑️</button>'+
+              ' <button onclick="reasignarEmpleadoCierre(\''+t.cierreId+'\',\''+t.fecha+'\')" style="font-size:9px;padding:1px 4px;background:#fdf4ff;border:1px solid #a855f7;border-radius:3px;color:#7e22ce;cursor:pointer" title="Reasignar a otro empleado">👤</button></td>'+
               '<td>'+tipo+'</td>'+
               '<td style="text-align:right;font-weight:600;color:var(--acc3)">'+fmt2(t.valor)+
                 ' <button onclick="editarValorTurno(\''+t.cierreId+'\','+t.valor+')" style="font-size:9px;padding:1px 4px;background:#f0fdf4;border:1px solid #16a34a;border-radius:3px;color:#15803d;cursor:pointer" title="Editar valor">💲</button>'+
