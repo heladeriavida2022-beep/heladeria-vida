@@ -4413,6 +4413,36 @@ async function eliminarTurnoCierre(cierreId, fecha){
   }catch(e){toast('Error: '+e.message,'#e94560');}
 }
 
+async function reasignarEmpleadoCierre(cierreId, fecha){
+  var motivo=prompt('Motivo de la reasignación (obligatorio)\nEj: Turno del '+fecha+' trabajado por Danna, registrado por error con otro usuario:');
+  if(!motivo||!motivo.trim()){toast('Debes escribir un motivo','#e94560');return;}
+  var nuevoUsuario=prompt('Escribe el nombre exacto del empleado al que pertenece este turno\n(debe coincidir con el nombre en los otros turnos del mismo empleado):');
+  if(!nuevoUsuario||!nuevoUsuario.trim()){toast('Debes escribir el nombre del empleado','#e94560');return;}
+  try{
+    var cierres=await window.FB.getAll('cierresTurno');
+    var c=cierres.find(function(x){return x.id===cierreId;});
+    if(!c){toast('Cierre no encontrado','#e94560');return;}
+    var usuarioAnterior=c.usuario||'desconocido';
+    // Registrar auditoría
+    var auditId='audit_reasig_'+Date.now();
+    await window.FB.set('auditoriaCorreccionTurnos',auditId,{
+      tipo:'reasignacion_empleado',
+      cierreId:cierreId,
+      fecha:fecha,
+      usuarioAnterior:usuarioAnterior,
+      usuarioNuevo:nuevoUsuario.trim(),
+      motivo:motivo.trim(),
+      usuario:currentUser?currentUser.user:'admin',
+      timestamp:new Date().toISOString()
+    });
+    // Actualizar el cierre
+    c.usuario=nuevoUsuario.trim();
+    await window.FB.set('cierresTurno',c.id,c);
+    toast('✅ Turno del '+fecha+' reasignado a '+nuevoUsuario.trim(),'#3aaa6a');
+    calcularNomina();
+  }catch(e){toast('Error: '+e.message,'#e94560');}
+}
+
 async function editarTurnoCierre(cierreId, turnoActual){
   var nuevoTurno=turnoActual==='1'||turnoActual===1?'2':'1';
   if(!confirm('¿Cambiar turno T'+turnoActual+' → T'+nuevoTurno+' en este cierre?'))return;
