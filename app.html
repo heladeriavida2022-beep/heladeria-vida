@@ -4181,9 +4181,11 @@ async function calcularNomina(){
       porEmp[emp].total+=valor;
     });
 
-    // Excluir a Viviana del pago
-    delete porEmp['viviana.rojas'];
-    delete porEmp['Viviana Rojas'];
+    // Separar turnos de admin (Viviana) para reasignación — no se pagan pero se muestran si existen
+    var turnosAdmin=[];
+    ['viviana.rojas','Viviana Rojas'].forEach(function(k){
+      if(porEmp[k]){turnosAdmin=turnosAdmin.concat(porEmp[k].turnos);delete porEmp[k];}
+    });
 
     var emps=Object.values(porEmp);
     var totalGeneral=emps.reduce(function(s,e){return s+e.total;},0);
@@ -4275,6 +4277,27 @@ async function calcularNomina(){
           '<i class="ti ti-cash"></i> Pagar '+fmt2(e.total)+'</button></div></div>';
       }
     });
+
+    // Turnos registrados con usuario admin — mostrar para reasignación
+    if(turnosAdmin.length){
+      html+='<div class="card" style="margin-bottom:12px;border:2px dashed #a855f7;background:#fdf4ff">';
+      html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">'+
+        '<div style="font-size:20px">⚠️</div>'+
+        '<div><div style="font-weight:700;font-size:13px;color:#7e22ce">Turnos registrados con usuario ADMIN</div>'+
+        '<div style="font-size:11px;color:#9333ea">Usa 👤 para reasignar al empleado correcto.</div></div></div>';
+      html+='<table style="width:100%;font-size:11px"><thead><tr>'+
+        '<th>Fecha</th><th>Turno</th><th>Acción</th></tr></thead><tbody>';
+      turnosAdmin.sort(function(a,b){return a.fecha>b.fecha?1:-1;}).forEach(function(t){
+        var d=new Date(t.fecha+'T12:00:00');var dow=d.getDay();
+        var dias=['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        html+='<tr>'+
+          '<td>'+t.fecha+' ('+dias[dow]+')</td>'+
+          '<td>T'+t.turno+'</td>'+
+          '<td><button onclick="reasignarEmpleadoCierre(\''+t.cierreId+'\',\''+t.fecha+'\')" style="font-size:10px;padding:2px 8px;background:#fdf4ff;border:1px solid #a855f7;border-radius:4px;color:#7e22ce;cursor:pointer">👤 Reasignar empleado</button></td>'+
+        '</tr>';
+      });
+      html+='</tbody></table></div>';
+    }
 
     // Total general
     html+='<div class="card" style="background:var(--acc3);color:#fff">'+
