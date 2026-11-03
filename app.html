@@ -1022,6 +1022,7 @@ try{
               <button onclick="corregirUsuarioCierreT2Oct1()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">✏️ Corregir cierre T2 01/10 → ERIKA ZEA</button>
               <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
               <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
+              <button onclick="registrarCierreRetroactivoNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🔒 Registrar cierre T2 ERIKA — 02/11/2026</button>
               <button onclick="desactivarDescuentaSandia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#a21caf;color:#701a75;font-weight:700">🍉 Desactivar descuento SANDIA (no descontar inventario)</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
@@ -8319,6 +8320,100 @@ async function registrarCierreRetroactivo(){
     html+='✅ Cierre T2 del 30/09 registrado correctamente\nUsuario: DANNA | Ventas: $'+totalVentas.toLocaleString('es-CO')+' | Gastos: $'+totalGastos.toLocaleString('es-CO');
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function registrarCierreRetroactivoNov2(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Buscando ventas y gastos del 02/11/2026...';
+  try{
+    var fecha='2026-11-02';
+    var html='📅 CIERRE RETROACTIVO — 2 de noviembre 2026 (T2 - ERIKA)\n';
+    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    // Buscar ventas del 02/11
+    var todasVentas=await window.FB.getAll('ventas');
+    var ventasDia=todasVentas.filter(function(v){
+      var vf=v.fecha||v.date||'';
+      return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
+    });
+    // Buscar turno T2 del 02/11 en colección turnos
+    var turnosFB=await window.FB.getAll('turnos');
+    var t2Nov=turnosFB.find(function(t){
+      return (t.turno===2||String(t.turno)==='2')&&((t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02'));
+    });
+    var turnoIdNov=t2Nov?(t2Nov.turnoId||t2Nov.id||null):null;
+    if(!ventasDia.length&&turnoIdNov){
+      ventasDia=todasVentas.filter(function(v){return v.turnoId===turnoIdNov;});
+    }
+    var totalVentas=ventasDia.reduce(function(s,v){return s+(v.total||0);},0);
+    var ventasEfe=ventasDia.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0);
+    var ventasNequi=ventasDia.filter(function(v){return (v.pago||'').toLowerCase().includes('nequi');}).reduce(function(s,v){return s+(v.total||0);},0);
+    var ventasTrans=ventasDia.filter(function(v){return (v.pago||'').toLowerCase().includes('trans');}).reduce(function(s,v){return s+(v.total||0);},0);
+    // Buscar gastos del 02/11
+    var todosGastos=await window.FB.getAll('gastos');
+    var gastosNov=todosGastos.filter(function(g){
+      return (g.fecha||'')=== fecha||(g.timestamp||'').startsWith('2026-11-02');
+    });
+    var totalGastos=gastosNov.reduce(function(s,g){return s+(g.monto||0);},0);
+    html+='Ventas encontradas: '+ventasDia.length+' | Total: $'+totalVentas.toLocaleString('es-CO')+'\n';
+    html+='  - Efectivo: $'+ventasEfe.toLocaleString('es-CO')+'\n';
+    html+='  - Nequi: $'+ventasNequi.toLocaleString('es-CO')+'\n';
+    html+='  - Transferencia: $'+ventasTrans.toLocaleString('es-CO')+'\n';
+    html+='Gastos encontrados: '+gastosNov.length+' | Total: $'+totalGastos.toLocaleString('es-CO')+'\n';
+    gastosNov.forEach(function(g){
+      html+='  - '+(g.descripcion||g.concepto||'Gasto')+': $'+(g.monto||0).toLocaleString('es-CO')+'\n';
+    });
+    if(ventasDia.length===0){
+      html+='\n⚠️ No se encontraron ventas para el 02/11.\nSi hubo ventas ese día, verifícalas antes de confirmar.\n';
+    }
+    var fondo=100000;
+    var esperado=Math.max(0,fondo+ventasEfe-totalGastos);
+    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    html+='Fondo base: $'+fondo.toLocaleString('es-CO')+'\n';
+    html+='Esperado en caja: $'+esperado.toLocaleString('es-CO')+'\n';
+    html+='\n¿Confirmar y registrar este cierre retroactivo?';
+    div.innerHTML=html;
+    // Pedir confirmación antes de guardar
+    var ok=confirm('CIERRE RETROACTIVO — 2 noviembre 2026 (T2 - ERIKA)\n\nVentas: $'+totalVentas.toLocaleString('es-CO')+' ('+ventasDia.length+' registros)\nGastos: $'+totalGastos.toLocaleString('es-CO')+' ('+gastosNov.length+' registros)\nEsperado en caja: $'+esperado.toLocaleString('es-CO')+'\n\n¿Registrar el cierre con estos datos?');
+    if(!ok){div.innerHTML+= '\n\n❌ Operación cancelada por el usuario.';return;}
+    var now=new Date();
+    var cierre={
+      id:'ct_retro_T2_2026-11-02_'+now.getTime(),
+      fecha:fecha,
+      horaCierre:'09:00 p. m.',
+      turno:2,
+      usuario:'Erika',
+      turnoId:turnoIdNov||('turno_T2_2026-11-02_retro'),
+      fondo:fondo,
+      totalVentas:totalVentas,
+      ventasEfectivo:ventasEfe,
+      ventasNequi:ventasNequi,
+      ventasTransferencia:ventasTrans,
+      gastos:totalGastos,
+      numPedidos:ventasDia.length,
+      esperado:esperado,
+      contado:esperado,
+      diferencia:0,
+      estado:'correcto',
+      observaciones:'Cierre registrado retroactivamente el '+now.toLocaleDateString('es-CO')+' — turno T2 del 02/11/2026 (lunes festivo) no cerrado ese día. Registrado por administrador.',
+      timestamp:'2026-11-02T21:00:00.000Z',
+      retroactivo:true
+    };
+    var auditId='audit_retro_nov2_'+now.getTime();
+    await window.FB.set('auditoriaCorreccionTurnos',auditId,{
+      tipo:'cierre_retroactivo',
+      fecha:fecha,turno:2,usuario:'Erika',
+      totalVentas:totalVentas,totalGastos:totalGastos,esperado:esperado,
+      motivo:'Lunes festivo 02/11/2026 — turno no cerrado ese día. Registrado retroactivamente el '+now.toLocaleDateString('es-CO'),
+      registradoPor:currentUser?currentUser.user:'admin',
+      timestamp:now.toISOString()
+    });
+    await window.FB.set('cierresTurno',cierre.id,cierre);
+    var lc=LS.g('cierresTurno')||[];lc.unshift(cierre);LS.set('cierresTurno',lc);
+    try{renderCierres();}catch(e){}
+    div.innerHTML='✅ CIERRE T2 DEL 02/11/2026 REGISTRADO CORRECTAMENTE\n\nUsuario: Erika\nFecha: 02/11/2026\nVentas: $'+totalVentas.toLocaleString('es-CO')+'\nGastos: $'+totalGastos.toLocaleString('es-CO')+'\nEsperado: $'+esperado.toLocaleString('es-CO')+'\n\nYa puedes abrir la caja de hoy (03/11/2026).';
+  }catch(e){div.innerHTML='❌ Error: '+e.message;}
 }
 
 async function desactivarDescuentaSandia(){
