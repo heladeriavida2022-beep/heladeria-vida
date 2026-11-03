@@ -813,7 +813,16 @@ try{
           <div class="adm-view" id="adv-ventas" style="flex:1;overflow-y:auto;padding:16px 18px">
             <div class="qa"><button class="btn btn-acc" onclick="openM('venta')"><i class="ti ti-plus"></i> Registrar</button><button class="btn btn-ghost"><i class="ti ti-file-export"></i> Exportar</button></div>
             <div class="g4" id="ventas-stats"></div>
-            <div class="card"><div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px"><div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div><input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:140px;padding:5px 9px;font-size:11px"></div>
+            <div class="card">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+                <div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div>
+                <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+                  <input class="finput" type="date" id="ventas-filtro-fecha" onchange="renderSalesTable()" style="font-size:11px;padding:4px 8px" title="Filtrar por fecha">
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ventas-filtro-fecha').value='';renderSalesTable()" style="font-size:11px;padding:3px 8px" title="Ver hoy">Hoy</button>
+                  <input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:120px;padding:4px 8px;font-size:11px">
+                </div>
+              </div>
+              <div id="ventas-filtro-info" style="font-size:11px;color:var(--text2);margin-bottom:6px;display:none"></div>
             <div class="tw"><table><thead><tr><th>#</th><th>Fecha</th><th>Hora</th><th>Producto</th><th>Cat.</th><th>Cant.</th><th>Total</th><th>Canal</th><th>Empleado</th></tr></thead><tbody id="sales-tbl"></tbody></table></div></div>
           </div>
 
@@ -4780,6 +4789,39 @@ function guardarVentaM(){
 function renderSalesTable(){
   const tbl=document.getElementById('sales-tbl');if(!tbl)return;
   var hoy = getFechaHoy();
+  var fechaFiltro = (document.getElementById('ventas-filtro-fecha')||{}).value||'';
+  var infoDiv = document.getElementById('ventas-filtro-info');
+
+  // Si hay fecha seleccionada y NO es hoy → consultar Firebase
+  if(fechaFiltro && fechaFiltro !== hoy){
+    tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">⏳ Cargando ventas del '+fechaFiltro+'...</td></tr>';
+    if(infoDiv){infoDiv.style.display='block';infoDiv.innerHTML='📅 Mostrando ventas del <strong>'+fechaFiltro+'</strong> — datos históricos de Firebase';}
+    window.FB.getAll('ventas').then(function(todasVentas){
+      var lista=todasVentas.filter(function(v){
+        var f=v.fecha||v.date||(v.timestamp||'').substring(0,10)||'';
+        return f===fechaFiltro||(v.timestamp||'').startsWith(fechaFiltro);
+      });
+      lista.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+      var tot=lista.reduce(function(s,v){return s+(v.total||0);},0);
+      var unds=lista.reduce(function(s,v){return s+(v.qty||v.cantidad||1);},0);
+      var st=document.getElementById('ventas-stats');
+      var etiquetaFecha=fechaFiltro;
+      if(st)st.innerHTML='<div class="stat"><div class="slb">Total '+etiquetaFecha+'</div><div class="sval" style="color:var(--acc3)">'+fmt(tot)+'</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">'+unds+'</div></div><div class="stat"><div class="slb">Ventas</div><div class="sval" style="color:var(--acc4)">'+lista.length+'</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">'+(lista.length?fmt(tot/lista.length):'$0')+'</div></div>';
+      if(!lista.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas registradas el '+fechaFiltro+'</td></tr>';return;}
+      var isAdmin=currentUser&&currentUser.role==='admin';
+      tbl.innerHTML=lista.map(function(s){
+        var hora='—';
+        if(s.timestamp){var d=new Date(s.timestamp);var h=d.getUTCHours()-5;if(h<0)h+=24;var m=d.getUTCMinutes();hora=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
+        var corregido=s.pagoCorregido?' <span style="font-size:9px;color:#f0a500">✏️</span>':'';
+        var nombre=s.name||s.items&&s.items.length?((s.items||[]).map(function(i){return i.name;}).join(', ')):s.descripcion||'—';
+        return '<tr><td style="font-size:10px">'+(s.id||'').split('_')[0]+'</td><td style="font-size:10px;color:#888">'+fechaFiltro+'</td><td>'+hora+'</td><td>'+nombre+'</td><td>'+(typeof catBadge==='function'?catBadge(s.cat||s.categoria||''):'')+'</td><td>'+(s.qty||s.cantidad||1)+'</td><td style="color:var(--acc3)">'+(s.total>0?fmt(s.total):'—')+'</td><td>'+(s.pago||s.metodoPago||'Efectivo')+corregido+'</td><td>'+(isAdmin?'<span style="font-size:10px;color:var(--text3)">histórico</span>':'')+'</td></tr>';
+      }).join('');
+    }).catch(function(e){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:#e94560;padding:16px">Error: '+e.message+'</td></tr>';});
+    return;
+  }
+
+  // Sin filtro o filtro = hoy → comportamiento original
+  if(infoDiv){infoDiv.style.display=fechaFiltro===hoy?'block':'none';if(fechaFiltro===hoy)infoDiv.innerHTML='📅 Mostrando ventas de <strong>hoy</strong>';}
   var salesHoy=getSalesHoy();
   const tot=salesHoy.reduce((s,v)=>s+v.total,0);
   const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
