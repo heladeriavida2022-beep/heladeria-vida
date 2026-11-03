@@ -818,7 +818,12 @@ try{
                 <div style="font-size:12px;font-weight:700;font-family:var(--font-head)">Registro de ventas</div>
                 <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
                   <input class="finput" type="date" id="ventas-filtro-fecha" onchange="renderSalesTable()" style="font-size:11px;padding:4px 8px" title="Filtrar por fecha">
-                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ventas-filtro-fecha').value='';renderSalesTable()" style="font-size:11px;padding:3px 8px" title="Ver hoy">Hoy</button>
+                  <select class="finput" id="ventas-filtro-turno" onchange="renderSalesTable()" style="font-size:11px;padding:4px 7px;width:auto">
+                    <option value="TODOS">Todos los turnos</option>
+                    <option value="T1">T1 — Mañana (hasta 11:59)</option>
+                    <option value="T2">T2 — Tarde (desde 12:00)</option>
+                  </select>
+                  <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ventas-filtro-fecha').value='';document.getElementById('ventas-filtro-turno').value='TODOS';renderSalesTable()" style="font-size:11px;padding:3px 8px" title="Ver hoy">Hoy</button>
                   <input class="finput" placeholder="Buscar..." oninput="filterTbl('sales-tbl',this.value)" style="width:120px;padding:4px 8px;font-size:11px">
                 </div>
               </div>
@@ -4790,39 +4795,58 @@ function renderSalesTable(){
   const tbl=document.getElementById('sales-tbl');if(!tbl)return;
   var hoy = getFechaHoy();
   var fechaFiltro = (document.getElementById('ventas-filtro-fecha')||{}).value||'';
+  var turnoFiltro = (document.getElementById('ventas-filtro-turno')||{}).value||'TODOS';
   var infoDiv = document.getElementById('ventas-filtro-info');
+
+  // Helper: dado un timestamp ISO, devuelve la hora Colombia (UTC-5) como entero 0-23
+  function horaColombiaDeTS(ts){
+    if(!ts) return -1;
+    var d=new Date(ts);
+    var h=d.getUTCHours()-5; if(h<0) h+=24;
+    return h;
+  }
+  // Helper: aplica filtro de turno a una lista de ventas (con campo .timestamp)
+  function aplicarFiltroTurno(lista){
+    if(turnoFiltro==='T1') return lista.filter(function(v){return horaColombiaDeTS(v.timestamp)<12;});
+    if(turnoFiltro==='T2') return lista.filter(function(v){return horaColombiaDeTS(v.timestamp)>=12;});
+    return lista;
+  }
+  // Label del turno para estadísticas
+  var turnoLabel = turnoFiltro==='T1'?' — T1 Mañana':turnoFiltro==='T2'?' — T2 Tarde':'';
 
   // Si hay fecha seleccionada y NO es hoy → consultar Firebase
   if(fechaFiltro && fechaFiltro !== hoy){
     tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">⏳ Cargando ventas del '+fechaFiltro+'...</td></tr>';
-    if(infoDiv){infoDiv.style.display='block';infoDiv.innerHTML='📅 Mostrando ventas del <strong>'+fechaFiltro+'</strong> — datos históricos de Firebase';}
+    var infoTxt='📅 <strong>'+fechaFiltro+'</strong>'+turnoLabel+' — datos históricos de Firebase';
+    if(infoDiv){infoDiv.style.display='block';infoDiv.innerHTML=infoTxt;}
     window.FB.getAll('ventas').then(function(todasVentas){
-      var lista=todasVentas.filter(function(v){
+      var listaFecha=todasVentas.filter(function(v){
         var f=v.fecha||v.date||(v.timestamp||'').substring(0,10)||'';
         return f===fechaFiltro||(v.timestamp||'').startsWith(fechaFiltro);
       });
-      lista.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+      listaFecha.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+      var lista=aplicarFiltroTurno(listaFecha);
       var tot=lista.reduce(function(s,v){return s+(v.total||0);},0);
       var unds=lista.reduce(function(s,v){return s+(v.qty||v.cantidad||1);},0);
       var st=document.getElementById('ventas-stats');
-      var etiquetaFecha=fechaFiltro;
-      if(st)st.innerHTML='<div class="stat"><div class="slb">Total '+etiquetaFecha+'</div><div class="sval" style="color:var(--acc3)">'+fmt(tot)+'</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">'+unds+'</div></div><div class="stat"><div class="slb">Ventas</div><div class="sval" style="color:var(--acc4)">'+lista.length+'</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">'+(lista.length?fmt(tot/lista.length):'$0')+'</div></div>';
-      if(!lista.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas registradas el '+fechaFiltro+'</td></tr>';return;}
+      if(st)st.innerHTML='<div class="stat"><div class="slb">Total'+turnoLabel+'</div><div class="sval" style="color:var(--acc3)">'+fmt(tot)+'</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">'+unds+'</div></div><div class="stat"><div class="slb">Ventas</div><div class="sval" style="color:var(--acc4)">'+lista.length+(turnoFiltro!=='TODOS'?' / '+listaFecha.length+' total':'')+'</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">'+(lista.length?fmt(tot/lista.length):'$0')+'</div></div>';
+      if(!lista.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas'+turnoLabel+' el '+fechaFiltro+'</td></tr>';return;}
       var isAdmin=currentUser&&currentUser.role==='admin';
       tbl.innerHTML=lista.map(function(s){
         var hora='—';
         if(s.timestamp){var d=new Date(s.timestamp);var h=d.getUTCHours()-5;if(h<0)h+=24;var m=d.getUTCMinutes();hora=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
         var corregido=s.pagoCorregido?' <span style="font-size:9px;color:#f0a500">✏️</span>':'';
-        var nombre=s.name||s.items&&s.items.length?((s.items||[]).map(function(i){return i.name;}).join(', ')):s.descripcion||'—';
-        return '<tr><td style="font-size:10px">'+(s.id||'').split('_')[0]+'</td><td style="font-size:10px;color:#888">'+fechaFiltro+'</td><td>'+hora+'</td><td>'+nombre+'</td><td>'+(typeof catBadge==='function'?catBadge(s.cat||s.categoria||''):'')+'</td><td>'+(s.qty||s.cantidad||1)+'</td><td style="color:var(--acc3)">'+(s.total>0?fmt(s.total):'—')+'</td><td>'+(s.pago||s.metodoPago||'Efectivo')+corregido+'</td><td>'+(isAdmin?'<span style="font-size:10px;color:var(--text3)">histórico</span>':'')+'</td></tr>';
+        var nombre=(s.items&&s.items.length)?(s.items.map(function(i){return i.name;}).join(', ')):s.name||s.descripcion||'—';
+        var turnoTag=horaColombiaDeTS(s.timestamp)<12?'<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px">T1</span>':'<span style="font-size:9px;background:#fce7f3;color:#9d174d;padding:1px 5px;border-radius:3px">T2</span>';
+        return '<tr><td style="font-size:10px">'+(s.id||'').split('_')[0]+'</td><td style="font-size:10px;color:#888">'+fechaFiltro+' '+turnoTag+'</td><td>'+hora+'</td><td>'+nombre+'</td><td>'+(typeof catBadge==='function'?catBadge(s.cat||s.categoria||''):'')+'</td><td>'+(s.qty||s.cantidad||1)+'</td><td style="color:var(--acc3)">'+(s.total>0?fmt(s.total):'—')+'</td><td>'+(s.pago||s.metodoPago||'Efectivo')+corregido+'</td><td>'+(isAdmin?'<span style="font-size:10px;color:var(--text3)">histórico</span>':'')+'</td></tr>';
       }).join('');
     }).catch(function(e){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:#e94560;padding:16px">Error: '+e.message+'</td></tr>';});
     return;
   }
 
   // Sin filtro o filtro = hoy → comportamiento original
-  if(infoDiv){infoDiv.style.display=fechaFiltro===hoy?'block':'none';if(fechaFiltro===hoy)infoDiv.innerHTML='📅 Mostrando ventas de <strong>hoy</strong>';}
-  var salesHoy=getSalesHoy();
+  if(infoDiv){infoDiv.style.display=(fechaFiltro===hoy||turnoFiltro!=='TODOS')?'block':'none';infoDiv.innerHTML='📅 Hoy'+turnoLabel;}
+  var salesHoy=aplicarFiltroTurno(getSalesHoy());
   const tot=salesHoy.reduce((s,v)=>s+v.total,0);
   const unds=salesHoy.reduce((s,v)=>s+v.qty,0);
   const st=document.getElementById('ventas-stats');
