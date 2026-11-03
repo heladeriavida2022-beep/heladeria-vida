@@ -8326,75 +8326,77 @@ async function registrarCierreRetroactivoNov2(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Buscando ventas y gastos del 02/11/2026...';
+  div.innerHTML='⏳ Buscando datos del 02/11/2026...';
   try{
     var fecha='2026-11-02';
-    var html='📅 CIERRE RETROACTIVO — 2 de noviembre 2026 (T2 - ERIKA)\n';
-    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    // Buscar turno T2 del 02/11 en colección turnos — PRIMERO para filtrar ventas correctamente
+    // Buscar todos los turnos del 02/11 para diagnóstico completo
     var todasVentas=await window.FB.getAll('ventas');
     var turnosFB=await window.FB.getAll('turnos');
-    // Buscar el turno T2 del 02/11 (puede estar identificado por turno=2 y fecha de apertura)
-    var t2Nov=turnosFB.find(function(t){
-      return (t.turno===2||String(t.turno)==='2')&&((t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02'));
+    var cierresFB=await window.FB.getAll('cierresTurno');
+    // Turnos del 02/11
+    var turnosNov=turnosFB.filter(function(t){
+      return (t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02');
     });
-    var turnoIdNov=t2Nov?(t2Nov.turnoId||t2Nov.id||null):null;
-    html+='Turno T2 encontrado: '+(turnoIdNov?('✅ ID: '+turnoIdNov):'⚠️ No encontrado en colección turnos')+'\n';
-    // Filtrar ventas SOLO del turno T2: por turnoId si existe, si no por fecha+hora tarde (después de 12pm)
-    var ventasDia;
-    if(turnoIdNov){
-      // Usar turnoId exacto — solo ventas del T2
-      ventasDia=todasVentas.filter(function(v){return v.turnoId===turnoIdNov;});
-      html+='Filtro: ventas por turnoId T2 exacto\n';
-    } else {
-      // Sin turnoId: buscar ventas del día y separar T1/T2 por hora (T2 = tarde/noche ≥ 12:00)
-      var ventasDiaCompleto=todasVentas.filter(function(v){
-        var vf=v.fecha||v.date||'';
-        return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
-      });
-      // T2 = turno tarde: ventas con timestamp >= 12:00 (hora Colombia = UTC-5, 12pm local = 17:00 UTC)
-      ventasDia=ventasDiaCompleto.filter(function(v){
-        var ts=v.timestamp||'';
-        if(!ts) return false;
-        var d=new Date(ts);
-        // Hora local Colombia (UTC-5): >= 12:00 = turno tarde
-        var horaLocal=d.getUTCHours()-5;if(horaLocal<0)horaLocal+=24;
-        return horaLocal>=12;
-      });
-      html+='⚠️ Sin turnoId T2 — ventas filtradas por hora (tarde/noche ≥ 12:00 hora Colombia)\n';
-      html+='Total ventas del día: '+ventasDiaCompleto.length+' | T2 (tarde): '+ventasDia.length+' | T1 (mañana): '+(ventasDiaCompleto.length-ventasDia.length)+'\n';
-    }
-    var totalVentas=ventasDia.reduce(function(s,v){return s+(v.total||0);},0);
-    var ventasEfe=ventasDia.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0);
-    var ventasNequi=ventasDia.filter(function(v){return (v.pago||'').toLowerCase().includes('nequi');}).reduce(function(s,v){return s+(v.total||0);},0);
-    var ventasTrans=ventasDia.filter(function(v){return (v.pago||'').toLowerCase().includes('trans');}).reduce(function(s,v){return s+(v.total||0);},0);
-    // Buscar gastos del 02/11
+    var t1Nov=turnosNov.find(function(t){return t.turno===1||String(t.turno)==='1';});
+    var t2Nov=turnosNov.find(function(t){return t.turno===2||String(t.turno)==='2';});
+    var turnoIdT1=t1Nov?(t1Nov.turnoId||t1Nov.id||null):null;
+    var turnoIdT2=t2Nov?(t2Nov.turnoId||t2Nov.id||null):null;
+    // Verificar si T1 ya tiene cierre registrado
+    var cierreT1Existe=cierresFB.some(function(c){
+      return (c.fecha===fecha)&&(c.turno===1||String(c.turno)==='1');
+    });
+    // Ventas del día completo
+    var ventasDiaTotal=todasVentas.filter(function(v){
+      var vf=v.fecha||v.date||'';
+      return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
+    });
+    // Ventas T1 (ya cerradas) — por turnoId T1 o por cierre existente
+    var ventasT1=turnoIdT1?todasVentas.filter(function(v){return v.turnoId===turnoIdT1;}):[];
+    // Ventas T2 — por turnoId T2 exacto
+    var ventasT2=turnoIdT2?todasVentas.filter(function(v){return v.turnoId===turnoIdT2;}):[];
+    // Si no se puede separar por turnoId, pedir monto manual
+    var diagHtml='📅 DIAGNÓSTICO — 2 noviembre 2026\n';
+    diagHtml+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    diagHtml+='Turnos en colección turnos: '+turnosNov.length+'\n';
+    diagHtml+='  T1: '+(turnoIdT1?'✅ ID: '+turnoIdT1:'❌ no encontrado')+'\n';
+    diagHtml+='  T2: '+(turnoIdT2?'✅ ID: '+turnoIdT2:'❌ no encontrado')+'\n';
+    diagHtml+='Cierre T1 ya registrado: '+(cierreT1Existe?'✅ sí':'⚠️ no')+'\n';
+    diagHtml+='Ventas totales del día: '+ventasDiaTotal.length+' = $'+ventasDiaTotal.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
+    diagHtml+='  Ventas con turnoId T1: '+ventasT1.length+' = $'+ventasT1.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
+    diagHtml+='  Ventas con turnoId T2: '+ventasT2.length+' = $'+ventasT2.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
+    div.innerHTML=diagHtml;
+    // Gastos del 02/11
     var todosGastos=await window.FB.getAll('gastos');
     var gastosNov=todosGastos.filter(function(g){
       return (g.fecha||'')=== fecha||(g.timestamp||'').startsWith('2026-11-02');
     });
     var totalGastos=gastosNov.reduce(function(s,g){return s+(g.monto||0);},0);
-    html+='Ventas encontradas: '+ventasDia.length+' | Total: $'+totalVentas.toLocaleString('es-CO')+'\n';
-    html+='  - Efectivo: $'+ventasEfe.toLocaleString('es-CO')+'\n';
-    html+='  - Nequi: $'+ventasNequi.toLocaleString('es-CO')+'\n';
-    html+='  - Transferencia: $'+ventasTrans.toLocaleString('es-CO')+'\n';
-    html+='Gastos encontrados: '+gastosNov.length+' | Total: $'+totalGastos.toLocaleString('es-CO')+'\n';
-    gastosNov.forEach(function(g){
-      html+='  - '+(g.descripcion||g.concepto||'Gasto')+': $'+(g.monto||0).toLocaleString('es-CO')+'\n';
-    });
-    if(ventasDia.length===0){
-      html+='\n⚠️ No se encontraron ventas para el 02/11.\nSi hubo ventas ese día, verifícalas antes de confirmar.\n';
+    // Pedir al usuario que confirme el total de ventas T2
+    var totalVentasDetectado=ventasT2.reduce(function(s,v){return s+(v.total||0);},0);
+    var msgPregunta='VENTAS DEL TURNO T2 (ERIKA) — 02/11/2026\n\n';
+    msgPregunta+='Ventas detectadas con turnoId T2: '+ventasT2.length+' registros = $'+totalVentasDetectado.toLocaleString('es-CO')+'\n';
+    msgPregunta+='Ventas totales del día: '+ventasDiaTotal.length+' = $'+ventasDiaTotal.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n\n';
+    msgPregunta+='Gastos del día: $'+totalGastos.toLocaleString('es-CO')+'\n\n';
+    msgPregunta+='¿Cuál fue el TOTAL DE VENTAS del T2 de Erika?\n(Escribe el valor en pesos, sin puntos ni símbolos.\nEj: 350000)';
+    var inputStr=prompt(msgPregunta, String(totalVentasDetectado||0));
+    if(inputStr===null){div.innerHTML+= '\n\n❌ Operación cancelada.';return;}
+    var totalVentas=parseInt((inputStr||'0').replace(/\D/g,''),10)||0;
+    if(isNaN(totalVentas)||totalVentas<0){toast('Valor inválido','#e94560');return;}
+    // Medios de pago: usar proporción de lo detectado o asumir todo efectivo si no hay datos T2
+    var ventasEfe,ventasNequi,ventasTrans;
+    if(ventasT2.length>0&&totalVentasDetectado>0){
+      var ratio=totalVentas/totalVentasDetectado;
+      ventasEfe=Math.round(ventasT2.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
+      ventasNequi=Math.round(ventasT2.filter(function(v){return (v.pago||'').toLowerCase().includes('nequi');}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
+      ventasTrans=Math.round(ventasT2.filter(function(v){return (v.pago||'').toLowerCase().includes('trans');}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
+      ventasEfe=totalVentas-ventasNequi-ventasTrans; // ajustar para que cuadre exacto
+    } else {
+      ventasEfe=totalVentas;ventasNequi=0;ventasTrans=0;
     }
     var fondo=100000;
     var esperado=Math.max(0,fondo+ventasEfe-totalGastos);
-    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    html+='Fondo base: $'+fondo.toLocaleString('es-CO')+'\n';
-    html+='Esperado en caja: $'+esperado.toLocaleString('es-CO')+'\n';
-    html+='\n¿Confirmar y registrar este cierre retroactivo?';
-    div.innerHTML=html;
-    // Pedir confirmación antes de guardar
-    var ok=confirm('CIERRE RETROACTIVO — 2 noviembre 2026 (T2 - ERIKA)\n\nVentas: $'+totalVentas.toLocaleString('es-CO')+' ('+ventasDia.length+' registros)\nGastos: $'+totalGastos.toLocaleString('es-CO')+' ('+gastosNov.length+' registros)\nEsperado en caja: $'+esperado.toLocaleString('es-CO')+'\n\n¿Registrar el cierre con estos datos?');
-    if(!ok){div.innerHTML+= '\n\n❌ Operación cancelada por el usuario.';return;}
+    var ok=confirm('CONFIRMAR CIERRE RETROACTIVO\n2 noviembre 2026 — T2 — ERIKA\n\nVentas T2: $'+totalVentas.toLocaleString('es-CO')+'\n  Efectivo: $'+ventasEfe.toLocaleString('es-CO')+'\n  Nequi: $'+ventasNequi.toLocaleString('es-CO')+'\n  Transferencia: $'+ventasTrans.toLocaleString('es-CO')+'\nGastos: $'+totalGastos.toLocaleString('es-CO')+'\nFondo base: $'+fondo.toLocaleString('es-CO')+'\nEsperado en caja: $'+esperado.toLocaleString('es-CO')+'\n\n¿Registrar?');
+    if(!ok){div.innerHTML+= '\n\n❌ Cancelado.';return;}
     var now=new Date();
     var cierre={
       id:'ct_retro_T2_2026-11-02_'+now.getTime(),
