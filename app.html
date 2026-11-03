@@ -8331,20 +8331,38 @@ async function registrarCierreRetroactivoNov2(){
     var fecha='2026-11-02';
     var html='📅 CIERRE RETROACTIVO — 2 de noviembre 2026 (T2 - ERIKA)\n';
     html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    // Buscar ventas del 02/11
+    // Buscar turno T2 del 02/11 en colección turnos — PRIMERO para filtrar ventas correctamente
     var todasVentas=await window.FB.getAll('ventas');
-    var ventasDia=todasVentas.filter(function(v){
-      var vf=v.fecha||v.date||'';
-      return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
-    });
-    // Buscar turno T2 del 02/11 en colección turnos
     var turnosFB=await window.FB.getAll('turnos');
+    // Buscar el turno T2 del 02/11 (puede estar identificado por turno=2 y fecha de apertura)
     var t2Nov=turnosFB.find(function(t){
       return (t.turno===2||String(t.turno)==='2')&&((t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02'));
     });
     var turnoIdNov=t2Nov?(t2Nov.turnoId||t2Nov.id||null):null;
-    if(!ventasDia.length&&turnoIdNov){
+    html+='Turno T2 encontrado: '+(turnoIdNov?('✅ ID: '+turnoIdNov):'⚠️ No encontrado en colección turnos')+'\n';
+    // Filtrar ventas SOLO del turno T2: por turnoId si existe, si no por fecha+hora tarde (después de 12pm)
+    var ventasDia;
+    if(turnoIdNov){
+      // Usar turnoId exacto — solo ventas del T2
       ventasDia=todasVentas.filter(function(v){return v.turnoId===turnoIdNov;});
+      html+='Filtro: ventas por turnoId T2 exacto\n';
+    } else {
+      // Sin turnoId: buscar ventas del día y separar T1/T2 por hora (T2 = tarde/noche ≥ 12:00)
+      var ventasDiaCompleto=todasVentas.filter(function(v){
+        var vf=v.fecha||v.date||'';
+        return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
+      });
+      // T2 = turno tarde: ventas con timestamp >= 12:00 (hora Colombia = UTC-5, 12pm local = 17:00 UTC)
+      ventasDia=ventasDiaCompleto.filter(function(v){
+        var ts=v.timestamp||'';
+        if(!ts) return false;
+        var d=new Date(ts);
+        // Hora local Colombia (UTC-5): >= 12:00 = turno tarde
+        var horaLocal=d.getUTCHours()-5;if(horaLocal<0)horaLocal+=24;
+        return horaLocal>=12;
+      });
+      html+='⚠️ Sin turnoId T2 — ventas filtradas por hora (tarde/noche ≥ 12:00 hora Colombia)\n';
+      html+='Total ventas del día: '+ventasDiaCompleto.length+' | T2 (tarde): '+ventasDia.length+' | T1 (mañana): '+(ventasDiaCompleto.length-ventasDia.length)+'\n';
     }
     var totalVentas=ventasDia.reduce(function(s,v){return s+(v.total||0);},0);
     var ventasEfe=ventasDia.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0);
