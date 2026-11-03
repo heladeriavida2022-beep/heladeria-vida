@@ -1022,6 +1022,7 @@ try{
               <button onclick="corregirUsuarioCierreT2Oct1()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">✏️ Corregir cierre T2 01/10 → ERIKA ZEA</button>
               <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
               <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
+              <button onclick="verVentasNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fefce8;border-color:#ca8a04;color:#78350f;font-weight:700">🔍 Ver ventas del 02/11/2026 por hora</button>
               <button onclick="registrarCierreRetroactivoNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🔒 Registrar cierre T2 ERIKA — 02/11/2026</button>
               <button onclick="desactivarDescuentaSandia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#a21caf;color:#701a75;font-weight:700">🍉 Desactivar descuento SANDIA (no descontar inventario)</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
@@ -8320,6 +8321,54 @@ async function registrarCierreRetroactivo(){
     html+='✅ Cierre T2 del 30/09 registrado correctamente\nUsuario: DANNA | Ventas: $'+totalVentas.toLocaleString('es-CO')+' | Gastos: $'+totalGastos.toLocaleString('es-CO');
     div.innerHTML=html;
   }catch(e){div.innerHTML='Error: '+e.message;}
+}
+
+async function verVentasNov2(){
+  var div=document.getElementById('fondo-diagnostico');
+  if(!div)return;
+  div.style.display='block';
+  div.innerHTML='⏳ Cargando ventas del 02/11/2026...';
+  try{
+    var fecha='2026-11-02';
+    var todasVentas=await window.FB.getAll('ventas');
+    var ventas=todasVentas.filter(function(v){
+      var vf=v.fecha||v.date||'';
+      return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
+    });
+    // Ordenar por timestamp
+    ventas.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+    var totalDia=ventas.reduce(function(s,v){return s+(v.total||0);},0);
+    var html='🛒 VENTAS DEL 02/11/2026 — '+ventas.length+' registros — Total: $'+totalDia.toLocaleString('es-CO')+'\n';
+    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    html+='HORA LOCAL  |  VALOR     |  MEDIO     |  DESCRIPCIÓN\n';
+    html+='─────────────────────────────────────────────────────\n';
+    var sumaT1=0,sumaT2=0,ctT1=0,ctT2=0;
+    ventas.forEach(function(v,i){
+      var ts=v.timestamp||'';
+      var horaStr='??:??';
+      var esTarde=false;
+      if(ts){
+        var d=new Date(ts);
+        var h=d.getUTCHours()-5;if(h<0)h+=24;
+        var m=d.getUTCMinutes();
+        horaStr=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;
+        esTarde=h>=12;
+      }
+      var turnoLabel=esTarde?'T2':'T1';
+      var medio=v.pago||v.metodoPago||'Efectivo';
+      var desc=(v.items&&v.items.length?(v.items[0].name||''):v.descripcion||'');
+      if(desc.length>20)desc=desc.substring(0,20)+'…';
+      html+=horaStr+'  ['+turnoLabel+']  $'+(v.total||0).toLocaleString('es-CO').padStart(9)+' | '+(medio).padEnd(10).substring(0,10)+' | '+desc+'\n';
+      if(esTarde){sumaT2+=(v.total||0);ctT2++;}else{sumaT1+=(v.total||0);ctT1++;}
+    });
+    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
+    html+='T1 MAÑANA  (hasta 11:59): '+ctT1+' ventas = $'+sumaT1.toLocaleString('es-CO')+'\n';
+    html+='T2 TARDE   (desde 12:00): '+ctT2+' ventas = $'+sumaT2.toLocaleString('es-CO')+'\n';
+    html+='TOTAL DÍA:                '+ventas.length+' ventas = $'+totalDia.toLocaleString('es-CO')+'\n';
+    html+='\n⚠️ Hora de corte T1/T2 estimada en 12:00. Ajusta si el turno cambió a otra hora.\n';
+    html+='Usa el botón 🔒 Registrar cierre T2 con el valor confirmado de T2: $'+sumaT2.toLocaleString('es-CO');
+    div.innerHTML=html;
+  }catch(e){div.innerHTML='❌ Error: '+e.message;}
 }
 
 async function registrarCierreRetroactivoNov2(){
