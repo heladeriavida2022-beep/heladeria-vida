@@ -494,6 +494,7 @@ try{
           <button class="sni" id="sni-usuarios" onclick="adminNav('usuarios',this)"><i class="ti ti-users"></i>Usuarios</button>
           <button class="sni" onclick="adminNav('asistente',this)"><i class="ti ti-robot"></i>Asistente IA</button>
           <button class="sni" id="btn-fondo-admin" onclick="adminNav('fondo',this)" style="display:none"><i class="ti ti-safe"></i>💰 Fondo Admin</button>
+          <button class="sni" id="btn-costos-fijos" onclick="adminNav('costosfijos',this)" style="display:none"><i class="ti ti-building-bank"></i>📊 Costos Fijos</button>
         </div>
       </div>
       <div class="sbot">
@@ -1093,6 +1094,62 @@ try{
               <button onclick="diagnosticoVentasHoy()" class="btn btn-ghost btn-sm" style="margin-bottom:8px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#7e22ce">📋 Diagnóstico ventas 13/08</button>
               <div id="fondo-diagnostico" style="display:none;background:var(--bg3);border-radius:8px;padding:10px;margin-bottom:10px;font-size:11px;font-family:monospace;white-space:pre-wrap;max-height:300px;overflow-y:auto"></div>
               <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Tipo</th><th>Medio</th><th>Valor</th><th>Saldo acumulado</th></tr></thead><tbody id="fondo-tbl"><tr><td colspan="6" style="text-align:center;color:var(--text3);padding:16px">Cargando...</td></tr></tbody></table></div>
+            </div>
+          </div>
+          <!-- ══════════════ COSTOS FIJOS ══════════════ -->
+          <div class="adm-view" id="adv-costosfijos" style="flex:1;overflow-y:auto;padding:16px 18px">
+            <div style="max-width:760px">
+              <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px">
+                <h2 style="font-size:16px;font-weight:800;margin:0">📊 Fondo de Costos Fijos</h2>
+                <button onclick="abrirFormCostoFijo(null)" id="btn-agregar-costo" class="btn btn-primary btn-sm" style="font-size:12px;font-weight:800;background:linear-gradient(135deg,#4f46e5,#7c3aed);border:none;color:#fff;padding:8px 14px;border-radius:8px;display:none">➕ AGREGAR NUEVO COSTO FIJO</button>
+              </div>
+              <!-- Tarjetas resumen -->
+              <div id="cf-stats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:18px"></div>
+              <!-- Tabla de costos -->
+              <div id="cf-tabla-wrap" style="margin-bottom:18px">
+                <div class="tw"><table id="cf-tabla"><thead><tr><th>Concepto</th><th>Valor/mes</th><th>Acumulado</th><th>Pendiente</th><th>% Cumplimiento</th><th>Estado</th><th id="cf-col-acciones" style="display:none">Acciones</th></tr></thead><tbody id="cf-tbody"><tr><td colspan="7" style="text-align:center;padding:20px;color:var(--text3)">Cargando...</td></tr></tbody></table></div>
+              </div>
+              <!-- Histórico de cambios -->
+              <div id="cf-historial-wrap" style="display:none">
+                <div style="font-weight:700;font-size:13px;margin-bottom:8px">📋 Historial de cambios</div>
+                <div class="tw"><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Cambio</th><th>Usuario</th><th>Motivo</th></tr></thead><tbody id="cf-historial-tbody"></tbody></table></div>
+              </div>
+              <!-- Formulario inline (oculto por defecto) -->
+              <div id="cf-form-wrap" style="display:none;background:var(--bg2);border-radius:12px;border:2px solid var(--acc4);padding:18px;margin-bottom:16px">
+                <div style="font-weight:800;font-size:14px;margin-bottom:14px" id="cf-form-titulo">➕ Nuevo costo fijo</div>
+                <input type="hidden" id="cf-form-id">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+                  <div>
+                    <label style="font-size:11px;font-weight:700;display:block;margin-bottom:4px">Nombre del costo *</label>
+                    <input id="cf-nombre" class="finput" placeholder="Ej: Arriendo" style="width:100%">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;font-weight:700;display:block;margin-bottom:4px">Valor mensual * ($)</label>
+                    <input id="cf-valor" class="finput" type="number" placeholder="800000" style="width:100%">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;font-weight:700;display:block;margin-bottom:4px">Fecha inicio vigencia *</label>
+                    <input id="cf-fecha" class="finput" type="date" style="width:100%">
+                  </div>
+                  <div>
+                    <label style="font-size:11px;font-weight:700;display:block;margin-bottom:4px">Estado</label>
+                    <select id="cf-estado" class="finput" style="width:100%">
+                      <option value="activo">Activo</option>
+                      <option value="inactivo">Inactivo</option>
+                    </select>
+                  </div>
+                  <div style="grid-column:1/-1">
+                    <label style="font-size:11px;font-weight:700;display:block;margin-bottom:4px">Descripción / Motivo del cambio *</label>
+                    <textarea id="cf-descripcion" class="finput" rows="2" placeholder="Describe el costo o el motivo del cambio" style="width:100%;resize:vertical"></textarea>
+                  </div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <button onclick="guardarCostoFijo()" class="btn btn-primary btn-sm" style="font-weight:800;font-size:12px">💾 Guardar</button>
+                  <button onclick="cerrarFormCostoFijo()" class="btn btn-ghost btn-sm" style="font-size:12px">✖ Cancelar</button>
+                </div>
+              </div>
+              <!-- Resultado de operación -->
+              <div id="cf-resultado" style="display:none;border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px"></div>
             </div>
           </div>
 
@@ -2003,6 +2060,8 @@ function showApp(){
   // Mostrar botón fondo solo para admin
   var btnFondo=document.getElementById('btn-fondo-admin');
   if(btnFondo) btnFondo.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';
+  var btnCF=document.getElementById('btn-costos-fijos');
+  if(btnCF) btnCF.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';
   // Mostrar botón nómina solo para admin
   var btnNomina=document.getElementById('sni-nomina');
   if(btnNomina) btnNomina.style.display=(currentUser&&currentUser.role==='admin')?'flex':'none';
@@ -2189,6 +2248,7 @@ function renderAdminView(id){
     }
     renderFondoAdmin();
   }
+  if(id==='costosfijos') renderCostosFijos();
 }
 
 // ══════════════════════════════════════════════
@@ -8638,6 +8698,265 @@ async function guardarCierreNov2Final(totalVentas,ventasEfe,ventasNequi,ventasTr
     if(d2)d2.innerHTML='<div style="color:#e94560;padding:12px;font-size:12px">❌ Error al guardar: '+e.message+'<br><br><button class="btn btn-ghost btn-sm" onclick="panelCierreErikaNov2()">Reintentar</button></div>';
   }
 }
+
+// ══════════════════════════════════════════════════════════════
+// MÓDULO: FONDO DE COSTOS FIJOS
+// Solo Viviana.Rojas (admin) puede crear, editar, desactivar.
+// Los cambios aplican hacia adelante. No se modifican separaciones históricas.
+// ══════════════════════════════════════════════════════════════
+
+var CF_DEFAULTS=[
+  {nombre:'Arriendo',valorMensual:800000,descripcion:'Arriendo local',fechaInicio:'2024-01-01',estado:'activo'},
+  {nombre:'Energía',valorMensual:600000,descripcion:'Servicio de energía eléctrica',fechaInicio:'2024-01-01',estado:'activo'},
+  {nombre:'Nómina',valorMensual:2000000,descripcion:'Nómina empleados',fechaInicio:'2024-01-01',estado:'activo'},
+  {nombre:'Deuda',valorMensual:500000,descripcion:'Pago cuota deuda',fechaInicio:'2024-01-01',estado:'activo'}
+];
+
+function cfEsAdmin(){
+  return currentUser&&currentUser.role==='admin'&&currentUser.user==='Viviana.Rojas';
+}
+
+async function initCostosFijosDefecto(){
+  try{
+    var existentes=await window.FB.getAll('costosFijos');
+    if(existentes&&existentes.length>0) return existentes;
+    var ts=Date.now();
+    var arr=[];
+    for(var i=0;i<CF_DEFAULTS.length;i++){
+      var d=CF_DEFAULTS[i];
+      var id='cf_'+d.nombre.toLowerCase().replace(/\s+/g,'_')+'_'+ts;
+      var obj=Object.assign({},d,{
+        id:id,
+        creadoEn:new Date().toISOString(),
+        creadoPor:'sistema',
+        historial:[{fecha:new Date().toISOString(),valorMensual:d.valorMensual,motivo:'Configuración inicial',usuario:'sistema'}]
+      });
+      await window.FB.set('costosFijos',id,obj);
+      arr.push(obj);
+    }
+    return arr;
+  }catch(e){return [];}
+}
+
+async function getCostosFijosActivos(){
+  try{
+    var todos=await window.FB.getAll('costosFijos');
+    if(!todos||todos.length===0){
+      todos=await initCostosFijosDefecto();
+    }
+    return todos.filter(function(c){return c.estado!=='inactivo';});
+  }catch(e){return [];}
+}
+
+function calcPorcentajeSeparacion(costos,metaVentas){
+  var total=costos.reduce(function(s,c){return s+(Number(c.valorMensual)||0);},0);
+  if(!metaVentas||metaVentas<=0) return 0;
+  return total/metaVentas;
+}
+
+async function renderCostosFijos(){
+  // Validar acceso admin al botón agregar
+  var btnAgregar=document.getElementById('btn-agregar-costo');
+  if(btnAgregar) btnAgregar.style.display=cfEsAdmin()?'inline-flex':'none';
+  // Mostrar columna acciones solo para admin
+  var colAcc=document.getElementById('cf-col-acciones');
+  if(colAcc) colAcc.style.display=cfEsAdmin()?'':'none';
+  var tbody=document.getElementById('cf-tbody');
+  if(!tbody) return;
+  tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:20px">⏳ Cargando costos fijos...</td></tr>';
+  try{
+    var todos=await window.FB.getAll('costosFijos');
+    if(!todos||todos.length===0){
+      todos=await initCostosFijosDefecto();
+    }
+    // Leer config (meta ventas)
+    var configs=await window.FB.getAll('costosFijosConfig');
+    var config=(configs&&configs.length>0)?configs[0]:{metaVentas:15000000};
+    var metaVentas=Number(config.metaVentas)||15000000;
+    // Calcular totales
+    var activos=todos.filter(function(c){return c.estado!=='inactivo';});
+    var totalMensual=activos.reduce(function(s,c){return s+(Number(c.valorMensual)||0);},0);
+    var pct=metaVentas>0?((totalMensual/metaVentas)*100).toFixed(1):'—';
+    // Tarjetas resumen
+    var statsDiv=document.getElementById('cf-stats');
+    if(statsDiv){
+      statsDiv.innerHTML='<div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:12px;padding:16px;text-align:center"><div style="font-size:10px;opacity:.8;margin-bottom:4px">TOTAL MENSUAL</div><div style="font-size:22px;font-weight:800">'+fmt(totalMensual)+'</div></div>'
+        +'<div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;border:1.5px solid var(--border)"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">META VENTAS/MES</div><div style="font-size:18px;font-weight:800">'+fmt(metaVentas)+'</div>'+(cfEsAdmin()?'<button onclick="editarMetaVentasCF()" style="font-size:9px;color:#7c3aed;cursor:pointer;background:none;border:none;text-decoration:underline;margin-top:4px">Editar</button>':'')+'</div>'
+        +'<div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;border:1.5px solid var(--border)"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">% SEPARACIÓN/VENTA</div><div style="font-size:18px;font-weight:800;color:#059669">'+pct+'%</div><div style="font-size:9px;color:var(--text3);margin-top:2px">de cada venta va a costos fijos</div></div>'
+        +'<div style="background:var(--bg2);border-radius:12px;padding:16px;text-align:center;border:1.5px solid var(--border)"><div style="font-size:10px;color:var(--text3);margin-bottom:4px">COSTOS ACTIVOS</div><div style="font-size:22px;font-weight:800;color:#1d4ed8">'+activos.length+'</div></div>';
+    }
+    // Tabla
+    var html='';
+    todos.sort(function(a,b){return (a.nombre||'').localeCompare(b.nombre||'');});
+    // Intentar leer pagos registrados en fondoAdmin para calcular acumulado
+    var fondoMovs=[];
+    try{fondoMovs=await window.FB.getAll('costosFijosRegistros');}catch(e){}
+    todos.forEach(function(c){
+      var esInactivo=c.estado==='inactivo';
+      var v=Number(c.valorMensual)||0;
+      // Acumulado: suma de pagos registrados para este costo
+      var acum=fondoMovs.filter(function(m){return m.costoFijoId===c.id;}).reduce(function(s,m){return s+(Number(m.valor)||0);},0);
+      var pend=Math.max(0,v-acum);
+      var pctCumpl=v>0?Math.min(100,Math.round((acum/v)*100)):0;
+      var colorPct=pctCumpl>=100?'#059669':pctCumpl>=50?'#d97706':'#dc2626';
+      html+='<tr style="opacity:'+(esInactivo?'.5':'1')+'">'
+        +'<td style="font-weight:700">'+(esInactivo?'<s>':'')+(c.nombre||'')+(esInactivo?'</s>':'')+'</td>'
+        +'<td>'+fmt(v)+'</td>'
+        +'<td>'+fmt(acum)+'</td>'
+        +'<td>'+fmt(pend)+'</td>'
+        +'<td><span style="font-weight:800;color:'+colorPct+'">'+pctCumpl+'%</span></td>'
+        +'<td><span style="font-size:10px;padding:2px 7px;border-radius:999px;font-weight:700;background:'+(esInactivo?'#f3f4f6':'#dcfce7')+';color:'+(esInactivo?'#6b7280':'#15803d')+'">'+(esInactivo?'Inactivo':'Activo')+'</span></td>'
+        +(cfEsAdmin()?'<td style="display:table-cell"><div style="display:flex;gap:5px;flex-wrap:wrap"><button onclick="abrirFormCostoFijo(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 7px;color:#1d4ed8">✏️</button>'+(esInactivo?'':'<button onclick="desactivarCostoFijo(\''+c.id+'\')" class="btn btn-ghost btn-sm" style="font-size:10px;padding:3px 7px;color:#dc2626">⏸</button>')+'</div></td>':'')
+        +'</tr>';
+    });
+    tbody.innerHTML=html||'<tr><td colspan="7" style="text-align:center;padding:16px;color:var(--text3)">Sin costos registrados</td></tr>';
+    // Historial
+    var historialWrap=document.getElementById('cf-historial-wrap');
+    var histTbody=document.getElementById('cf-historial-tbody');
+    if(histTbody&&cfEsAdmin()){
+      var histRows=[];
+      todos.forEach(function(c){
+        (c.historial||[]).forEach(function(h){
+          histRows.push({fecha:h.fecha,nombre:c.nombre,motivo:h.motivo,usuario:h.usuario,valor:h.valorMensual});
+        });
+      });
+      histRows.sort(function(a,b){return (b.fecha||'').localeCompare(a.fecha||'');});
+      var hhtml=histRows.slice(0,30).map(function(r){
+        var d=r.fecha?r.fecha.substring(0,10):'';
+        return '<tr><td>'+d+'</td><td>'+(r.nombre||'')+'</td><td>'+fmt(r.valor||0)+'/mes</td><td>'+(r.usuario||'')+'</td><td>'+(r.motivo||'')+'</td></tr>';
+      }).join('');
+      histTbody.innerHTML=hhtml||'<tr><td colspan="5" style="text-align:center;color:var(--text3)">Sin historial</td></tr>';
+      if(historialWrap&&histRows.length>0) historialWrap.style.display='block';
+    }
+  }catch(e){
+    if(tbody) tbody.innerHTML='<tr><td colspan="7" style="color:#dc2626;padding:16px">❌ Error: '+e.message+'</td></tr>';
+  }
+}
+
+function abrirFormCostoFijo(id){
+  if(!cfEsAdmin()){toast('Solo Viviana.Rojas puede administrar costos fijos','#dc2626');return;}
+  var wrap=document.getElementById('cf-form-wrap');
+  if(!wrap) return;
+  document.getElementById('cf-form-id').value=id||'';
+  document.getElementById('cf-nombre').value='';
+  document.getElementById('cf-valor').value='';
+  document.getElementById('cf-descripcion').value='';
+  document.getElementById('cf-estado').value='activo';
+  document.getElementById('cf-fecha').value=getFechaHoy();
+  document.getElementById('cf-form-titulo').textContent=id?'✏️ Editar costo fijo':'➕ Nuevo costo fijo';
+  if(id){
+    // Cargar datos existentes
+    window.FB.getAll('costosFijos').then(function(todos){
+      var c=todos.find(function(x){return x.id===id;});
+      if(c){
+        document.getElementById('cf-nombre').value=c.nombre||'';
+        document.getElementById('cf-valor').value=c.valorMensual||'';
+        document.getElementById('cf-estado').value=c.estado||'activo';
+        document.getElementById('cf-fecha').value=getFechaHoy();
+      }
+    });
+  }
+  var res=document.getElementById('cf-resultado');
+  if(res){res.style.display='none';}
+  wrap.style.display='block';
+  wrap.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function cerrarFormCostoFijo(){
+  var wrap=document.getElementById('cf-form-wrap');
+  if(wrap) wrap.style.display='none';
+}
+
+async function guardarCostoFijo(){
+  if(!cfEsAdmin()){toast('Solo Viviana.Rojas puede administrar costos fijos','#dc2626');return;}
+  var id=document.getElementById('cf-form-id').value.trim();
+  var nombre=(document.getElementById('cf-nombre').value||'').trim();
+  var valorStr=(document.getElementById('cf-valor').value||'').trim();
+  var descripcion=(document.getElementById('cf-descripcion').value||'').trim();
+  var estado=document.getElementById('cf-estado').value||'activo';
+  var fechaInicio=document.getElementById('cf-fecha').value||getFechaHoy();
+  if(!nombre){toast('El nombre del costo es obligatorio','#dc2626');return;}
+  if(!valorStr||isNaN(Number(valorStr))||Number(valorStr)<0){toast('El valor mensual es obligatorio y debe ser un número','#dc2626');return;}
+  if(!descripcion){toast('La descripción / motivo del cambio es obligatoria','#dc2626');return;}
+  var valor=Number(valorStr);
+  var ahora=new Date().toISOString();
+  var usuario=currentUser.user||currentUser.name||'admin';
+  var res=document.getElementById('cf-resultado');
+  if(res){res.style.display='block';res.style.background='#f0f9ff';res.style.border='1.5px solid #0ea5e9';res.innerHTML='⏳ Guardando...';}
+  try{
+    if(id){
+      // Edición: cargar existente y agregar al historial
+      var todos=await window.FB.getAll('costosFijos');
+      var existente=todos.find(function(c){return c.id===id;});
+      if(!existente){throw new Error('Costo no encontrado en Firebase');}
+      var histEntry={fecha:ahora,valorMensual:valor,motivo:descripcion,usuario:usuario,valorAnterior:existente.valorMensual};
+      var historial=(existente.historial||[]).concat([histEntry]);
+      var actualizado=Object.assign({},existente,{nombre:nombre,valorMensual:valor,descripcion:descripcion,estado:estado,modificadoEn:ahora,modificadoPor:usuario,historial:historial});
+      await window.FB.set('costosFijos',id,actualizado);
+      // Auditoría
+      await window.FB.set('auditoriaCorreccionTurnos','cfmod_'+Date.now(),{tipo:'modificacion_costo_fijo',costoFijoId:id,nombreCosto:nombre,valorAnterior:existente.valorMensual,valorNuevo:valor,motivo:descripcion,usuario:usuario,fecha:ahora,ip:window.location.hostname});
+      if(res){res.style.background='#f0fdf4';res.style.border='1.5px solid #16a34a';res.innerHTML='✅ Costo fijo <strong>'+nombre+'</strong> actualizado a '+fmt(valor)+'/mes.<br><small>Cambio aplicado hacia adelante. Historial conservado.</small>';}
+      toast('Costo actualizado: '+nombre,'#059669');
+    } else {
+      // Nuevo costo
+      var newId='cf_'+nombre.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+'_'+Date.now();
+      var nuevo={id:newId,nombre:nombre,valorMensual:valor,descripcion:descripcion,estado:estado,fechaInicio:fechaInicio,creadoEn:ahora,creadoPor:usuario,historial:[{fecha:ahora,valorMensual:valor,motivo:descripcion,usuario:usuario}]};
+      await window.FB.set('costosFijos',newId,nuevo);
+      await window.FB.set('auditoriaCorreccionTurnos','cfnew_'+Date.now(),{tipo:'nuevo_costo_fijo',costoFijoId:newId,nombreCosto:nombre,valorMensual:valor,descripcion:descripcion,usuario:usuario,fecha:ahora});
+      if(res){res.style.background='#f0fdf4';res.style.border='1.5px solid #16a34a';res.innerHTML='✅ Nuevo costo fijo <strong>'+nombre+'</strong> ('+fmt(valor)+'/mes) creado.';}
+      toast('Nuevo costo creado: '+nombre,'#059669');
+    }
+    cerrarFormCostoFijo();
+    setTimeout(function(){renderCostosFijos();},400);
+  }catch(e){
+    if(res){res.style.background='#fef2f2';res.style.border='1.5px solid #dc2626';res.innerHTML='❌ Error al guardar: '+e.message;}
+    toast('Error al guardar costo','#dc2626');
+  }
+}
+
+async function desactivarCostoFijo(id){
+  if(!cfEsAdmin()){toast('Solo Viviana.Rojas puede desactivar costos fijos','#dc2626');return;}
+  var motivo=window.prompt('Motivo para desactivar este costo fijo (obligatorio):');
+  if(!motivo||!motivo.trim()){toast('El motivo es obligatorio para desactivar','#dc2626');return;}
+  try{
+    var todos=await window.FB.getAll('costosFijos');
+    var c=todos.find(function(x){return x.id===id;});
+    if(!c){toast('Costo no encontrado','#dc2626');return;}
+    var ahora=new Date().toISOString();
+    var usuario=currentUser.user||currentUser.name||'admin';
+    var histEntry={fecha:ahora,valorMensual:0,motivo:'DESACTIVADO: '+motivo,usuario:usuario,valorAnterior:c.valorMensual};
+    var actualizado=Object.assign({},c,{estado:'inactivo',desactivadoEn:ahora,desactivadoPor:usuario,motivoDesactivacion:motivo,historial:(c.historial||[]).concat([histEntry])});
+    await window.FB.set('costosFijos',id,actualizado);
+    await window.FB.set('auditoriaCorreccionTurnos','cfdes_'+Date.now(),{tipo:'desactivacion_costo_fijo',costoFijoId:id,nombreCosto:c.nombre,motivo:motivo,usuario:usuario,fecha:ahora});
+    toast('Costo desactivado: '+(c.nombre||id),'#d97706');
+    setTimeout(function(){renderCostosFijos();},400);
+  }catch(e){
+    toast('Error al desactivar: '+e.message,'#dc2626');
+  }
+}
+
+async function editarMetaVentasCF(){
+  if(!cfEsAdmin()){toast('Solo Viviana.Rojas puede editar la meta de ventas','#dc2626');return;}
+  var actual=15000000;
+  try{
+    var configs=await window.FB.getAll('costosFijosConfig');
+    if(configs&&configs.length>0) actual=Number(configs[0].metaVentas)||15000000;
+  }catch(e){}
+  var val=window.prompt('Nueva meta de ventas mensual ($):\nActual: '+fmt(actual),String(actual));
+  if(!val||isNaN(Number(val))||Number(val)<=0){if(val!==null)toast('Valor inválido','#dc2626');return;}
+  var nueva=Number(val);
+  try{
+    var ahora=new Date().toISOString();
+    var usuario=currentUser.user||currentUser.name||'admin';
+    await window.FB.set('costosFijosConfig','config_principal',{metaVentas:nueva,actualizadoEn:ahora,actualizadoPor:usuario});
+    await window.FB.set('auditoriaCorreccionTurnos','cfmeta_'+Date.now(),{tipo:'cambio_meta_ventas_costos_fijos',valorAnterior:actual,valorNuevo:nueva,usuario:usuario,fecha:ahora});
+    toast('Meta de ventas actualizada a '+fmt(nueva),'#059669');
+    setTimeout(function(){renderCostosFijos();},400);
+  }catch(e){
+    toast('Error al guardar meta: '+e.message,'#dc2626');
+  }
+}
+// ═══════════════════════════════════════════════════════════════
 
 async function desactivarDescuentaSandia(){
   var div=document.getElementById('fondo-diagnostico');
