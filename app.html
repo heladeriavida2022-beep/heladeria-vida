@@ -1773,6 +1773,9 @@ try{
       <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid var(--border);border-radius:8px">
         <input type="checkbox" id="pvc-raspados" value="RASPADOS"> 🧊 Raspados
       </label>
+      <label style="display:flex;align-items:center;gap:7px;font-size:12px;cursor:pointer;padding:6px 10px;border:1.5px solid #e0e7ff;border-radius:8px;background:#f5f3ff">
+        <input type="checkbox" id="pvc-servicios" value="SERVICIOS"> 🏢 Servicios / Costos Fijos
+      </label>
     </div>
   </div>
 
@@ -5319,11 +5322,9 @@ function editarProveedor(id){
   if(s.formaPago==='credito'||s.credit>0){if(fpC)fpC.checked=true;}
   else{if(fpCt)fpCt.checked=true;}
   toggleDiasCredito();
-  // Categorías
-  var cats=['EMPAQUETADOS','FRESCOS','INSUMOS','DESECHABLES','SERVICIOS','OTROS'];
-  cats.forEach(function(c){
-    var cb=document.getElementById('pv-cat-'+c.toLowerCase());
-    if(cb) cb.checked=(s.categorias||[]).includes(c);
+  // Categorías — limpiar todas primero y luego marcar las del proveedor
+  document.querySelectorAll('#pv-cats input[type=checkbox]').forEach(function(cb){
+    cb.checked=(s.categorias||[]).includes(cb.value);
   });
   // Guardar ID para actualización
   window._editandoProveedorId=id;
