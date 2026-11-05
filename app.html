@@ -1036,8 +1036,7 @@ try{
               <button onclick="corregirUsuarioCierreT2Oct1()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#eff6ff;border-color:#3b82f6;color:#1d4ed8;font-weight:700">✏️ Corregir cierre T2 01/10 → ERIKA ZEA</button>
               <button onclick="eliminarDuplicadoCierreDanna()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado cierre DANNA 30/09</button>
               <button onclick="registrarCierreRetroactivo()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#f0fdf4;border-color:#16a34a;color:#065f46">📋 Registrar cierre T2 DANNA 30/09</button>
-              <button onclick="verVentasNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fefce8;border-color:#ca8a04;color:#78350f;font-weight:700">🔍 Ver ventas del 02/11/2026 por hora</button>
-              <button onclick="registrarCierreRetroactivoNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#9333ea;color:#6b21a8;font-weight:700">🔒 Registrar cierre T2 ERIKA — 02/11/2026</button>
+              <button onclick="panelCierreErikaNov2()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:12px;background:linear-gradient(135deg,#fdf4ff,#ede9fe);border:2px solid #7c3aed;color:#5b21b6;font-weight:800;box-shadow:0 2px 8px rgba(124,58,237,.15)">📋 Revisar y registrar cierre T2 ERIKA — 02/11/2026</button>
               <button onclick="desactivarDescuentaSandia()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fdf4ff;border-color:#a21caf;color:#701a75;font-weight:700">🍉 Desactivar descuento SANDIA (no descontar inventario)</button>
               <button onclick="eliminarEgresoDuplicadoPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">💵 Eliminar egreso duplicado PULPIPARA en caja</button>
               <button onclick="eliminarDuplicadoCompraPulpipara()" class="btn btn-ghost btn-sm" style="margin-bottom:6px;font-size:11px;background:#fef2f2;border-color:#dc2626;color:#991b1b">🗑️ Eliminar duplicado compra PULPIPARA</button>
@@ -4832,13 +4831,27 @@ function renderSalesTable(){
       if(st)st.innerHTML='<div class="stat"><div class="slb">Total'+turnoLabel+'</div><div class="sval" style="color:var(--acc3)">'+fmt(tot)+'</div></div><div class="stat"><div class="slb">Unidades</div><div class="sval" style="color:var(--acc5)">'+unds+'</div></div><div class="stat"><div class="slb">Ventas</div><div class="sval" style="color:var(--acc4)">'+lista.length+(turnoFiltro!=='TODOS'?' / '+listaFecha.length+' total':'')+'</div></div><div class="stat"><div class="slb">Ticket prom.</div><div class="sval" style="color:var(--acc2)">'+(lista.length?fmt(tot/lista.length):'$0')+'</div></div>';
       if(!lista.length){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:var(--text3);padding:16px">Sin ventas'+turnoLabel+' el '+fechaFiltro+'</td></tr>';return;}
       var isAdmin=currentUser&&currentUser.role==='admin';
+      // Detectar posibles duplicados (misma hora exacta + mismo total)
+      var dupSet=new Set();
+      lista.forEach(function(v){var k=(v.timestamp||'').substring(0,16)+'_'+(v.total||0);if(dupSet.has(k))v._posibleDup=true;else dupSet.add(k);});
+
       tbl.innerHTML=lista.map(function(s){
         var hora='—';
-        if(s.timestamp){var d=new Date(s.timestamp);var h=d.getUTCHours()-5;if(h<0)h+=24;var m=d.getUTCMinutes();hora=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
+        var hNum=-1;
+        if(s.timestamp){var d=new Date(s.timestamp);var h=d.getUTCHours()-5;if(h<0)h+=24;hNum=h;var m=d.getUTCMinutes();hora=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
         var corregido=s.pagoCorregido?' <span style="font-size:9px;color:#f0a500">✏️</span>':'';
-        var nombre=(s.items&&s.items.length)?(s.items.map(function(i){return i.name;}).join(', ')):s.name||s.descripcion||'—';
-        var turnoTag=horaColombiaDeTS(s.timestamp)<12?'<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px">T1</span>':'<span style="font-size:9px;background:#fce7f3;color:#9d174d;padding:1px 5px;border-radius:3px">T2</span>';
-        return '<tr><td style="font-size:10px">'+(s.id||'').split('_')[0]+'</td><td style="font-size:10px;color:#888">'+fechaFiltro+' '+turnoTag+'</td><td>'+hora+'</td><td>'+nombre+'</td><td>'+(typeof catBadge==='function'?catBadge(s.cat||s.categoria||''):'')+'</td><td>'+(s.qty||s.cantidad||1)+'</td><td style="color:var(--acc3)">'+(s.total>0?fmt(s.total):'—')+'</td><td>'+(s.pago||s.metodoPago||'Efectivo')+corregido+'</td><td>'+(isAdmin?'<span style="font-size:10px;color:var(--text3)">histórico</span>':'')+'</td></tr>';
+        // Nombre de producto: preferir items[]
+        var nombre='—';
+        if(s.items&&s.items.length){
+          nombre=s.items.map(function(i){return (i.qty>1?i.qty+'x ':'')+i.name+(i.price?' $'+i.price.toLocaleString('es-CO'):'');}).join(' | ');
+        } else if(s.name&&s.name!=='undefined'){nombre=s.name;}
+        else if(s.descripcion){nombre=s.descripcion;}
+        var turnoTag=hNum<12?'<span style="font-size:9px;background:#dbeafe;color:#1d4ed8;padding:1px 5px;border-radius:3px">T1</span>':'<span style="font-size:9px;background:#fce7f3;color:#9d174d;padding:1px 5px;border-radius:3px">T2</span>';
+        var dupWarn=s._posibleDup?'<span title="Posible duplicado" style="font-size:9px;color:#e94560;margin-left:3px">⚠️dup?</span>':'';
+        // Alerta si venta > $50.000 (inusualmente alta)
+        var altaWarn=(s.total||0)>50000?'<span title="Venta inusualmente alta" style="font-size:9px;color:#f59e0b;margin-left:3px">⚠️alta</span>':'';
+        var rowStyle=s._posibleDup?'background:rgba(239,68,68,0.06)':'';
+        return '<tr style="'+rowStyle+'"><td style="font-size:10px">'+(s.id||'').split('_')[0]+'</td><td style="font-size:10px">'+turnoTag+dupWarn+'</td><td style="font-weight:600">'+hora+'</td><td style="font-size:11px;max-width:260px;white-space:normal">'+nombre+'</td><td>'+(typeof catBadge==='function'?catBadge(s.cat||s.categoria||''):'')+'</td><td>'+(s.qty||s.cantidad||1)+'</td><td style="color:var(--acc3);font-weight:700">'+(s.total>0?fmt(s.total):'—')+altaWarn+'</td><td>'+(s.pago||s.metodoPago||'Efectivo')+corregido+'</td><td style="font-size:10px;color:var(--text3)">histórico</td></tr>';
       }).join('');
     }).catch(function(e){tbl.innerHTML='<tr><td colspan="9" style="text-align:center;color:#e94560;padding:16px">Error: '+e.message+'</td></tr>';});
     return;
@@ -8389,166 +8402,241 @@ async function registrarCierreRetroactivo(){
   }catch(e){div.innerHTML='Error: '+e.message;}
 }
 
-async function verVentasNov2(){
+async function panelCierreErikaNov2(){
   var div=document.getElementById('fondo-diagnostico');
   if(!div)return;
   div.style.display='block';
-  div.innerHTML='⏳ Cargando ventas del 02/11/2026...';
+  div.innerHTML='<div style="text-align:center;padding:20px;font-size:13px;color:var(--text2)">⏳ Cargando datos del 02/11/2026…</div>';
   try{
     var fecha='2026-11-02';
-    var todasVentas=await window.FB.getAll('ventas');
-    var ventas=todasVentas.filter(function(v){
+    // Cargar todo en paralelo
+    var [todasVentas,turnosFB,cierresFB,todosGastos]=await Promise.all([
+      window.FB.getAll('ventas'),
+      window.FB.getAll('turnos'),
+      window.FB.getAll('cierresTurno'),
+      window.FB.getAll('gastos')
+    ]);
+    // ── Verificar cierre T2 ya existente ──────────────────────────────
+    var cierreT2Existente=cierresFB.find(function(c){
+      return c.fecha===fecha&&(c.turno===2||String(c.turno)==='2');
+    });
+    // ── Ventas del día ─────────────────────────────────────────────────
+    var ventasDia=todasVentas.filter(function(v){
       var vf=v.fecha||v.date||'';
       return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
     });
-    // Ordenar por timestamp
-    ventas.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
-    var totalDia=ventas.reduce(function(s,v){return s+(v.total||0);},0);
-    var html='🛒 VENTAS DEL 02/11/2026 — '+ventas.length+' registros — Total: $'+totalDia.toLocaleString('es-CO')+'\n';
-    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    html+='HORA LOCAL  |  VALOR     |  MEDIO     |  DESCRIPCIÓN\n';
-    html+='─────────────────────────────────────────────────────\n';
-    var sumaT1=0,sumaT2=0,ctT1=0,ctT2=0;
-    ventas.forEach(function(v,i){
-      var ts=v.timestamp||'';
-      var horaStr='??:??';
-      var esTarde=false;
-      if(ts){
-        var d=new Date(ts);
-        var h=d.getUTCHours()-5;if(h<0)h+=24;
-        var m=d.getUTCMinutes();
-        horaStr=(h<10?'0':'')+h+':'+(m<10?'0':'')+m;
-        esTarde=h>=12;
-      }
-      var turnoLabel=esTarde?'T2':'T1';
-      var medio=v.pago||v.metodoPago||'Efectivo';
-      var desc=(v.items&&v.items.length?(v.items[0].name||''):v.descripcion||'');
-      if(desc.length>20)desc=desc.substring(0,20)+'…';
-      html+=horaStr+'  ['+turnoLabel+']  $'+(v.total||0).toLocaleString('es-CO').padStart(9)+' | '+(medio).padEnd(10).substring(0,10)+' | '+desc+'\n';
-      if(esTarde){sumaT2+=(v.total||0);ctT2++;}else{sumaT1+=(v.total||0);ctT1++;}
-    });
-    html+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    html+='T1 MAÑANA  (hasta 11:59): '+ctT1+' ventas = $'+sumaT1.toLocaleString('es-CO')+'\n';
-    html+='T2 TARDE   (desde 12:00): '+ctT2+' ventas = $'+sumaT2.toLocaleString('es-CO')+'\n';
-    html+='TOTAL DÍA:                '+ventas.length+' ventas = $'+totalDia.toLocaleString('es-CO')+'\n';
-    html+='\n⚠️ Hora de corte T1/T2 estimada en 12:00. Ajusta si el turno cambió a otra hora.\n';
-    html+='Usa el botón 🔒 Registrar cierre T2 con el valor confirmado de T2: $'+sumaT2.toLocaleString('es-CO');
-    div.innerHTML=html;
-  }catch(e){div.innerHTML='❌ Error: '+e.message;}
-}
-
-async function registrarCierreRetroactivoNov2(){
-  var div=document.getElementById('fondo-diagnostico');
-  if(!div)return;
-  div.style.display='block';
-  div.innerHTML='⏳ Buscando datos del 02/11/2026...';
-  try{
-    var fecha='2026-11-02';
-    // Buscar todos los turnos del 02/11 para diagnóstico completo
-    var todasVentas=await window.FB.getAll('ventas');
-    var turnosFB=await window.FB.getAll('turnos');
-    var cierresFB=await window.FB.getAll('cierresTurno');
-    // Turnos del 02/11
-    var turnosNov=turnosFB.filter(function(t){
-      return (t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02');
-    });
-    var t1Nov=turnosNov.find(function(t){return t.turno===1||String(t.turno)==='1';});
-    var t2Nov=turnosNov.find(function(t){return t.turno===2||String(t.turno)==='2';});
-    var turnoIdT1=t1Nov?(t1Nov.turnoId||t1Nov.id||null):null;
-    var turnoIdT2=t2Nov?(t2Nov.turnoId||t2Nov.id||null):null;
-    // Verificar si T1 ya tiene cierre registrado
-    var cierreT1Existe=cierresFB.some(function(c){
-      return (c.fecha===fecha)&&(c.turno===1||String(c.turno)==='1');
-    });
-    // Ventas del día completo
-    var ventasDiaTotal=todasVentas.filter(function(v){
-      var vf=v.fecha||v.date||'';
-      return vf===fecha||(v.timestamp||'').startsWith('2026-11-02');
-    });
-    // Ventas T1 (ya cerradas) — por turnoId T1 o por cierre existente
-    var ventasT1=turnoIdT1?todasVentas.filter(function(v){return v.turnoId===turnoIdT1;}):[];
-    // Ventas T2 — por turnoId T2 exacto
-    var ventasT2=turnoIdT2?todasVentas.filter(function(v){return v.turnoId===turnoIdT2;}):[];
-    // Si no se puede separar por turnoId, pedir monto manual
-    var diagHtml='📅 DIAGNÓSTICO — 2 noviembre 2026\n';
-    diagHtml+='━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n';
-    diagHtml+='Turnos en colección turnos: '+turnosNov.length+'\n';
-    diagHtml+='  T1: '+(turnoIdT1?'✅ ID: '+turnoIdT1:'❌ no encontrado')+'\n';
-    diagHtml+='  T2: '+(turnoIdT2?'✅ ID: '+turnoIdT2:'❌ no encontrado')+'\n';
-    diagHtml+='Cierre T1 ya registrado: '+(cierreT1Existe?'✅ sí':'⚠️ no')+'\n';
-    diagHtml+='Ventas totales del día: '+ventasDiaTotal.length+' = $'+ventasDiaTotal.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
-    diagHtml+='  Ventas con turnoId T1: '+ventasT1.length+' = $'+ventasT1.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
-    diagHtml+='  Ventas con turnoId T2: '+ventasT2.length+' = $'+ventasT2.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n';
-    div.innerHTML=diagHtml;
-    // Gastos del 02/11
-    var todosGastos=await window.FB.getAll('gastos');
+    ventasDia.sort(function(a,b){return (a.timestamp||'')>(b.timestamp||'')?1:-1;});
+    // ── Separar T1 / T2 por hora Colombia (UTC-5, corte 12:00) ────────
+    function horaCol(ts){if(!ts)return -1;var d=new Date(ts);var h=d.getUTCHours()-5;if(h<0)h+=24;return h+d.getUTCMinutes()/60;}
+    var ventasT1=ventasDia.filter(function(v){return horaCol(v.timestamp)<12;});
+    var ventasT2=ventasDia.filter(function(v){return horaCol(v.timestamp)>=12;});
+    // ── Totales T2 por medio de pago ──────────────────────────────────
+    function sumar(arr){return arr.reduce(function(s,v){return s+(v.total||0);},0);}
+    function medioEs(v,k){return (v.pago||v.metodoPago||'').toLowerCase().includes(k);}
+    var totalT1=sumar(ventasT1);
+    var totalT2=sumar(ventasT2);
+    var totalDia=sumar(ventasDia);
+    var nequiT2=sumar(ventasT2.filter(function(v){return medioEs(v,'nequi')||medioEs(v,'daviplata');}));
+    var transT2=sumar(ventasT2.filter(function(v){return medioEs(v,'trans');}));
+    var efeT2=totalT2-nequiT2-transT2;
+    // ── Gastos del día ─────────────────────────────────────────────────
     var gastosNov=todosGastos.filter(function(g){
-      return (g.fecha||'')=== fecha||(g.timestamp||'').startsWith('2026-11-02');
+      return (g.fecha||'')===fecha||(g.timestamp||'').startsWith('2026-11-02');
     });
     var totalGastos=gastosNov.reduce(function(s,g){return s+(g.monto||0);},0);
-    // Pedir al usuario que confirme el total de ventas T2
-    var totalVentasDetectado=ventasT2.reduce(function(s,v){return s+(v.total||0);},0);
-    var msgPregunta='VENTAS DEL TURNO T2 (ERIKA) — 02/11/2026\n\n';
-    msgPregunta+='Ventas detectadas con turnoId T2: '+ventasT2.length+' registros = $'+totalVentasDetectado.toLocaleString('es-CO')+'\n';
-    msgPregunta+='Ventas totales del día: '+ventasDiaTotal.length+' = $'+ventasDiaTotal.reduce(function(s,v){return s+(v.total||0);},0).toLocaleString('es-CO')+'\n\n';
-    msgPregunta+='Gastos del día: $'+totalGastos.toLocaleString('es-CO')+'\n\n';
-    msgPregunta+='¿Cuál fue el TOTAL DE VENTAS del T2 de Erika?\n(Escribe el valor en pesos, sin puntos ni símbolos.\nEj: 350000)';
-    var inputStr=prompt(msgPregunta, String(totalVentasDetectado||0));
-    if(inputStr===null){div.innerHTML+= '\n\n❌ Operación cancelada.';return;}
-    var totalVentas=parseInt((inputStr||'0').replace(/\D/g,''),10)||0;
-    if(isNaN(totalVentas)||totalVentas<0){toast('Valor inválido','#e94560');return;}
-    // Medios de pago: usar proporción de lo detectado o asumir todo efectivo si no hay datos T2
-    var ventasEfe,ventasNequi,ventasTrans;
-    if(ventasT2.length>0&&totalVentasDetectado>0){
-      var ratio=totalVentas/totalVentasDetectado;
-      ventasEfe=Math.round(ventasT2.filter(function(v){return !v.pago||v.pago==='Efectivo';}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
-      ventasNequi=Math.round(ventasT2.filter(function(v){return (v.pago||'').toLowerCase().includes('nequi');}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
-      ventasTrans=Math.round(ventasT2.filter(function(v){return (v.pago||'').toLowerCase().includes('trans');}).reduce(function(s,v){return s+(v.total||0);},0)*ratio);
-      ventasEfe=totalVentas-ventasNequi-ventasTrans; // ajustar para que cuadre exacto
-    } else {
-      ventasEfe=totalVentas;ventasNequi=0;ventasTrans=0;
+    // ── turnoId T2 (si existe) ─────────────────────────────────────────
+    var t2Nov=turnosFB.find(function(t){
+      return ((t.timestampApertura||'').includes('2026-11-02')||(t.fecha||'').includes('2026-11-02'))&&(t.turno===2||String(t.turno)==='2');
+    });
+    var turnoIdT2=t2Nov?(t2Nov.turnoId||t2Nov.id||'turno_T2_2026-11-02_retro'):'turno_T2_2026-11-02_retro';
+    // ── Construir filas de ventas T2 ──────────────────────────────────
+    function fmtHora(ts){if(!ts)return'??:??';var d=new Date(ts);var h=d.getUTCHours()-5;if(h<0)h+=24;var m=d.getUTCMinutes();return(h<10?'0':'')+h+':'+(m<10?'0':'')+m;}
+    function fmtPago(v){var p=v.pago||v.metodoPago||'Efectivo';if(p.toLowerCase().includes('nequi'))return'<span style="background:#e0e7ff;color:#3730a3;padding:1px 5px;border-radius:3px;font-size:10px">Nequi</span>';if(p.toLowerCase().includes('trans'))return'<span style="background:#dcfce7;color:#15803d;padding:1px 5px;border-radius:3px;font-size:10px">Transfer</span>';return'<span style="background:#fef9c3;color:#854d0e;padding:1px 5px;border-radius:3px;font-size:10px">Efectivo</span>';}
+    function fmtItems(v){if(v.items&&v.items.length){return v.items.map(function(it){return(it.qty||it.cantidad||1)+'× '+(it.name||it.nombre||'?');}).join(', ');}return v.descripcion||v.name||'—';}
+    var filasT2='';
+    // detección de duplicados (misma hora+total)
+    var claves={};
+    ventasT2.forEach(function(v){var k=fmtHora(v.timestamp)+'_'+(v.total||0);claves[k]=(claves[k]||0)+1;});
+    ventasT2.forEach(function(v,i){
+      var hora=fmtHora(v.timestamp);
+      var k=hora+'_'+(v.total||0);
+      var dupBadge=claves[k]>1?'<span style="background:#fee2e2;color:#b91c1c;padding:1px 4px;border-radius:3px;font-size:9px;margin-left:4px">⚠️dup?</span>':'';
+      var altaBadge=(v.total||0)>50000?'<span style="background:#fef3c7;color:#92400e;padding:1px 4px;border-radius:3px;font-size:9px;margin-left:4px">⚠️alta</span>':'';
+      filasT2+='<tr style="'+(i%2===0?'background:var(--bg2,#f8f9fa)':'')+'">'
+        +'<td style="padding:4px 6px;color:var(--text2);font-variant-numeric:tabular-nums">'+hora+'</td>'
+        +'<td style="padding:4px 6px;font-size:11px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+fmtItems(v)+dupBadge+altaBadge+'</td>'
+        +'<td style="padding:4px 6px;text-align:right;font-weight:600;font-variant-numeric:tabular-nums">$'+(v.total||0).toLocaleString('es-CO')+'</td>'
+        +'<td style="padding:4px 6px">'+fmtPago(v)+'</td>'
+        +'</tr>';
+    });
+    // ── Filas de gastos ───────────────────────────────────────────────
+    var filasGastos='';
+    if(gastosNov.length){
+      gastosNov.forEach(function(g){
+        filasGastos+='<tr><td style="padding:3px 6px;font-size:11px">'+(g.concepto||g.descripcion||'Gasto')+'</td><td style="padding:3px 6px;text-align:right;color:#dc2626;font-variant-numeric:tabular-nums">−$'+(g.monto||0).toLocaleString('es-CO')+'</td></tr>';
+      });
+    }else{
+      filasGastos='<tr><td colspan="2" style="padding:3px 6px;font-size:11px;color:var(--text2)">Sin gastos registrados</td></tr>';
     }
+    // ── Banner cierre existente ───────────────────────────────────────
+    var bannerExistente='';
+    if(cierreT2Existente){
+      bannerExistente='<div style="background:#dcfce7;border:1px solid #16a34a;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px">'
+        +'<b style="color:#15803d">✅ Cierre T2 ya registrado</b><br>'
+        +'<span style="color:#166534">Usuario: '+cierreT2Existente.usuario+' · Ventas: $'+(cierreT2Existente.totalVentas||0).toLocaleString('es-CO')+'</span><br>'
+        +'<span style="color:#166534;font-size:11px">ID: '+(cierreT2Existente.id||'')+'</span>'
+        +'</div>';
+    }
+    // ── Formulario de registro ─────────────────────────────────────────
+    var disabledAttr=cierreT2Existente?'disabled':'';
+    var btnRegistrar=cierreT2Existente
+      ?'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:8px 12px;font-size:12px;color:#166534">✅ El cierre ya fue registrado. Si necesitas corregirlo, elimínalo primero desde Firebase.</div>'
+      :'<button class="btn btn-acc" onclick="confirmarCierreNov2Unificado('+totalGastos+',\''+turnoIdT2+'\','+ventasT2.length+')" style="width:100%;font-size:13px;font-weight:700;padding:8px;background:#7c3aed;border-color:#7c3aed;color:#fff">✅ Registrar cierre T2 — Erika — 02/11/2026</button>';
+    // ── HTML COMPLETO DEL PANEL ───────────────────────────────────────
+    div.innerHTML='<div style="font-size:12px;max-width:600px">'
+      // Título
+      +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+      +'<div><b style="font-size:14px;color:#5b21b6">📋 Revisión Cierre T2 — Erika</b><br><span style="font-size:11px;color:var(--text2)">Lunes festivo 02/11/2026</span></div>'
+      +'<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'fondo-diagnostico\').style.display=\'none\'" style="font-size:11px">✕ Cerrar</button>'
+      +'</div>'
+      +bannerExistente
+      // ── VENTAS T2 ──
+      +'<div style="font-weight:700;font-size:12px;color:#9d174d;margin-bottom:4px">🕛 VENTAS T2 — TARDE (desde 12:00) — '+ventasT2.length+' ventas</div>'
+      +'<div style="border:1px solid #e5e7eb;border-radius:6px;overflow:hidden;margin-bottom:10px">'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +'<thead><tr style="background:#f3f4f6"><th style="padding:5px 6px;text-align:left;font-weight:600">Hora</th><th style="padding:5px 6px;text-align:left;font-weight:600">Productos</th><th style="padding:5px 6px;text-align:right;font-weight:600">Valor</th><th style="padding:5px 6px;font-weight:600">Medio</th></tr></thead>'
+      +'<tbody>'+filasT2+'</tbody>'
+      +'<tfoot><tr style="background:#fdf4ff;border-top:2px solid #e879f9">'
+      +'<td colspan="2" style="padding:5px 8px;font-weight:700;color:#7e22ce">Total T2</td>'
+      +'<td style="padding:5px 8px;font-weight:700;color:#7e22ce;text-align:right;font-variant-numeric:tabular-nums">$'+totalT2.toLocaleString('es-CO')+'</td>'
+      +'<td style="padding:5px 8px;font-size:10px;color:#9d174d">'+ventasT2.length+' ventas</td>'
+      +'</tr></tfoot>'
+      +'</table></div>'
+      // ── DESGLOSE MEDIO DE PAGO T2 ──
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:10px">'
+      +'<div style="background:#fef9c3;border:1px solid #fde047;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#854d0e;font-weight:600">Efectivo T2</div><div style="font-size:14px;font-weight:700;color:#78350f">$'+efeT2.toLocaleString('es-CO')+'</div></div>'
+      +'<div style="background:#e0e7ff;border:1px solid #a5b4fc;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#3730a3;font-weight:600">Nequi T2</div><div style="font-size:14px;font-weight:700;color:#1e1b4b">$'+nequiT2.toLocaleString('es-CO')+'</div></div>'
+      +'<div style="background:#dcfce7;border:1px solid #86efac;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#15803d;font-weight:600">Transfer T2</div><div style="font-size:14px;font-weight:700;color:#14532d">$'+transT2.toLocaleString('es-CO')+'</div></div>'
+      +'</div>'
+      // ── GASTOS DEL DÍA ──
+      +'<div style="font-weight:700;font-size:12px;color:#dc2626;margin-bottom:4px">💸 GASTOS DEL DÍA</div>'
+      +'<div style="border:1px solid #fecaca;border-radius:6px;overflow:hidden;margin-bottom:10px">'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11px">'
+      +'<tbody>'+filasGastos+'</tbody>'
+      +'<tfoot><tr style="background:#fff1f2;border-top:1px solid #fecaca"><td style="padding:5px 8px;font-weight:700;color:#dc2626">Total gastos</td><td style="padding:5px 8px;text-align:right;font-weight:700;color:#dc2626;font-variant-numeric:tabular-nums">−$'+totalGastos.toLocaleString('es-CO')+'</td></tr></tfoot>'
+      +'</table></div>'
+      // ── COMPARATIVO DÍA ──
+      +'<div style="font-weight:700;font-size:12px;margin-bottom:4px">📊 COMPARATIVO DEL DÍA</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:12px">'
+      +'<div style="background:#f0f9ff;border:1px solid #bae6fd;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#0369a1;font-weight:600">T1 Mañana</div><div style="font-size:13px;font-weight:700;color:#0c4a6e">$'+totalT1.toLocaleString('es-CO')+'</div><div style="font-size:10px;color:#0369a1">'+ventasT1.length+' ventas</div></div>'
+      +'<div style="background:#fdf4ff;border:1px solid #d8b4fe;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#7e22ce;font-weight:600">T2 Tarde — Erika</div><div style="font-size:13px;font-weight:700;color:#581c87">$'+totalT2.toLocaleString('es-CO')+'</div><div style="font-size:10px;color:#7e22ce">'+ventasT2.length+' ventas</div></div>'
+      +'<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:7px 10px;text-align:center"><div style="font-size:10px;color:#15803d;font-weight:600">Total día</div><div style="font-size:13px;font-weight:700;color:#14532d">$'+totalDia.toLocaleString('es-CO')+'</div><div style="font-size:10px;color:#15803d">'+ventasDia.length+' ventas</div></div>'
+      +'</div>'
+      // ── FORMULARIO CIERRE ──
+      +'<div style="border:2px solid #7c3aed;border-radius:8px;padding:12px;background:#fdf4ff">'
+      +'<div style="font-weight:700;font-size:12px;color:#5b21b6;margin-bottom:10px">📝 DATOS DEL CIERRE T2 — ERIKA</div>'
+      +'<div style="color:#6b7280;font-size:11px;margin-bottom:8px">Verifica o ajusta los valores antes de registrar. Efectivo + Nequi + Transfer debe = Total.</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+      +'<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:2px">Total ventas T2 ($)</label>'
+      +'<input id="nov2-total" type="number" class="finput" value="'+totalT2+'" min="0" '+disabledAttr+' oninput="recalcNov2Suma()" style="width:100%;font-size:13px;font-weight:700"></div>'
+      +'<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:2px">Efectivo ($)</label>'
+      +'<input id="nov2-efe" type="number" class="finput" value="'+efeT2+'" min="0" '+disabledAttr+' oninput="recalcNov2Suma()" style="width:100%"></div>'
+      +'<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:2px">Nequi/Daviplata ($)</label>'
+      +'<input id="nov2-nequi" type="number" class="finput" value="'+nequiT2+'" min="0" '+disabledAttr+' oninput="recalcNov2Suma()" style="width:100%"></div>'
+      +'<div><label style="font-size:11px;font-weight:600;display:block;margin-bottom:2px">Transferencia ($)</label>'
+      +'<input id="nov2-trans" type="number" class="finput" value="'+transT2+'" min="0" '+disabledAttr+' oninput="recalcNov2Suma()" style="width:100%"></div>'
+      +'</div>'
+      +'<div id="nov2-suma-check" style="font-size:11px;margin-bottom:10px;padding:6px 10px;border-radius:5px;background:#f0fdf4;color:#15803d">✅ Suma de medios de pago: $'+totalT2.toLocaleString('es-CO')+' = Total ✓</div>'
+      +btnRegistrar
+      +'</div>'
+      // Nota sobre turnoId
+      +'<div style="margin-top:8px;font-size:10px;color:var(--text2);font-style:italic">⚙️ Los turnos del 02/11/2026 no se registraron en Firestore. La separación T1/T2 se realiza por hora (corte a las 12:00). turnoIdT2 asignado: '+turnoIdT2+'</div>'
+      +'</div>';
+  }catch(e){div.innerHTML='<div style="color:#e94560;padding:12px;font-size:12px">❌ Error: '+e.message+'<br><br><button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'fondo-diagnostico\').style.display=\'none\'">Cerrar</button></div>';}
+}
+
+function recalcNov2Suma(){
+  var total=parseInt((document.getElementById('nov2-total')||{}).value||'0')||0;
+  var efe=parseInt((document.getElementById('nov2-efe')||{}).value||'0')||0;
+  var nequi=parseInt((document.getElementById('nov2-nequi')||{}).value||'0')||0;
+  var trans=parseInt((document.getElementById('nov2-trans')||{}).value||'0')||0;
+  var suma=efe+nequi+trans;
+  var el=document.getElementById('nov2-suma-check');
+  if(!el)return;
+  if(suma===total){
+    el.style.background='#f0fdf4';el.style.color='#15803d';
+    el.textContent='✅ Suma de medios de pago: $'+suma.toLocaleString('es-CO')+' = Total ✓';
+  }else{
+    el.style.background='#fff1f2';el.style.color='#dc2626';
+    el.textContent='⚠️ Suma actual: $'+suma.toLocaleString('es-CO')+' ≠ Total $'+total.toLocaleString('es-CO')+' (diferencia: $'+(total-suma).toLocaleString('es-CO')+')';
+  }
+}
+
+function confirmarCierreNov2Unificado(totalGastos,turnoIdT2,numPedidos){
+  var total=parseInt((document.getElementById('nov2-total')||{}).value||'0')||0;
+  var efe=parseInt((document.getElementById('nov2-efe')||{}).value||'0')||0;
+  var nequi=parseInt((document.getElementById('nov2-nequi')||{}).value||'0')||0;
+  var trans=parseInt((document.getElementById('nov2-trans')||{}).value||'0')||0;
+  if(total<=0){toast('El total de ventas T2 debe ser mayor a $0','#e94560');return;}
+  if(efe+nequi+trans!==total){toast('Efectivo + Nequi + Transferencia debe sumar $'+total.toLocaleString('es-CO'),'#e94560');return;}
+  guardarCierreNov2Final(total,efe,nequi,trans,totalGastos,turnoIdT2,numPedidos);
+}
+
+async function guardarCierreNov2Final(totalVentas,ventasEfe,ventasNequi,ventasTrans,totalGastos,turnoIdT2,ventasDiaTotal){
+  var div=document.getElementById('fondo-diagnostico');
+  try{
+    var fecha='2026-11-02';
     var fondo=100000;
     var esperado=Math.max(0,fondo+ventasEfe-totalGastos);
-    var ok=confirm('CONFIRMAR CIERRE RETROACTIVO\n2 noviembre 2026 — T2 — ERIKA\n\nVentas T2: $'+totalVentas.toLocaleString('es-CO')+'\n  Efectivo: $'+ventasEfe.toLocaleString('es-CO')+'\n  Nequi: $'+ventasNequi.toLocaleString('es-CO')+'\n  Transferencia: $'+ventasTrans.toLocaleString('es-CO')+'\nGastos: $'+totalGastos.toLocaleString('es-CO')+'\nFondo base: $'+fondo.toLocaleString('es-CO')+'\nEsperado en caja: $'+esperado.toLocaleString('es-CO')+'\n\n¿Registrar?');
-    if(!ok){div.innerHTML+= '\n\n❌ Cancelado.';return;}
     var now=new Date();
+    var cierreId='ct_retro_T2_2026-11-02_'+now.getTime();
     var cierre={
-      id:'ct_retro_T2_2026-11-02_'+now.getTime(),
-      fecha:fecha,
-      horaCierre:'09:00 p. m.',
-      turno:2,
-      usuario:'Erika',
-      turnoId:turnoIdNov||('turno_T2_2026-11-02_retro'),
-      fondo:fondo,
-      totalVentas:totalVentas,
-      ventasEfectivo:ventasEfe,
-      ventasNequi:ventasNequi,
-      ventasTransferencia:ventasTrans,
-      gastos:totalGastos,
-      numPedidos:ventasDia.length,
-      esperado:esperado,
-      contado:esperado,
-      diferencia:0,
-      estado:'correcto',
-      observaciones:'Cierre registrado retroactivamente el '+now.toLocaleDateString('es-CO')+' — turno T2 del 02/11/2026 (lunes festivo) no cerrado ese día. Registrado por administrador.',
-      timestamp:'2026-11-02T21:00:00.000Z',
-      retroactivo:true
+      id:cierreId,fecha:fecha,horaCierre:'09:00 p. m.',turno:2,usuario:'Erika',
+      turnoId:turnoIdT2||'turno_T2_2026-11-02_retro',
+      fondo:fondo,totalVentas:totalVentas,
+      ventasEfectivo:ventasEfe,ventasNequi:ventasNequi,ventasTransferencia:ventasTrans,
+      gastos:totalGastos,numPedidos:ventasDiaTotal,
+      esperado:esperado,contado:esperado,diferencia:0,estado:'correcto',
+      observaciones:'Cierre registrado retroactivamente el '+now.toLocaleDateString('es-CO')+' — turno T2 del 02/11/2026 (lunes festivo) no cerrado ese día.',
+      timestamp:'2026-11-02T21:00:00.000Z',retroactivo:true
     };
-    var auditId='audit_retro_nov2_'+now.getTime();
-    await window.FB.set('auditoriaCorreccionTurnos',auditId,{
-      tipo:'cierre_retroactivo',
-      fecha:fecha,turno:2,usuario:'Erika',
+    // Guardar auditoría primero
+    await window.FB.set('auditoriaCorreccionTurnos','audit_retro_nov2_'+now.getTime(),{
+      tipo:'cierre_retroactivo',fecha:fecha,turno:2,usuario:'Erika',
       totalVentas:totalVentas,totalGastos:totalGastos,esperado:esperado,
-      motivo:'Lunes festivo 02/11/2026 — turno no cerrado ese día. Registrado retroactivamente el '+now.toLocaleDateString('es-CO'),
-      registradoPor:currentUser?currentUser.user:'admin',
-      timestamp:now.toISOString()
+      motivo:'Lunes festivo 02/11/2026 — turno T2 no cerrado ese día. Registrado retroactivamente el '+now.toLocaleDateString('es-CO'),
+      registradoPor:currentUser?currentUser.user:'admin',timestamp:now.toISOString()
     });
-    await window.FB.set('cierresTurno',cierre.id,cierre);
+    // Guardar cierre
+    await window.FB.set('cierresTurno',cierreId,cierre);
+    // Actualizar localStorage
     var lc=LS.g('cierresTurno')||[];lc.unshift(cierre);LS.set('cierresTurno',lc);
     try{renderCierres();}catch(e){}
-    div.innerHTML='✅ CIERRE T2 DEL 02/11/2026 REGISTRADO CORRECTAMENTE\n\nUsuario: Erika\nFecha: 02/11/2026\nVentas: $'+totalVentas.toLocaleString('es-CO')+'\nGastos: $'+totalGastos.toLocaleString('es-CO')+'\nEsperado: $'+esperado.toLocaleString('es-CO')+'\n\nYa puedes abrir la caja de hoy (03/11/2026).';
-  }catch(e){div.innerHTML='❌ Error: '+e.message;}
+    // Mostrar confirmación
+    div.innerHTML='<div style="max-width:500px">'
+      +'<div style="background:#f0fdf4;border:2px solid #16a34a;border-radius:10px;padding:16px;margin-bottom:12px">'
+      +'<div style="font-size:14px;font-weight:700;color:#15803d;margin-bottom:8px">✅ CIERRE T2 REGISTRADO EXITOSAMENTE</div>'
+      +'<div style="font-size:12px;line-height:1.9;color:#166534">'
+      +'<b>Usuario:</b> Erika<br>'
+      +'<b>Fecha:</b> 02/11/2026 · Turno 2 (tarde)<br>'
+      +'<b>Ventas T2:</b> $'+totalVentas.toLocaleString('es-CO')+'<br>'
+      +'&nbsp;&nbsp;• Efectivo: $'+ventasEfe.toLocaleString('es-CO')+'<br>'
+      +'&nbsp;&nbsp;• Nequi:    $'+ventasNequi.toLocaleString('es-CO')+'<br>'
+      +'&nbsp;&nbsp;• Transfer: $'+ventasTrans.toLocaleString('es-CO')+'<br>'
+      +'<b>Gastos día:</b> $'+totalGastos.toLocaleString('es-CO')+'<br>'
+      +'<b>Efectivo esperado en caja:</b> $'+esperado.toLocaleString('es-CO')+'<br>'
+      +'<b>ID cierre:</b> <span style="font-size:10px;font-family:monospace">'+cierreId+'</span>'
+      +'</div></div>'
+      +'<div style="background:#fdf4ff;border:1px solid #d8b4fe;border-radius:8px;padding:10px 14px;font-size:11px;color:#5b21b6;margin-bottom:10px">'
+      +'💡 Este cierre ya aparece en <b>Nómina</b> de Erika para el 02/11/2026. '
+      +'Puedes verificarlo en la sección Nómina filtrando por "Erika" y el período de noviembre.'
+      +'</div>'
+      +'<button class="btn btn-ghost btn-sm" onclick="document.getElementById(\'fondo-diagnostico\').style.display=\'none\'" style="font-size:12px;width:100%">Cerrar panel</button>'
+      +'</div>';
+  }catch(e){
+    var d2=document.getElementById('fondo-diagnostico');
+    if(d2)d2.innerHTML='<div style="color:#e94560;padding:12px;font-size:12px">❌ Error al guardar: '+e.message+'<br><br><button class="btn btn-ghost btn-sm" onclick="panelCierreErikaNov2()">Reintentar</button></div>';
+  }
 }
 
 async function desactivarDescuentaSandia(){
