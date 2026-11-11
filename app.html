@@ -4625,17 +4625,8 @@ function _renderDeudasTabla(deudas, tbl){
 
   var iconOrigen={compra:'🛒',fiado:'🧾',manual:'✍️'};
 
-  // Ordenar: vencidas/urgentes primero, luego recientes, pagadas al final
+  // Ordenar: más reciente primero (por timestamp de creación)
   deudas.sort(function(a,b){
-    if(a.pagada && !b.pagada) return 1;
-    if(!a.pagada && b.pagada) return -1;
-    var hoyTs=hoy.getTime();
-    var aVence=a.vence?new Date(a.vence).getTime():Infinity;
-    var bVence=b.vence?new Date(b.vence).getTime():Infinity;
-    var aUrgente=aVence<=hoyTs+7*86400000;
-    var bUrgente=bVence<=hoyTs+7*86400000;
-    if(aUrgente && !bUrgente) return -1;
-    if(!aUrgente && bUrgente) return 1;
     var aTs=a.timestamp||a.fecha||a.id||'';
     var bTs=b.timestamp||b.fecha||b.id||'';
     return bTs.localeCompare(aTs);
