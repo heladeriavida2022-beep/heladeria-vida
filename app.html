@@ -4625,6 +4625,22 @@ function _renderDeudasTabla(deudas, tbl){
 
   var iconOrigen={compra:'🛒',fiado:'🧾',manual:'✍️'};
 
+  // Ordenar: vencidas/urgentes primero, luego recientes, pagadas al final
+  deudas.sort(function(a,b){
+    if(a.pagada && !b.pagada) return 1;
+    if(!a.pagada && b.pagada) return -1;
+    var hoyTs=hoy.getTime();
+    var aVence=a.vence?new Date(a.vence).getTime():Infinity;
+    var bVence=b.vence?new Date(b.vence).getTime():Infinity;
+    var aUrgente=aVence<=hoyTs+7*86400000;
+    var bUrgente=bVence<=hoyTs+7*86400000;
+    if(aUrgente && !bUrgente) return -1;
+    if(!aUrgente && bUrgente) return 1;
+    var aTs=a.timestamp||a.fecha||a.id||'';
+    var bTs=b.timestamp||b.fecha||b.id||'';
+    return bTs.localeCompare(aTs);
+  });
+
   tbl2.innerHTML=deudas.map(d=>{
     var esFiado=d.tipo==='cobrar'||d.origen==='fiado';
     var estado='En plazo';var cls='bb';
@@ -11323,6 +11339,51 @@ function confirmarCierreTurno(){
         setTimeout(function(){window.FB.set('fondoAdmin',movFondo.id,movFondo).catch(function(){});},3000);
       });
     }catch(e){}
+  }
+
+  // FASE 2: Separación automática para Costos Fijos (proporcional a ventas del turno)
+  if(totalVentas > 0){
+    (async function(){
+      try{
+        var cfTodos = await window.FB.getAll('costosFijos');
+        var cfActivos = (cfTodos||[]).filter(function(c){return c.estado!=='inactivo';});
+        if(cfActivos.length === 0) return;
+        var cfConfigs = await window.FB.getAll('costosFijosConfig');
+        var cfConfig = (cfConfigs&&cfConfigs.length>0)?cfConfigs[0]:{metaVentas:15000000};
+        var metaVentas = Number(cfConfig.metaVentas)||15000000;
+        var totalCostosMes = cfActivos.reduce(function(s,c){return s+(Number(c.valorMensual)||0);},0);
+        if(totalCostosMes<=0||metaVentas<=0) return;
+        var pctSeparacion = totalCostosMes / metaVentas;
+        var montoTotalSeparado = Math.round(totalVentas * pctSeparacion);
+        var nowIso = now.toISOString();
+        var fechaStr = getFechaHoy();
+        var promises = [];
+        cfActivos.forEach(function(c){
+          var propCosto = Number(c.valorMensual) / totalCostosMes;
+          var montoEste = Math.round(montoTotalSeparado * propCosto);
+          if(montoEste <= 0) return;
+          var reg = {
+            id: 'cfr_'+Date.now()+'_'+c.id,
+            costoFijoId: c.id,
+            costoNombre: c.nombre||'',
+            valor: montoEste,
+            fecha: fechaStr,
+            timestamp: nowIso,
+            turno: turno,
+            cierreId: cierre.id,
+            totalVentasTurno: totalVentas,
+            pctSeparacion: Math.round(pctSeparacion*1000)/10,
+            origen: 'cierre_turno',
+            usuario: currentUser ? currentUser.name : '—'
+          };
+          promises.push(window.FB.set('costosFijosRegistros', reg.id, reg));
+        });
+        await Promise.all(promises);
+        console.log('[CostosFijos] Separación automática registrada — turno '+turno+': '+fmt(montoTotalSeparado));
+      }catch(e){
+        console.warn('[CostosFijos] Error en separación automática:', e);
+      }
+    })();
   }
 
   // Marcar turno activo como cerrado en Firebase
